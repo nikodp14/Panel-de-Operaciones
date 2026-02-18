@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Validar Publicaciones</title>
+  <!-- CSS centralizado -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- Topbar del sistema (un solo título global) -->
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar intacto -->
+    <nav class="sidebar">
+      <ul>
+        <li class="menu-title">MercadoLibre</li>
+        <li><a href="/validar/validar.html" class="active">Validar Publicaciones</a></li>
+        <li class="menu-title">Inventario Odoo</li>
+        <li><a href="/odoo/variantes.html">Cargar Variantes Odoo</a></li>
+      </ul>
+    </nav>
+
+    <!-- Contenido -->
+    <main class="content">
+      <div class="container">
+
+        <!-- Instrucciones -->
+        <div class="card">
+          <h2>Descargar Publicaciones ML</h2>
+          <ol>
+            <li>Ingrese a <strong>PUBLICACIONES</strong>.</li>
+            <li>Modificar desde Excel → <strong>Condiciones Generales</strong>.</li>
+            <li>Descarga la planilla de Excel.</li>
+            <li>Seleccione Publicaciones que quieres incluir en la planilla</li>
+            <li>Seleccione en Categorías -> <strong>Todas</strong>.</li>
+            <li>Haga click en <strong>Descargar</strong> al final de la página.</li>
+          </ol>
+        </div>
+
+        <!-- Carga y acción -->
+        <div class="card">
+          <div class="field">
+            <label for="mlFile">PUBLICACIONES ML.xlsx</label>
+            <input type="file" id="mlFile" accept=".xlsx,.xls" />
+          </div>
+
+          <p id="odooInfo" class="status">
+            Variantes Odoo: cargando información...
+          </p>
+
+          <button id="analyzeBtn" class="primary-btn" disabled>
+            Analizar observaciones
+          </button>
+
+          <div id="actionCounters" class="action-counters hidden"></div>
+          <p id="status" class="status"></p>
+        </div>
+
+        <!-- Resumen -->
+        <section id="summary" class="card hidden"></section>
+
+        <!-- Resultados -->
+        <section id="results" class="card hidden">
+          <h2>Observaciones</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Publicación</th>
+                  <th>Nombre publicación ML</th>
+                  <th>Variante ML</th>
+                  <th>Stock ML actual</th>
+                  <th>Stock Odoo</th>
+                  <th>Stock sugerido ML</th>
+                  <th>Acción</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/validar/script.js"></script>
+  <script src="/layout.js"></script>
+</body>
+</html>

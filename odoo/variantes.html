@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cargar Variantes Odoo</title>
+  <!-- CSS centralizado -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+</head>
+<body>
+  <!-- Topbar del sistema -->
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar intacto -->
+    <nav class="sidebar">
+      <ul>
+        <li class="menu-title">MercadoLibre</li>
+        <li><a href="/validar/validar.html">Validar Publicaciones</a></li>
+        <li class="menu-title">Inventario Odoo</li>
+        <li><a href="/odoo/variantes.html" class="active">Cargar Variantes Odoo</a></li>
+      </ul>
+    </nav>
+
+    <!-- Contenido -->
+    <main class="content">
+      <div class="container">
+
+        <!-- Instrucciones -->
+        <div class="card">
+          <h2>Descargar Variantes Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+
+        <!-- Carga -->
+        <div class="card">
+          <h2>Cargar archivo de stock</h2>
+
+          <div class="field">
+            <label for="fileInput">Archivo de Variantes Odoo (.xlsx)</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+          </div>
+
+          <button id="btnSubir" class="primary-btn">Subir archivo</button>
+          <p id="estado" class="status"></p>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    document.getElementById("btnSubir").addEventListener("click", async () => {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) {
+        alert("Selecciona un archivo primero");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("archivo", file);
+
+      const res = await fetch("/api/odoo/variantes", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      document.getElementById("estado").innerText = data.message || "Archivo cargado correctamente ✔";
+    });
+  </script>
+  <script src="/layout.js"></script>
+</body>
+</html>

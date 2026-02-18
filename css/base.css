@@ -1,0 +1,152 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fb;
+  color: #1d2330;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e3e8f3;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  box-shadow: 0 5px 14px rgba(14, 35, 80, 0.06);
+}
+
+.field {
+  margin-bottom: 0.75rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+input[type="file"],
+input[type="text"],
+select {
+  width: 100%;
+}
+
+.primary-btn,
+button {
+  background: #0055ff;
+  color: #fff;
+  border: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #9bb8ff;
+  cursor: not-allowed;
+}
+
+.primary-btn:hover,
+button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.primary-btn:active,
+button:active {
+  transform: translateY(1px);
+}
+
+.hidden {
+  display: none;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #edf1fa;
+  padding: 0.5rem;
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+/* =========================
+   Estilos de píldoras (Validador)
+========================= */
+
+.action-counters {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.action-counters .pill {
+  background: #f1f4ff;
+  border: 1px solid #e3e8f3;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.action-counters .pill:hover {
+  background: #e9eeff;
+}
+
+.action-counters .pill.active {
+  background: #0055ff;
+  color: #fff;
+  border-color: #0055ff;
+}
+
+/* Colores base para acciones */
+.action-SUBIR,
+.action-BAJAR {
+  color: #c62828;           /* rojo */
+  font-weight: 700;
+}
+
+.action-OK {
+  color: #4a5568;
+  font-weight: 600;
+}
+
+/* Cuando el filtro activo es SUBIR o BAJAR, resaltar filas */
+.filter-SUBIR .action-SUBIR,
+.filter-BAJAR .action-BAJAR {
+  color: #b71c1c;           /* rojo más intenso */
+  text-shadow: 0 0 0.5px rgba(183, 28, 28, 0.4);
+}
+
+/* Badge rojo suave para las píldoras SUBIR/BAJAR */
+.pill[data-filter="SUBIR"],
+.pill[data-filter="BAJAR"] {
+  border-color: #ef9a9a;
+}
+
+.pill.active[data-filter="SUBIR"],
+.pill.active[data-filter="BAJAR"] {
+  background: #c62828;
+  color: #fff;
+  border-color: #b71c1c;
+}

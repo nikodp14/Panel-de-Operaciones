@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <title>Panel de Herramientas</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="menu.css" />
+  <!-- CSS centralizado -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
     <h1>Panel de Operaciones</h1>
   </header>
 
@@ -16,7 +19,12 @@
       <ul>
         <li class="menu-title">MercadoLibre</li>
         <li>
-          <a href="/ml/validar.html">Validar Publicaciones</a>
+          <a href="/validar/validar.html">Validar Publicaciones</a>
+        </li>
+
+        <li class="menu-title">Inventario Odoo</li>
+        <li>
+          <a href="/odoo/variantes.html">Cargar Variantes Odoo</a>
         </li>
       </ul>
     </nav>
@@ -28,5 +36,6 @@
       </div>
     </main>
   </div>
+  <script src="/layout.js"></script>
 </body>
 </html>
