@@ -3,13 +3,11 @@ import path from "path";
 import multer from "multer";
 import fs from "fs";
 import { fileURLToPath } from "url";
-
 const app = express();
 
 // __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 // Carpeta data
 const UPLOAD_DIR = path.join(__dirname, "data");
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -17,6 +15,31 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 }
 
 const upload = multer({ dest: UPLOAD_DIR });
+
+// ...
+
+function renderWithSidebar(res, filePath) {
+  const html = fs.readFileSync(filePath, "utf-8");
+  const sidebar = fs.readFileSync(path.join(__dirname, "partials", "sidebar.html"), "utf-8");
+  const out = html.replace('<div id="__SIDEBAR__"></div>', sidebar);
+  res.send(out);
+}
+
+app.get("/", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "index.html"));
+});
+
+app.get("/validar/validar.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "validar", "validar.html"));
+});
+
+app.get("/ventas/validar-ventas.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas.html"));
+});
+
+app.get("/odoo/variantes.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "odoo", "variantes.html"));
+});
 
 // Archivos estáticos
 app.use(express.static(__dirname));
@@ -81,7 +104,7 @@ app.post("/api/odoo/variantes", upload.single("archivo"), (req, res) => {
 ============================ */
 
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  renderWithSidebar(res, path.join(__dirname, "index.html"));
 });
 
 app.listen(3000, () => {

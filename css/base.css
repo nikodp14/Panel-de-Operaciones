@@ -150,3 +150,7 @@ td {
   color: #fff;
   border-color: #b71c1c;
 }
+
+.filter-REGISTRAR_VENTA .action-REGISTRAR_VENTA { font-weight: 800; }
+.filter-ENTREGAR .action-ENTREGAR { color: #0b5ed7; font-weight: 800; }
+.filter-DEVOLVER .action-DEVOLVER { color: #c62828; font-weight: 800; }

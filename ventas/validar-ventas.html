@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Validar Ventas Registradas</title>
+
+  <!-- MISMO ORDEN que el resto del sistema -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+   <div id="__SIDEBAR__"></div>
+
+    <main class="content">
+      <div class="container">
+        <div class="card">
+          <h2>Descargar Excel Ventas ML</h2>
+          <p>
+             <li>1. Ingresar Menú <strong>Ventas</strong>.</li>
+             <li>2. Quitar fitro de envíos de Hoy.</li>
+             <li>3. Descargar Excel de Ventas.</li>
+          </p>
+
+          <h2>Descargar Excel Ventas Odoo</h2>
+          <p>
+            <li>1. Ingresar Menú <strong>Ventas</strong>.</li>
+            <li>2. Seleccionar Checks.</li>
+            <li>3. Seleccionar botón Seleccionar Todos.</li>
+            <li>4. >En el engranaje <strong>Acciones → Exportar → Plantilla → Cargar Venta ML</strong>.</li>
+            <li>5. Haga clic en <strong>Exportar</strong>.</li>
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Cargar archivos</h2>
+
+          <div class="field">
+            <label>VENTAS ML.xlsx</label>
+            <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
+          </div>
+
+          <div class="field">
+            <label>VENTAS ODOO.xlsx</label>
+            <input type="file" id="odooVentasFile" accept=".xlsx,.xls" />
+          </div>
+
+          <button id="analyzeVentasBtn" class="primary-btn" disabled>Validar ventas no registradas</button>
+          <p id="statusVentas" class="status"></p>
+        </div>
+
+        <div id="actionCounters" class="action-counters hidden"></div>
+
+        <section id="ventasResults" class="card hidden">
+          <h2>Ventas ML no registradas en Odoo (desde 17-02-2026)</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th># Venta ML</th>
+                  <th>Fecha de venta</th>
+                  <th>Estado ML</th>
+                  <th>Precio</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
+              <tbody id="ventasResultsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/layout.js"></script>
+  <script src="/ventas/validar-ventas.js"></script>
+</body>
+</html>
