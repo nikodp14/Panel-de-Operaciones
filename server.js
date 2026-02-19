@@ -10,11 +10,108 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Carpeta data
 const UPLOAD_DIR = path.join(__dirname, "data");
+const upload = multer({ dest: UPLOAD_DIR });
+// ============================
+// Ventas ML (persistente para Validar Ventas)
+// ============================
+
+app.get("/api/ml/ventas/info", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "ventas_ml_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Ventas ML cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  res.json(meta);
+});
+
+app.get("/api/ml/ventas/ultimo", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "ventas_ml_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Ventas ML cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const filePath = path.join(UPLOAD_DIR, meta.file);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Archivo no encontrado en disco" });
+  }
+  res.sendFile(filePath);
+});
+
+app.post("/api/ml/ventas", upload.single("archivo"), (req, res) => {
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, "0");
+  const ts =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+  const finalName = `ventas_ml_${ts}.xlsx`;
+  const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = { file: finalName, uploadedAt: now.toISOString() };
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "ventas_ml_meta.json"),
+    JSON.stringify(meta, null, 2)
+  );
+
+  res.json({ message: "Ventas ML cargadas correctamente", ...meta });
+});
+
+
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
 }
 
-const upload = multer({ dest: UPLOAD_DIR });
+// ============================
+// Ventas Odoo (persistente)
+// ============================
+app.get("/odoo/ventas-odoo.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "odoo", "ventas-odoo.html"));
+});
+
+app.get("/api/odoo/ventas/info", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "ventas_odoo_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Ventas Odoo cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  res.json(meta);
+});
+
+app.get("/api/odoo/ventas/ultimo", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "ventas_odoo_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Ventas Odoo cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const filePath = path.join(UPLOAD_DIR, meta.file);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Archivo no encontrado en disco" });
+  }
+  res.sendFile(filePath);
+});
+
+app.post("/api/odoo/ventas", upload.single("archivo"), (req, res) => {
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, "0");
+  const ts =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+  const finalName = `ventas_odoo_${ts}.xlsx`;
+  const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = { file: finalName, uploadedAt: now.toISOString() };
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "ventas_odoo_meta.json"),
+    JSON.stringify(meta, null, 2)
+  );
+
+  res.json({ message: "Ventas Odoo cargadas correctamente", ...meta });
+});
 
 // ...
 

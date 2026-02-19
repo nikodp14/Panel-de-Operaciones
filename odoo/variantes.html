@@ -35,7 +35,7 @@
 
         <!-- Carga -->
         <div class="card">
-          <h2>Cargar archivo de stock</h2>
+          <h2>Cargar archivo de variantes</h2>
 
           <div class="field">
             <label for="fileInput">Archivo de Variantes Odoo (.xlsx)</label>
@@ -44,6 +44,7 @@
 
           <button id="btnSubir" class="primary-btn">Subir archivo</button>
           <p id="estado" class="status"></p>
+          <p id="variantesInfo" class="muted"></p>
         </div>
 
       </div>
@@ -51,6 +52,20 @@
   </div>
 
   <script>
+    const estadoEl = document.getElementById("estado");
+    const infoEl = document.getElementById("variantesInfo");
+
+    async function loadVariantesInfo() {
+      try {
+        const res = await fetch("/api/odoo/variantes/info");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        infoEl.innerText = `Última carga: ${new Date(data.uploadedAt).toLocaleString('es-CL')}`;
+      } catch {
+        infoEl.innerText = "Aún no se ha cargado ningún archivo de stock Odoo.";
+      }
+    }
+
     document.getElementById("btnSubir").addEventListener("click", async () => {
       const file = document.getElementById("fileInput").files[0];
       if (!file) {
@@ -61,14 +76,22 @@
       const formData = new FormData();
       formData.append("archivo", file);
 
+      estadoEl.innerText = "Subiendo archivo...";
+
       const res = await fetch("/api/odoo/variantes", {
         method: "POST",
         body: formData
       });
 
       const data = await res.json();
-      document.getElementById("estado").innerText = data.message || "Archivo cargado correctamente ✔";
+      estadoEl.innerText = data.message || "Archivo cargado correctamente ✔";
+
+      // 👉 Actualiza la info de última carga
+      loadVariantesInfo();
     });
+
+    // 👉 Al abrir la página, mostrar última carga si existe
+    loadVariantesInfo();
   </script>
   <script src="/layout.js"></script>
 </body>

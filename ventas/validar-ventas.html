@@ -23,36 +23,35 @@
       <div class="container">
         <div class="card">
           <h2>Descargar Excel Ventas ML</h2>
-          <p>
+          <ol>
              <li>1. Ingresar Menú <strong>Ventas</strong>.</li>
              <li>2. Quitar fitro de envíos de Hoy.</li>
              <li>3. Descargar Excel de Ventas.</li>
-          </p>
+          </ol>
 
           <h2>Descargar Excel Ventas Odoo</h2>
-          <p>
+          <ol>
             <li>1. Ingresar Menú <strong>Ventas</strong>.</li>
             <li>2. Seleccionar Checks.</li>
             <li>3. Seleccionar botón Seleccionar Todos.</li>
             <li>4. >En el engranaje <strong>Acciones → Exportar → Plantilla → Cargar Venta ML</strong>.</li>
             <li>5. Haga clic en <strong>Exportar</strong>.</li>
-          </p>
+          </ol>
         </div>
 
         <div class="card">
           <h2>Cargar archivos</h2>
 
           <div class="field">
-            <label>VENTAS ML.xlsx</label>
+            <label>Archivo Ventas ML</label>
             <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
           </div>
+          <button id="uploadMlVentasBtn" class="primary-btn" disabled>Cargar Nuevo Ventas ML</button>
+          <p id="mlVentasInfo" class="muted"></p>
 
-          <div class="field">
-            <label>VENTAS ODOO.xlsx</label>
-            <input type="file" id="odooVentasFile" accept=".xlsx,.xls" />
-          </div>
+          <p id="odooVentasInfo" class="muted"></p>
 
-          <button id="analyzeVentasBtn" class="primary-btn" disabled>Validar ventas no registradas</button>
+          <button id="analyzeVentasBtn" class="primary-btn" disabled>Validar ventas</button>
           <p id="statusVentas" class="status"></p>
         </div>
 

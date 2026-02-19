@@ -722,6 +722,6 @@ function renderObservations(observations) {
 
     const info = await res.json();
     document.getElementById('odooInfo').innerText =
-      `Variantes Odoo cargadas el: ${new Date(info.uploadedAt).toLocaleString()}`;
+      `Utilizando Variantes Odoo el: ${new Date(info.uploadedAt).toLocaleString()}`;
   } catch {}
 })();
