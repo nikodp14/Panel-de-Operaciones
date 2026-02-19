@@ -11,6 +11,39 @@ const __dirname = path.dirname(__filename);
 // Carpeta data
 const UPLOAD_DIR = path.join(__dirname, "data");
 const upload = multer({ dest: UPLOAD_DIR });
+
+// ============================
+// Persistencia de códigos por Venta ML
+// ============================
+
+const CODIGOS_ML_PATH = path.join(UPLOAD_DIR, "ventas_ml_codigos.json");
+
+app.get("/api/ml/ventas/codigos", (req, res) => {
+  if (!fs.existsSync(CODIGOS_ML_PATH)) {
+    return res.json({});
+  }
+  const data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
+  res.json(data);
+});
+
+app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
+  const { ventaML, codigo } = req.body;
+  if (!ventaML) return res.status(400).json({ error: "ventaML requerida" });
+
+  let data = {};
+  if (fs.existsSync(CODIGOS_ML_PATH)) {
+    data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
+  }
+
+  data[ventaML] = {
+    codigo: codigo || "",
+    updatedAt: new Date().toISOString()
+  };
+
+  fs.writeFileSync(CODIGOS_ML_PATH, JSON.stringify(data, null, 2));
+  res.json({ ok: true });
+});
+
 // ============================
 // Ventas ML (persistente para Validar Ventas)
 // ============================
@@ -201,6 +234,9 @@ app.post("/api/odoo/variantes", upload.single("archivo"), (req, res) => {
 ============================ */
 
 app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "API endpoint no encontrado" });
+  }
   renderWithSidebar(res, path.join(__dirname, "index.html"));
 });
 

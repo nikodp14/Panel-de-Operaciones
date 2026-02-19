@@ -154,3 +154,54 @@ td {
 .filter-REGISTRAR_VENTA .action-REGISTRAR_VENTA { font-weight: 800; }
 .filter-ENTREGAR .action-ENTREGAR { color: #0b5ed7; font-weight: 800; }
 .filter-DEVOLVER .action-DEVOLVER { color: #c62828; font-weight: 800; }
+
+.titulo-pub {
+  font-size: 12px;
+  color: #334155;
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.variante-pub {
+  font-size: 12px;
+  color: #0f766e;
+  background: #ecfeff;
+  border: 1px solid #67e8f9;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.producto-despachar input.codigo-input {
+  margin-top: 4px;
+}
+
+.pubml-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;   /* fondo suave */
+  color: #000;          /* 👉 negro */
+  border: 1px solid #cbd5e1;
+  font-weight: 600;     /* opcional: un poco más de peso */
+  white-space: nowrap;
+}
+
+.producto-despachar {
+  display: flex;
+  flex-direction: column;   /* 👈 CLAVE: evita que se aplaste */
+  gap: 4px;
+}
+
+.producto-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;         /* 👈 para títulos largos */
+}
+
+.producto-despachar .codigo-input {
+  margin-top: 4px;
+  max-width: 320px;        /* opcional */
+}

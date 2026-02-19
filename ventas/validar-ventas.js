@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     statusEl.textContent = 'Subiendo Ventas ML...';
 
     const res = await fetch('/api/ml/ventas', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('No hay Ventas ML cargadas aún');
     const json = await res.json();
 
     statusEl.textContent = json.message || 'Ventas ML cargadas';
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadOdooInfo() {
     try {
       const res = await fetch('/api/odoo/ventas/info');
+      if (!res.ok) throw new Error('No hay Ventas ML cargadas aún');
       const json = await res.json();
       odooVentasInfo.textContent =
         `Usando Ventas Odoo cargadas el: ${new Date(json.uploadedAt).toLocaleString('es-CL')}`;
@@ -176,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rows = resultsBody.querySelectorAll('tr');
 
     rows.forEach(tr => {
-      const obsCell = tr.querySelector('td:last-child');
+      const obsCell = tr.querySelector('.obs-cell');
       if (!obsCell) return;
 
       const obs = obsCell.textContent.trim();
@@ -221,6 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function runValidacionVentas() {
+    const codigosRes = await fetch('/api/ml/ventas/codigos');
+    const codigosPorVenta = await codigosRes.json();
+
     statusEl.textContent = 'Procesando archivos...';
     resultsBody.innerHTML = '';
     resultsSection.classList.add('hidden');
@@ -273,7 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       for (const r of mlData) {
-        const ventaML = normVenta(r[0]);   // Col A (# de venta)
+        const ventaML = String(r[0] || '').trim(); // Col A (# de venta)
+        const codigoPersistido = codigosPorVenta[ventaML]?.codigo || '';
         const fecha = parseDate(r[1]);     // Col B (Fecha de venta)
         const estadoML = String(r[2] || ''); // Col C (Estado ML)
 
@@ -319,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (obs) {
-          observaciones.push({ r, obs, precioMostrado });
+          observaciones.push({ r, obs, precioMostrado, codigoPersistido });
         }
       }
 
@@ -329,18 +335,99 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       for (const item of observaciones) {
-        const r = item.r;
+        const obs = item.obs;
+        const pubML = String(item.r[16] || '').trim(); // Col Q
+
+        const isRegistrar = obs === 'REGISTRAR VENTA';
+
         const tr = document.createElement('tr');
+        const tituloPub = String(item.r[18] || '').trim();  // Col S
+        let variante = String(item.r[19] || '').trim();    // Col T
+
+        // Normalización de variante
+        const varianteNorm = variante.toLowerCase();
+        const tituloNorm = tituloPub.toLowerCase();
+
+        const variantesIgnorar = ['original', 'aluminio', 'ambos lados'];
+
+        let mostrarVariante = variante &&
+          varianteNorm !== tituloNorm &&
+          !variantesIgnorar.includes(varianteNorm);
+
+        if (mostrarVariante) {
+          variante = variante.replace(/color:/i, '').trim();
+        }
+
+        const pubMLSinMLC = pubML.replace(/^MLC/i, '');
+
+        const mostrarInfoProducto = (item.obs === 'REGISTRAR VENTA' || item.obs === 'ENTREGAR');
 
         tr.innerHTML = `
-          <td>${r[0]}</td>
-          <td>${r[1]}</td>
-          <td>${r[2]}</td>
+          <td>${item.r[0]}</td>
+          <td>${item.r[1]}</td>
+          <td>${item.r[2]}</td>
+          <td>
+            ${mostrarInfoProducto
+              ? `
+                <div class="producto-despachar">
+                  <div class="linea-pubml">
+                    <span class="pubml-tag">${pubMLSinMLC}</span>
+                  </div>
+
+                  <div class="linea-titulo">
+                    <span class="titulo-pub">${tituloPub}</span>
+                    ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
+                  </div>
+
+                  ${item.obs === 'REGISTRAR VENTA'
+                    ? `
+                      <input
+                        type="text"
+                        class="codigo-input"
+                        placeholder="Ingrese código"
+                        data-pubml="${pubMLSinMLC}"
+                        data-venta="${String(item.r[0] || '').trim()}"
+                        value="${item.codigoPersistido || ''}"
+                      />
+                    `
+                    : ``}
+                </div>
+              `
+              : `—`}
+          </td>
+          <td>
+            ${isRegistrar
+              ? `<input type="checkbox" class="cambio-checkbox" />`
+              : `—`}
+          </td>
           <td>${item.precioMostrado.toLocaleString('es-CL')}</td>
-          <td>${item.obs}</td>
+          <td class="obs-cell">${item.obs}</td>
         `;
 
         resultsBody.appendChild(tr);
+
+        // 👉 Revalidar automáticamente al renderizar (si hay código persistido)
+        if (isRegistrar && item.codigoPersistido) {
+          const input = tr.querySelector('.codigo-input');
+          const obsCell = tr.querySelector('.obs-cell');
+          const checkbox = tr.querySelector('.cambio-checkbox');
+
+          const pubML = input.dataset.pubml;
+          const valor = item.codigoPersistido || '';
+
+          if (!(checkbox && checkbox.checked)) {
+            if (!valor.includes(pubML)) {
+              obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
+              obsCell.style.color = 'red';
+            } else {
+              obsCell.textContent = 'REGISTRAR VENTA';
+              obsCell.style.color = '';
+            }
+          } else {
+            obsCell.textContent = 'REGISTRAR VENTA';
+            obsCell.style.color = '';
+          }
+        }
       }
 
       buildPills(observaciones);
@@ -353,11 +440,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  resultsBody.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('cambio-checkbox')) return;
+
+    const checkbox = e.target;
+    const tr = checkbox.closest('tr');
+    const obsCell = tr.querySelector('.obs-cell');
+    const input = tr.querySelector('.codigo-input');
+
+    if (checkbox.checked) {
+      obsCell.textContent = 'REGISTRAR VENTA';
+      obsCell.style.color = '';
+    } else if (input) {
+      // Revalida al desmarcar
+      const pubML = input.dataset.pubml;
+      const valor = input.value || '';
+      if (!valor.includes(pubML)) {
+        obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
+        obsCell.style.color = 'red';
+      }
+    }
+  });
+
   analyzeBtn.addEventListener('click', runValidacionVentas);
 
   async function loadMlInfo() {
     try {
       const res = await fetch('/api/ml/ventas/info');
+      if (!res.ok) throw new Error('No hay Ventas ML cargadas aún');
       const json = await res.json();
       mlVentasInfo.textContent =
         `Usando Ventas ML cargadas el: ${new Date(json.uploadedAt).toLocaleString('es-CL')}`;
@@ -367,4 +477,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadMlInfo();
+
+  let saveTimeout;
+
+  resultsBody.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('codigo-input')) return;
+
+    const input = e.target;
+    const tr = input.closest('tr');
+    const obsCell = tr.querySelector('.obs-cell');
+    const checkbox = tr.querySelector('.cambio-checkbox');
+
+    const pubML = input.dataset.pubml;   // # publicación ML sin MLC
+    const ventaML = input.dataset.venta; // # venta ML
+    const valor = input.value || '';
+
+    // 1) Validación visual (si no hay cambio de producto)
+    if (!(checkbox && checkbox.checked)) {
+      if (!valor.includes(pubML)) {
+        obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
+        obsCell.style.color = 'red';
+      } else {
+        obsCell.textContent = 'REGISTRAR VENTA';
+        obsCell.style.color = '';
+      }
+    } else {
+      obsCell.textContent = 'REGISTRAR VENTA';
+      obsCell.style.color = '';
+    }
+
+    // 2) Persistencia (debounce)
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      await fetch('/api/ml/ventas/codigos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ventaML, codigo: valor })
+      });
+    }, 500);
+  });
 });
