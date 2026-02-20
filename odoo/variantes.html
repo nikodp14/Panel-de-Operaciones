@@ -6,6 +6,7 @@
   <!-- CSS centralizado -->
   <link rel="stylesheet" href="/css/menu.css" />
   <link rel="stylesheet" href="/css/base.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <!-- Topbar del sistema -->
@@ -55,6 +56,43 @@
     const estadoEl = document.getElementById("estado");
     const infoEl = document.getElementById("variantesInfo");
 
+    function validarExcelVariantesOdoo(rows) {
+      const header = (rows[0] || []).map(h => String(h || '').toLowerCase());
+
+      // Columnas típicas de VARIANTES Odoo
+      const variantesClaves = [
+        'referencia interna',
+        'código de barras',
+        'cantidad a mano',
+        'on hand',
+        'stock disponible',
+        'ubicación',
+        'activo'
+      ];
+
+      // Columnas típicas de VENTAS Odoo (para descartar)
+      const ventasClaves = [
+        'pedido',
+        'cliente',
+        'fecha del pedido',
+        'estado',
+        'total',
+        'vendedor',
+        'factura'
+      ];
+
+      const tieneVariantes = variantesClaves.some(k =>
+        header.some(h => h.includes(k))
+      );
+
+      const pareceVentas = ventasClaves.some(k =>
+        header.some(h => h.includes(k))
+      );
+
+      // Debe tener rasgos de variantes y NO parecer ventas
+      return tieneVariantes && !pareceVentas;
+    }
+
     async function loadVariantesInfo() {
       try {
         const res = await fetch("/api/odoo/variantes/info");
@@ -73,6 +111,18 @@
         return;
       }
 
+      // 🔎 Leer Excel y validar
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+
+      if (!validarExcelVariantesOdoo(rows)) {
+        estadoEl.innerText = "❌ El archivo no parece ser el export de Variantes Odoo. Revisa que descargaste el Excel correcto desde Odoo.";
+        return;
+      }
+
+      // ⬆️ Subir solo si pasa validación
       const formData = new FormData();
       formData.append("archivo", file);
 
@@ -86,7 +136,6 @@
       const data = await res.json();
       estadoEl.innerText = data.message || "Archivo cargado correctamente ✔";
 
-      // 👉 Actualiza la info de última carga
       loadVariantesInfo();
     });
 

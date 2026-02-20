@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Validar Ventas Registradas</title>
+  <title>Validar Ventas ML</title>
 
   <!-- MISMO ORDEN que el resto del sistema -->
   <link rel="stylesheet" href="/css/menu.css" />
@@ -28,15 +28,6 @@
              <li>2. Quitar fitro de envíos de Hoy.</li>
              <li>3. Descargar Excel de Ventas.</li>
           </ol>
-
-          <h2>Descargar Excel Ventas Odoo</h2>
-          <ol>
-            <li>1. Ingresar Menú <strong>Ventas</strong>.</li>
-            <li>2. Seleccionar Checks.</li>
-            <li>3. Seleccionar botón Seleccionar Todos.</li>
-            <li>4. >En el engranaje <strong>Acciones → Exportar → Plantilla → Cargar Venta ML</strong>.</li>
-            <li>5. Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
         </div>
 
         <div class="card">
@@ -46,11 +37,11 @@
             <label>Archivo Ventas ML</label>
             <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
           </div>
-          <button id="uploadMlVentasBtn" class="primary-btn" disabled>Cargar Nuevo Ventas ML</button>
           <p id="mlVentasInfo" class="muted"></p>
-
           <p id="odooVentasInfo" class="muted"></p>
-
+          <p class="muted">
+            Se utilizará el último archivo de Ventas ML cargado en el sistema.
+          </p>
           <button id="analyzeVentasBtn" class="primary-btn" disabled>Validar ventas</button>
           <p id="statusVentas" class="status"></p>
         </div>

@@ -5,32 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsSection = document.getElementById('ventasResults');
   const resultsBody = document.getElementById('ventasResultsBody');
   const odooVentasInfo = document.getElementById('odooVentasInfo');
-  const uploadMlBtn = document.getElementById('uploadMlVentasBtn');
   const mlVentasInfo = document.getElementById('mlVentasInfo');
-
-  mlInput.addEventListener('change', () => {
-    uploadMlBtn.disabled = !mlInput.files.length;
-  });
-
-  uploadMlBtn.addEventListener('click', async () => {
-    const fd = new FormData();
-    fd.append('archivo', mlInput.files[0]);
-
-    statusEl.textContent = 'Subiendo Ventas ML...';
-
-    const res = await fetch('/api/ml/ventas', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('No hay Ventas ML cargadas aún');
-    const json = await res.json();
-
-    statusEl.textContent = json.message || 'Ventas ML cargadas';
-    mlVentasInfo.textContent =
-      `Usando Ventas ML cargadas el: ${new Date(json.uploadedAt).toLocaleString('es-CL')}`;
-
-    await updateAnalyzeAvailability();
-
-    // 👉 NUEVO: ejecutar validación inmediatamente
-    await runValidacionVentas();
-  });
 
   async function loadOdooInfo() {
     try {
@@ -54,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function updateAnalyzeAvailability() {
     try {
-      const res = await fetch('/api/ml/ventas/info');
+      const res = await fetch('/api/ml/ventas/info', { cache: 'no-store' }); // 👈
       analyzeBtn.disabled = !res.ok;
     } catch {
       analyzeBtn.disabled = true;
@@ -73,6 +48,22 @@ document.addEventListener('DOMContentLoaded', () => {
         .replace(/[^\d.-]/g, '')
     );
     return isNaN(n) ? 0 : n;
+  }
+
+  function resetResultadosUI() {
+    // 🧹 Limpiar resultados anteriores
+    resultsBody.innerHTML = '';
+    resultsSection.classList.add('hidden');
+
+    // 🧹 Limpiar contadores/pills
+    const countersEl = document.getElementById('actionCounters');
+    if (countersEl) {
+      countersEl.innerHTML = '';
+      countersEl.classList.add('hidden');
+    }
+
+    // 🧹 Limpiar mensajes de estado
+    statusEl.textContent = '';
   }
 
   function calcularPrecioMostrado(totalCLP, ingresoEnvioCLP, costoEnvioCLP, estadoML) {
@@ -376,6 +367,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                   <div class="linea-titulo">
                     <span class="titulo-pub">${tituloPub}</span>
+                  </div>
+                  <div>
                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
                   </div>
 
@@ -452,27 +445,32 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'REGISTRAR VENTA';
       obsCell.style.color = '';
     } else if (input) {
-      // Revalida al desmarcar
       const pubML = input.dataset.pubml;
       const valor = input.value || '';
-      if (!valor.includes(pubML)) {
+
+      if (!valor) {
+        obsCell.textContent = 'REGISTRAR VENTA';
+        obsCell.style.color = '';
+      } else if (!valor.includes(pubML)) {
         obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
         obsCell.style.color = 'red';
+      } else {
+        obsCell.textContent = 'REGISTRAR VENTA';
+        obsCell.style.color = '';
       }
     }
   });
 
-  analyzeBtn.addEventListener('click', runValidacionVentas);
-
   async function loadMlInfo() {
     try {
-      const res = await fetch('/api/ml/ventas/info');
+      const res = await fetch('/api/ml/ventas/info', { cache: 'no-store' }); // 👈
       if (!res.ok) throw new Error('No hay Ventas ML cargadas aún');
       const json = await res.json();
       mlVentasInfo.textContent =
         `Usando Ventas ML cargadas el: ${new Date(json.uploadedAt).toLocaleString('es-CL')}`;
     } catch {
-      mlVentasInfo.textContent = 'No hay Ventas ML cargadas aún. Sube un archivo.';
+      mlVentasInfo.textContent =
+        'No hay Ventas ML cargadas aún. Ve al menú "Ventas ML" para cargar el archivo.';
     }
   }
 
@@ -494,16 +492,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1) Validación visual (si no hay cambio de producto)
     if (!(checkbox && checkbox.checked)) {
-      if (!valor.includes(pubML)) {
+      if (!valor) {
+        // 👈 Campo vacío: estado neutral (no error)
+        obsCell.textContent = 'REGISTRAR VENTA';
+        obsCell.style.color = '';
+      } else if (!valor.includes(pubML)) {
         obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
         obsCell.style.color = 'red';
       } else {
         obsCell.textContent = 'REGISTRAR VENTA';
         obsCell.style.color = '';
       }
-    } else {
-      obsCell.textContent = 'REGISTRAR VENTA';
-      obsCell.style.color = '';
     }
 
     // 2) Persistencia (debounce)
@@ -516,4 +515,80 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }, 500);
   });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      loadMlInfo();
+      updateAnalyzeAvailability();
+    }
+  });
+
+  function validarExcelVentasML(file, rows) {
+    // Heurísticas típicas del Excel de Ventas ML
+    // Ajusta estos textos a los encabezados reales de tu archivo de ML
+    const header = (rows[5] || rows[0] || []).join(' ').toLowerCase(); // tu ML parte desde fila 6
+    const tieneVenta = header.includes('venta') || header.includes('# venta') || header.includes('n° venta');
+    const tieneEstado = header.includes('estado');
+    const tieneFecha = header.includes('fecha');
+
+    // ML suele tener columnas: Venta, Fecha, Estado, Producto, Precio, Envío, etc.
+    return tieneVenta && tieneEstado && tieneFecha;
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    try {
+      resetResultadosUI();
+      // 1) Validar que el archivo seleccionado sea Ventas ML (si hay archivo)
+      if (mlInput.files.length) {
+        const file = mlInput.files[0];
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+
+        if (!validarExcelVentasML(file, rows)) {
+          statusEl.textContent = '❌ El archivo seleccionado no parece ser Ventas ML. Revisa que descargaste el Excel correcto desde MercadoLibre.';
+          return;
+        }
+
+        // 2) Subir Ventas ML (solo si pasa validación)
+        const fd = new FormData();
+        fd.append('archivo', file);
+
+        statusEl.textContent = 'Subiendo Ventas ML...';
+        const up = await fetch('/api/ml/ventas', { method: 'POST', body: fd });
+        if (!up.ok) {
+          const t = await up.text();
+          throw new Error('Error subiendo Ventas ML: ' + t);
+        }
+      }
+
+      // 3) Validar contra el último Ventas ML persistido
+      await runValidacionVentas();
+
+      // 4) Refrescar info
+      await loadMlInfo();
+      await updateAnalyzeAvailability();
+
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = e.message || 'Error al subir/validar Ventas ML';
+    }
+  });
+
+  mlInput.addEventListener('pointerdown', resetResultadosUI);
+  mlInput.addEventListener('change', resetResultadosUI);
+
+  let lastFileValue = mlInput.value;
+
+  setInterval(() => {
+    if (mlInput.value !== lastFileValue) {
+      lastFileValue = mlInput.value;
+
+      // Si quedó vacío (el usuario borró el archivo con la "x")
+      if (!mlInput.value) {
+        resetResultadosUI();
+      }
+    }
+  }, 300);
 });

@@ -10,11 +10,46 @@ let lastObservations = [];
 let activeFilter = 'ALL';
 let omitidosSetCache = null;
 
+function normalizeHeader(str) {
+  return String(str || '')
+    .normalize('NFD')                 // separa letras de acentos
+    .replace(/[\u0300-\u036f]/g, '')  // quita los acentos
+    .toLowerCase()
+    .trim();
+}
+
+function validarExcelPublicacionesML(rows) {
+  // En tu export de ML, los encabezados reales están en la fila 3 (index 2)
+  const headerRow = rows[2] || [];
+  const header = headerRow.map(h => normalizeHeader(h));
+
+  // Columnas reales típicas de Publicaciones ML
+  const clavesML = [
+    'numero de publicacion',
+    'titulo',
+    'variantes',
+    'sku',
+    'en mi deposito'
+  ];
+
+  // Columnas típicas de Ventas / Odoo para descartar
+  const clavesNoML = [
+    '# de venta',
+    'fecha de venta',
+    'total (clp)'
+  ];
+
+  const pareceML = clavesML.some(k => header.some(h => h.includes(k)));
+  const pareceVentas = clavesNoML.some(k => header.some(h => h.includes(k)));
+
+  return pareceML && !pareceVentas;
+}
+
 async function loadOmitidosFromConfig() {
   if (omitidosSetCache) return omitidosSetCache;
 
   try {
-    const res = await fetch('/validar/configuracion.xlsx', { cache: 'no-store' });
+    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
 
     const arrayBuffer = await res.arrayBuffer();
@@ -57,7 +92,7 @@ async function loadStockMlConfigFromConfig() {
   if (stockMlConfigCache) return stockMlConfigCache;
 
   try {
-    const res = await fetch('/validar/configuracion.xlsx', { cache: 'no-store' });
+    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
 
     const arrayBuffer = await res.arrayBuffer();
@@ -110,9 +145,11 @@ async function loadStockMlConfigFromConfig() {
   }
 }
 
-function updateButtonState() {
-  analyzeBtn.disabled = !(mlFileInput.files.length);
-}
+mlFileInput.addEventListener('click', () => {
+  if (mlFileInput.files.length) {
+    analyzeBtn.disabled = false;
+  }
+});
 
 function renderActionCounters(rows) {
   const counts = rows.reduce(
@@ -165,43 +202,139 @@ function applyActiveFilter() {
   if (activeFilter === 'BAJAR') resultsEl.classList.add('filter-BAJAR');
 }
 
+function updateButtonState() {
+  analyzeBtn.disabled = !mlFileInput.files.length;
+}
+
 mlFileInput.addEventListener('change', updateButtonState);
-mlFileInput.addEventListener('change', updateButtonState);
+
+async function uploadPublicacionesML(file) {
+  const fd = new FormData();
+  fd.append("archivo", file);
+
+  const res = await fetch("/api/ml/publicaciones", {
+    method: "POST",
+    body: fd,
+  });
+
+  if (!res.ok) {
+    throw new Error("No se pudo subir Publicaciones ML al servidor.");
+  }
+
+  return res.json();
+}
+
+async function fetchUltimasPublicacionesML() {
+  const infoRes = await fetch("/api/ml/publicaciones/info", { cache: "no-store" });
+  if (!infoRes.ok) {
+    return null; // 👈 no hay aún
+  }
+  const info = await infoRes.json();
+
+  const fileRes = await fetch("/api/ml/publicaciones/ultimo", { cache: "no-store" });
+  if (!fileRes.ok) {
+    throw new Error("No se pudo descargar Publicaciones ML.");
+  }
+
+  const buf = await fileRes.arrayBuffer();
+  const file = new File([buf], info.file);
+
+  return { file, info };
+}
+
+const mlInfoEl = document.getElementById("mlInfo");
 
 analyzeBtn.addEventListener('click', async () => {
   try {
     clearView();
-    statusEl.textContent = 'Cargando Variantes Odoo...';
 
-    const [{ file: odooFile, info }, mlRows, omitidosSet, stockMlConfigMap, variantesValidarSet] =
-      await Promise.all([
-        fetchUltimasVariantesOdoo(),
-        readExcelRows(mlFileInput.files[0], {
-          preferredSheetNameIncludes: 'publicaciones',
-          fallbackSheetIndex: 1,
-          headerRowIndex: 2,
-        }),
-        loadOmitidosFromConfig(),
-        loadStockMlConfigFromConfig(),
-        loadVariantesValidarFromConfig(),
-      ]);
+    if (!mlFileInput.files.length) {
+      statusEl.textContent = 'Selecciona el archivo de Publicaciones ML para continuar.';
+      return;
+    }
+
+    statusEl.textContent = 'Validando archivo de Publicaciones ML...';
+
+    // 🔎 Leer Excel para validar
+    const file = mlFileInput.files[0];
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    // 👇 Elegir la hoja correcta
+    const sheetName =
+      wb.SheetNames.find(n => normalizeHeader(n).includes('publicaciones')) ||
+      wb.SheetNames[0];
+
+    const ws = wb.Sheets[sheetName];
+
+    // 👇 Leer filas crudas para validar encabezados en la fila 3
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+
+    if (!validarExcelPublicacionesML(rows)) {
+      statusEl.textContent =
+        '❌ El archivo seleccionado no corresponde a Publicaciones de MercadoLibre. ' +
+        'Descárgalo desde MercadoLibre (Publicaciones → Modificar desde Excel → Descargar).';
+      return;
+    }
+
+    statusEl.textContent = 'Subiendo Publicaciones ML...';
+
+    // ⬆️ Subir archivo (ya validado)
+    const uploadRes = await uploadPublicacionesML(file);
+
+    statusEl.textContent = 'Cargando Variantes Odoo y Publicaciones ML...';
+
+    // ⬇️ Descargar el archivo recién subido
+    const mlFileRes = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
+    if (!mlFileRes.ok) throw new Error('No se pudo descargar Publicaciones ML recién subidas.');
+    const mlBuf = await mlFileRes.arrayBuffer();
+    const mlFilePersistido = new File([mlBuf], uploadRes.file);
+
+    const [
+      { file: odooFile, info: odooInfo },
+      omitidosSet,
+      stockMlConfigMap,
+      variantesValidarSet
+    ] = await Promise.all([
+      fetchUltimasVariantesOdoo(),
+      loadOmitidosFromConfig(),
+      loadStockMlConfigFromConfig(),
+      loadVariantesValidarFromConfig(),
+    ]);
 
     document.getElementById('odooInfo').innerText =
-      `Variantes Odoo cargadas el: ${new Date(info.uploadedAt).toLocaleString()}`;
+      `Variantes Odoo cargadas el: ${new Date(odooInfo.uploadedAt).toLocaleString()}`;
+
+    mlInfoEl.innerText =
+      `Publicaciones ML cargadas el: ${new Date(uploadRes.uploadedAt).toLocaleString()}`;
 
     statusEl.textContent = 'Procesando archivos...';
 
+    const mlRows = await readExcelRows(mlFilePersistido, {
+      preferredSheetNameIncludes: 'publicaciones',
+      fallbackSheetIndex: 1,
+      headerRowIndex: 2,
+    });
+
     const odooRows = await readExcelRows(odooFile);
 
-    const observations = buildObservations(odooRows, mlRows, omitidosSet, stockMlConfigMap, variantesValidarSet);
+    const observations = buildObservations(
+      odooRows,
+      mlRows,
+      omitidosSet,
+      stockMlConfigMap,
+      variantesValidarSet
+    );
+
     lastObservations = observations;
     activeFilter = 'ALL';
     renderObservations(observations);
     renderActionCounters(observations);
     statusEl.textContent = '';
+
   } catch (error) {
-    statusEl.textContent = `Error: ${error.message}`;
     console.error(error);
+    statusEl.textContent = `Error: ${error.message}`;
   }
 });
 
@@ -362,7 +495,7 @@ async function loadVariantesValidarFromConfig() {
   if (variantesValidarCache) return variantesValidarCache;
 
   try {
-    const res = await fetch('/validar/configuracion.xlsx', { cache: 'no-store' });
+    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
 
     const arrayBuffer = await res.arrayBuffer();
