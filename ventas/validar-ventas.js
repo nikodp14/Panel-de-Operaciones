@@ -29,10 +29,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function updateAnalyzeAvailability() {
     try {
-      const res = await fetch('/api/ml/ventas/info', { cache: 'no-store' }); // 👈
+      const hasFileSelected = mlInput.files && mlInput.files.length > 0;
+
+      // Si hay archivo seleccionado, SIEMPRE permitir validar (porque subirá)
+      if (hasFileSelected) {
+        analyzeBtn.disabled = false;
+        return;
+      }
+
+      // Si no hay archivo seleccionado, depender del último Ventas ML persistido
+      const res = await fetch('/api/ml/ventas/info', { cache: 'no-store' });
       analyzeBtn.disabled = !res.ok;
+
     } catch {
-      analyzeBtn.disabled = true;
+      analyzeBtn.disabled = false; // fallback permisivo para no bloquear al usuario
     }
   }
 
@@ -578,7 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   mlInput.addEventListener('pointerdown', resetResultadosUI);
   mlInput.addEventListener('change', resetResultadosUI);
-
+  mlInput.addEventListener('change', updateAnalyzeAvailability);
+  
   let lastFileValue = mlInput.value;
 
   setInterval(() => {
