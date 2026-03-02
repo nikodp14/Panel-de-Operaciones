@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/css/base.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/js/config-helpers.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -49,7 +50,6 @@
         <div id="actionCounters" class="action-counters hidden"></div>
 
         <section id="ventasResults" class="card hidden">
-          <h2>Ventas ML no registradas en Odoo (desde 17-02-2026)</h2>
           <div class="table-wrap">
             <table>
               <thead>
@@ -58,7 +58,11 @@
                   <th>Fecha de venta</th>
                   <th>Estado ML</th>
                   <th>Producto despachar</th>
+                  <th>Modificar</th>
                   <th>Cambio producto</th>
+                  <th>Unid. ML</th>
+                  <th>Unid. a despachar</th>
+                  <th>Unid. en Odoo</th>
                   <th>Precio</th>
                   <th>Observación</th>
                 </tr>
@@ -74,5 +78,7 @@
 
   <script src="/layout.js"></script>
   <script src="/ventas/validar-ventas.js"></script>
+
+  <div id="toast" class="toast hidden"></div>
 </body>
 </html>

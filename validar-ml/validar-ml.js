@@ -77,7 +77,7 @@ async function loadOmitidosFromConfig() {
     );
 
     omitidosSetCache = set;
-    console.log('OMITIDOS cargados:', Array.from(set));
+    //console.log('OMITIDOS cargados:', Array.from(set));
     return set;
   } catch (e) {
     console.warn('No se pudo cargar configuracion.xlsx (OMITIDOS). Se continúa sin OMITIDOS.', e);
@@ -87,69 +87,6 @@ async function loadOmitidosFromConfig() {
 }
 
 let stockMlConfigCache = null;
-
-async function loadStockMlConfigFromConfig() {
-  if (stockMlConfigCache) return stockMlConfigCache;
-
-  try {
-    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
-    if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
-
-    const arrayBuffer = await res.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-
-    const sheetName =
-      workbook.SheetNames.find((n) => normalizeHeader(n).includes('stock ml')) ||
-      workbook.SheetNames.find((n) => normalizeHeader(n).includes('stockml'));
-
-    if (!sheetName) {
-      stockMlConfigCache = new Map();
-      return stockMlConfigCache;
-    }
-
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
-
-    const map = new Map();
-
-    if (!rows.length) {
-      stockMlConfigCache = map;
-      return stockMlConfigCache;
-    }
-
-    const headers = Object.keys(rows[0] || {});
-    const pubCol = detectColumn(headers, ['numero de publicacion']);
-    const maxCol = detectColumn(headers, ['cantidad']);
-    const unitsCol = detectColumn(headers, ['unidades']);
-
-    rows.forEach((r) => {
-      const pub = normalizeMlPublication(r[pubCol] || r[Object.keys(r)[0]]);
-      const maxMl = toNumber(r[maxCol] || r[Object.keys(r)[1]]);
-      const units = toNumber(r[unitsCol] || r[Object.keys(r)[2]]);
-
-      if (pub && Number.isFinite(maxMl) && maxMl > 0) {
-        map.set(pub, {
-          maxMl,
-          units: Number.isFinite(units) && units > 0 ? units : 1, // default unidades = 1
-        });
-      }
-    });
-
-    stockMlConfigCache = map;
-    console.log('STOCK ML config cargado:', Array.from(map.entries()));
-    return stockMlConfigCache;
-  } catch (e) {
-    console.warn('No se pudo cargar STOCK ML desde configuracion.xlsx. Se usará máximo 2 y unidades=1.', e);
-    stockMlConfigCache = new Map();
-    return stockMlConfigCache;
-  }
-}
-
-mlFileInput.addEventListener('click', () => {
-  if (mlFileInput.files.length) {
-    analyzeBtn.disabled = false;
-  }
-});
 
 function renderActionCounters(rows) {
   const counts = rows.reduce(
@@ -202,15 +139,29 @@ function applyActiveFilter() {
   if (activeFilter === 'BAJAR') resultsEl.classList.add('filter-BAJAR');
 }
 
-function updateButtonState() {
-  analyzeBtn.disabled = !mlFileInput.files.length;
+async function updateButtonState() {
+  try {
+    const hasLocalFile = mlFileInput.files && mlFileInput.files.length > 0;
+
+    if (hasLocalFile) {
+      analyzeBtn.disabled = false;
+      return;
+    }
+
+    // Si no hay archivo local, habilitar solo si existe último en el server
+    const infoRes = await fetch('/api/ml/publicaciones/info', { cache: 'no-store' });
+    analyzeBtn.disabled = !infoRes.ok;
+
+  } catch {
+    analyzeBtn.disabled = true;
+  }
 }
 
 mlFileInput.addEventListener('change', updateButtonState);
 
-async function uploadPublicacionesML(file) {
+async function uploadPublicacionesML(fileToUse) {
   const fd = new FormData();
-  fd.append("archivo", file);
+  fd.append("archivo", fileToUse);
 
   const res = await fetch("/api/ml/publicaciones", {
     method: "POST",
@@ -248,16 +199,26 @@ analyzeBtn.addEventListener('click', async () => {
   try {
     clearView();
 
-    if (!mlFileInput.files.length) {
-      statusEl.textContent = 'Selecciona el archivo de Publicaciones ML para continuar.';
-      return;
+    let fileToUse = null;
+
+    if (mlFileInput.files.length) {
+      fileToUse = mlFileInput.files[0];
+    } else {
+      // Usar el último Publicaciones ML del servidor
+      const mlData = await fetchUltimasPublicacionesML();
+      if (!mlData) {
+        throw new Error('Aún no hay Publicaciones ML cargadas en el servidor.');
+      }
+      fileToUse = mlData.file;
+
+      mlInfoEl.innerText =
+        `Usando Publicaciones ML cargadas el: ${new Date(mlData.info.uploadedAt).toLocaleString()}`;
     }
 
     statusEl.textContent = 'Validando archivo de Publicaciones ML...';
 
     // 🔎 Leer Excel para validar
-    const file = mlFileInput.files[0];
-    const buf = await file.arrayBuffer();
+    const buf = await fileToUse.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
 
     // 👇 Elegir la hoja correcta
@@ -280,7 +241,7 @@ analyzeBtn.addEventListener('click', async () => {
     statusEl.textContent = 'Subiendo Publicaciones ML...';
 
     // ⬆️ Subir archivo (ya validado)
-    const uploadRes = await uploadPublicacionesML(file);
+    const uploadRes = await uploadPublicacionesML(fileToUse);
 
     statusEl.textContent = 'Cargando Variantes Odoo y Publicaciones ML...';
 
@@ -379,8 +340,8 @@ function extractColorFromMlVariant(variantRaw) {
   return cleaned;
 }
 
-function readExcelRows(file, options = {}) {
-  if (!file) throw new Error('Falta cargar uno de los archivos.');
+function readExcelRows(fileToUse, options = {}) {
+  if (!fileToUse) throw new Error('Falta cargar uno de los archivos.');
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -402,7 +363,7 @@ function readExcelRows(file, options = {}) {
       }
     };
     reader.onerror = () => reject(new Error(`No se pudo abrir ${file.name}.`));
-    reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(fileToUse);
   });
 }
 
@@ -439,15 +400,6 @@ function detectColumn(headers, candidates) {
     if (found) return found.original;
   }
   return null;
-}
-
-function normalizeMlPublication(value) {
-  return String(value || '')
-    .toUpperCase()
-    .replace(/\u00A0/g, '')       // 👈 quita NBSP (espacios invisibles de Excel)
-    .replace(/\s+/g, '')
-    .replace(/^MLC/, '')
-    .replace(/[^A-Z0-9]/g, '');
 }
 
 function normalizeBarcode(value) {
@@ -525,7 +477,7 @@ async function loadVariantesValidarFromConfig() {
     );
 
     variantesValidarCache = set;
-    console.log('VARIANTES VALIDAR cargadas:', Array.from(set));
+    //console.log('VARIANTES VALIDAR cargadas:', Array.from(set));
     return set;
   } catch (e) {
     console.warn('No se pudo cargar VARIANTES VALIDAR desde configuracion.xlsx.', e);
@@ -749,6 +701,9 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     const hasMatchInOdoo = matches.length > 0;
     const odooStock = hasMatchInOdoo ? Math.min(...matches.map((m) => m.stock)) : 0;
     const cfg = stockMlConfigMap.get(normalizedPublication);
+    /*if (normalizedPublication === '3394755938') {
+      console.log(cfg);
+    }*/
     const maxMlConfigured = cfg?.maxMl ?? 2;      // default 2
     const unitsPerPack = cfg?.units ?? 1;         // default 1
 
@@ -760,6 +715,24 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
 
     // Máximo final permitido en ML (packs)
     const suggestedStock = Math.min(maxByConfigInPacks, maxByOdoo);
+
+    /*if (normalizedPublication === '3394755938') {
+      console.log('🔎 DEBUG MLC3394755938');
+      console.log({
+        mlStock,
+        odooStock,
+        unitsPerPack,
+        divisionExacta: odooStock / unitsPerPack,
+        maxByOdoo,
+        maxByConfigInPacks,
+        suggestedStock,
+        matches: matches.map(m => ({
+          barcode: m.barcode,
+          stock: m.stock,
+          variant: m.variant
+        }))
+      });
+    }*/
 
     // 🏷️ Clasificación 2da. Sel. (prioridad máxima)
     const is2daSel =
@@ -788,24 +761,24 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     } else if (mlStock < suggestedStock) {
       action = 'SUBIR';
       detail = `Subir ${suggestedStock - mlStock} unidad(es).`;
-       if (normalizedPublication === '582291290') {
+       /*if (normalizedPublication === '582291290') {
         console.log('DEBUG 582291290', {
           mlVariant,
           allMatchesByCode,
           matchesByColor: matches,
           odooStock,
         });
-      }
+      }*/
     } else if (mlStock > suggestedStock) {
       action = 'BAJAR';
       detail = `Bajar ${mlStock - suggestedStock} unidad(es).`;
       if (normalizedPublication === '1032755107') {
-        console.log('DEBUG 1032755107', {
+        /*console.log('DEBUG 1032755107', {
           mlVariant,
           allMatchesByCode,
           matchesByColor: matches,
           odooStock,
-        });
+        });*/
       }
     }
 
@@ -858,3 +831,18 @@ function renderObservations(observations) {
       `Utilizando Variantes Odoo el: ${new Date(info.uploadedAt).toLocaleString()}`;
   } catch {}
 })();
+
+(async () => {
+  try {
+    const infoRes = await fetch('/api/ml/publicaciones/info', { cache: 'no-store' });
+    if (!infoRes.ok) return;
+
+    const info = await infoRes.json();
+    mlInfoEl.innerText =
+      `Utilizando Publicaciones ML cargadas el: ${new Date(info.uploadedAt).toLocaleString()}`;
+
+    analyzeBtn.disabled = false;
+  } catch {}
+})();
+
+updateButtonState();

@@ -3,16 +3,18 @@
   const layout = document.querySelector('.layout');
   if (!btn || !layout) return;
 
-  // Restaurar estado
-  if (localStorage.getItem('sidebar-collapsed') === '1') {
-    layout.classList.add('sidebar-collapsed');
-  }
-
   btn.addEventListener('click', () => {
-    layout.classList.toggle('sidebar-collapsed');
-    localStorage.setItem(
-      'sidebar-collapsed',
-      layout.classList.contains('sidebar-collapsed') ? '1' : '0'
-    );
+    layout.classList.toggle('sidebar-open');
+  });
+
+  document.addEventListener('click', (e) => {
+    const sidebar = document.querySelector('.sidebar');
+    if (
+      layout.classList.contains('sidebar-open') &&
+      !sidebar.contains(e.target) &&
+      !btn.contains(e.target)
+    ) {
+      layout.classList.remove('sidebar-open');
+    }
   });
 })();

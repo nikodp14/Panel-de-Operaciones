@@ -1,0 +1,9 @@
+# Uploads y data local (NO versionar)
+data/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# SO
+.DS_Store

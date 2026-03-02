@@ -30,16 +30,20 @@ app.get("/api/ml/ventas/codigos", (req, res) => {
 });
 
 app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
-  const { ventaML, codigo } = req.body;
-  if (!ventaML) return res.status(400).json({ error: "ventaML requerida" });
+  const { key, codigo, cambioProducto } = req.body;
+
+  if (!key) {
+    return res.status(400).json({ error: "key requerida (venta|publicacion)" });
+  }
 
   let data = {};
   if (fs.existsSync(CODIGOS_ML_PATH)) {
     data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
   }
 
-  data[ventaML] = {
+  data[key] = {
     codigo: codigo || "",
+    cambioProducto: !!cambioProducto,
     updatedAt: new Date().toISOString()
   };
 
@@ -279,6 +283,65 @@ app.post("/api/odoo/variantes", upload.single("archivo"), (req, res) => {
 
   res.json({
     message: "Variantes Odoo cargadas correctamente ✔",
+    file: finalName,
+    uploadedAt: meta.uploadedAt,
+  });
+});
+
+/* ============================
+   Configuración (persistente)
+============================ */
+
+// Info del último archivo
+app.get("/api/configuracion/info", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "configuracion_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Configuración cargada aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  res.json(meta);
+});
+
+// Descargar último archivo
+app.get("/api/configuracion/ultimo", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "configuracion_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Configuración cargada aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const filePath = path.join(UPLOAD_DIR, meta.file);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Archivo no encontrado en disco" });
+  }
+  res.sendFile(filePath);
+});
+
+// Subir archivo
+app.post("/api/configuracion", upload.single("archivo"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No se recibió ningún archivo (campo 'archivo')" });
+  }
+
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, "0");
+
+  const ts =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+  const finalName = `configuracion_${ts}.xlsx`;
+  const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = { file: finalName, uploadedAt: now.toISOString() };
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "configuracion_meta.json"),
+    JSON.stringify(meta, null, 2)
+  );
+
+  res.json({
+    message: "Configuración cargada correctamente ✔",
     file: finalName,
     uploadedAt: meta.uploadedAt,
   });
