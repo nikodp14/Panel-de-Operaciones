@@ -618,3 +618,17 @@ body.sidebar-collapsed .container {
 .ml-col input {
   background: #fffde7;
 }
+
+.warning-text {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+.numero-publicacion {
+  font-weight: 700;
+}
+
+.precio-odoo {
+  color: #5c138a;      /* morado elegante */
+  font-weight: 600;    /* un poco más destacado */
+}

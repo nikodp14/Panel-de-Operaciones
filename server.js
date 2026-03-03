@@ -118,6 +118,10 @@ app.get("/odoo/ventas-odoo.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "odoo", "ventas-odoo.html"));
 });
 
+app.get("/archivos/cargar-publicaciones-comision.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "archivos", "cargar-publicaciones-comision.html"));
+});
+
 app.get("/odoo/stock-odoo.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "odoo", "stock-odoo.html"));
 });

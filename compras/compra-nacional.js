@@ -15,6 +15,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let packSetCache = null;
 
+    function findIndiceComision(headerRow) {
+      const header = headerRow.map(h => normalizeHeader(h || ''));
+
+      // palabras clave que pueden indicar comisión
+      const keywords = ['cargo por venta'];
+
+      // recorremos columnas y buscamos la primera que contenga todas las claves
+      for (let i = 0; i < header.length; i++) {
+        const cell = header[i];
+
+        // si el encabezado contiene todas estas palabras en cualquier parte
+        const contiene = keywords.every(kw => cell.includes(kw));
+        if (contiene) {
+          return i;
+        }
+      }
+
+      // si no se encontró nada, devolvemos -1
+      return -1;
+    }
+
     async function loadPackSet() {
       if (packSetCache) return packSetCache;
 
@@ -46,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let comisionMapCache = null;
 
     async function loadComisionMap() {
+
       if (comisionMapCache) return comisionMapCache;
 
       const res = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
@@ -58,25 +80,72 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const ws = wb.Sheets[sheetName];
 
+      // 🔥 Leer como matriz completa
       const rows = XLSX.utils.sheet_to_json(ws, {
-        defval: '',
-        range: 2
+        header: 1,
+        defval: ''
       });
+
+      if (!rows.length) return new Map();
+
+      // 🔥 Detectar encabezado (normalmente fila 2 o 3 en ML)
+      const headerRow = rows[2] || rows[1] || rows[0];
+
+      function normalizeHeader(str) {
+        return String(str || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim();
+      }
+
+      const headerNormalized = headerRow.map(h => normalizeHeader(h));
+
+      // 🔥 Buscar columna de Número de publicación
+      const indicePublicacion = headerNormalized.findIndex(h =>
+        h.includes('numero') && h.includes('publicacion')
+      );
+
+      // 🔥 Buscar columna Cargo por venta dinámicamente
+      const indiceComision = headerNormalized.findIndex(h =>
+        h.includes('cargo') && h.includes('venta')
+      );
+
+      // 🔥 Buscar columna Precio dinámicamente
+      const indicePrecio = headerNormalized.findIndex(h =>
+        h.includes('precio')
+      );
+
+      if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
+        console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
+        return new Map();
+      }
 
       const map = new Map();
 
-      rows.forEach(r => {
-        const pub = String(r['Número de publicación'] || '')
-          .replace(/^MLC/i, '')
-          .trim();
+      // 🔥 Iterar desde fila siguiente al header
+      rows.slice(3).forEach(r => {
 
-        const comision = Number(
-          String(r[Object.keys(r)[13]] || '') // columna N (index 13)
-            .replace('%','')
+        const pub = String(r[indicePublicacion] || '')
+          .replace(/^MLC/i, '')
+          .trim()
+          .toUpperCase();
+
+        const comision = parseFloat(
+          String(r[indiceComision] || '').replace('%', '')
+        ) || 0;
+
+        const precioMLActual = parseFloat(
+          String(r[indicePrecio] || '')
+            .replace(/\./g,'')
+            .replace(',','.')
         ) || 0;
 
         if (pub) {
-          map.set(pub, comision);
+          map.set(pub, {
+            comision,
+            precio: precioMLActual
+          });
         }
       });
 
@@ -86,26 +155,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function obtenerComisionDesdeBarcode(barcodeRaw) {
 
-    const packSet = await loadPackSet();
-    const comisionMap = await loadComisionMap();
+      const packSet = await loadPackSet();
+      const comisionMap = await loadComisionMap();
 
-    const partes = String(barcodeRaw || '')
-      .split('/')
-      .map(p => p.replace(/^MLC/i,'').trim())
-      .filter(Boolean);
+      const partes = String(barcodeRaw || '')
+        .split('/')
+        .map(p => p.replace(/^MLC/i,'').trim().toUpperCase())
+        .filter(Boolean);
 
-    // Buscar cuál existe en publicaciones ML
-    const candidatos = partes.filter(p => comisionMap.has(p));
+      // Buscar cuál existe en publicaciones ML
+      const candidatos = partes.filter(p => comisionMap.has(p));
 
-    if (!candidatos.length) return 0;
+      //console.log(comisionMap);
+      //console.log(candidatos);
 
-    // Quitar los que son pack
-    const individuales = candidatos.filter(p => !packSet.has(p));
+      if (!candidatos.length) {
+        return { comision: 0, publicacion: '' };
+      }
 
-    const final = individuales.length ? individuales[0] : candidatos[0];
+      // Quitar los que son pack
+      const individuales = candidatos.filter(p => !packSet.has(p));
 
-    return comisionMap.get(final) || 0;
-  }
+      const final = individuales.length ? individuales[0] : candidatos[0];
+
+      const data = comisionMap.get(final);
+
+      return {
+        comision: data?.comision || 0,
+        publicacion: final || '',
+        precioActual: data?.precio || 0
+      };
+    }
 
     async function loadVariantes() {
       if (variantesCache.length) return;
@@ -119,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
       variantesCache = rows.slice(1).map(r => ({
-        barcode: String(r[1] || '').trim(),
+        barcode: String(r[1] || '').trim().toUpperCase(),
         name: String(r[2] || '').trim(),
         variant: String(r[5] || '').trim()
       })).filter(v => v.barcode);
@@ -154,6 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="total-compra">0</td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
+      <td class="ml-col numero-publicacion"></td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
       </td>
@@ -190,6 +271,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       totalCompra += totalLinea;
       totalOdoo += totalOdooLinea;
+
+      const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
+      const comision = Number(porcentajeTexto.replace('%','')) || 0;
+      const envio = Number(tr.querySelector('.costo-envio-input').value) || 0;
+
+      const precioML = calcularPrecioML(precioSinIva, comision, envio);
+
+      const numeroPub = tr.querySelector('.numero-publicacion').textContent;
+      const dataMap = comisionMapCache?.get(numeroPub);
+
+      const precioActualML = dataMap?.precio || 0;
+
+      const precioMLEl = tr.querySelector('.precio-ml');
+
+      precioMLEl.textContent = precioML.toFixed(0);
+      //console.log(precioActualML, precioML);
+      // 🔥 Comparación
+      if (precioActualML && precioML > precioActualML) {
+        precioMLEl.style.color = 'red';
+        precioMLEl.style.fontWeight = '700';
+      } else {
+        precioMLEl.style.color = '';
+        precioMLEl.style.fontWeight = '';
+      }
+
+      tr.querySelector('.precio-ml').textContent = precioML.toFixed(0);
     });
 
     totalCompraFooter.textContent = totalCompra.toFixed(0);
@@ -206,15 +313,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nombreEl = tr.querySelector('.nombre-valor');
     const varianteEl = tr.querySelector('.variante-valor');
 
-    const value = input.value.trim();
-    const lowerValue = value.toLowerCase();
+    const rawValue = input.value.trim();
+    const normalizedValue = rawValue.toUpperCase();
+    const lowerValue = rawValue.toLowerCase();
 
     // 🔥 Obtener comisión ML desde barcode
-    const comision = await obtenerComisionDesdeBarcode(value);
-    tr.querySelector('.porcentaje-comision').textContent = comision + '%';
+    const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
+    tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
+    tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+    guardarCotizacion();
 
     // 🔥 Limpiar si no coincide con barcode válido
-    if (!variantesCache.some(v => v.barcode === value)) {
+    if (!variantesCache.some(v => v.barcode === normalizedValue)){
       nombreEl.textContent = '';
       varianteEl.textContent = '';
     }
@@ -228,7 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadVariantes();
 
     // 🔥 Autocompletar automático si coincide exactamente
-    const exactMatch = variantesCache.find(v => v.barcode === value);
+    const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
 
     if (exactMatch) {
       nombreEl.textContent = exactMatch.name || '';
@@ -240,8 +350,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const matches = variantesCache
         .filter(v =>
-          v.barcode.toLowerCase().includes(value) ||
-          v.name.toLowerCase().includes(value)
+          v.barcode.includes(normalizedValue) ||
+          v.name.toLowerCase().includes(lowerValue)
         )
         .slice(0, 500);
 
@@ -265,12 +375,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (e.target.classList.contains('cantidad-input') ||
-        e.target.classList.contains('precio-input')) {
+        e.target.classList.contains('precio-input') ||
+        e.target.classList.contains('costo-envio-input')){
 
       recalcularTotales();
     }
 
-    guardarCotizacion();
+    if (e.target.classList.contains('costo-envio-input')) {
+      guardarCotizacion();
+    }
   });
 
   document.addEventListener('keydown', (e) => {
@@ -280,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  body.addEventListener('click', (e) => {
+  body.addEventListener('click', async (e) => {
 
     if (e.target.classList.contains('odoo-close')) {
       const sug = e.target.closest('.odoo-suggestions');
@@ -301,8 +414,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const info = variantesCache.find(v => v.barcode === barcode);
 
     input.value = barcode;
+
+    const resultado = await obtenerComisionDesdeBarcode(barcode);
+
+    tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
+    tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
     nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
+
+    guardarCotizacion();
 
     suggestions.classList.add('hidden');
   });
@@ -354,7 +474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem('comprasCotizaciones', JSON.stringify(data));
   }
 
-  function cargarCotizacion() {
+  async function cargarCotizacion() {
     const cot = cotizacionInput.value.trim();
     if (!cot) return;
 
@@ -369,22 +489,53 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    cotData.lineas.forEach(l => {
-      addRow();
-      const tr = body.lastElementChild;
+    await loadVariantes();
 
-      tr.querySelector('.codigo-input').value = l.barcode;
-      tr.querySelector('.nombre-valor').textContent = l.nombre;
-      tr.querySelector('.variante-valor').textContent = l.variante;
-      tr.querySelector('.cantidad-input').value = l.cantidad;
-      tr.querySelector('.precio-input').value = l.precio;
-      tr.querySelector('.costo-envio-input').value = l.costoEnvio || 0;
-    });
+    await Promise.all(
+      cotData.lineas.map(async (l) => {
+
+        addRow();
+        const tr = body.lastElementChild;
+
+        const barcode = l.barcode || '';
+
+        tr.querySelector('.codigo-input').value = barcode;
+        tr.querySelector('.nombre-valor').textContent = l.nombre;
+        tr.querySelector('.variante-valor').textContent = l.variante;
+
+        const resultado = await obtenerComisionDesdeBarcode(barcode);
+
+        tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
+        tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+
+        tr.querySelector('.cantidad-input').value = l.cantidad;
+        tr.querySelector('.precio-input').value = l.precio;
+        tr.querySelector('.costo-envio-input').value = l.costoEnvio || 0;
+
+      })
+    );
 
     recalcularTotales();
+    guardarCotizacion();
   }
 
-  cargarBtn.addEventListener('click', () => {
-    cargarCotizacion();
+  cargarBtn.addEventListener('click', async () => {
+    await cargarCotizacion();
   });
+
+  function calcularPrecioML(precioOdoo, comisionPercent, envio) {
+
+    const comision = comisionPercent / 100;
+
+    if (comision >= 1) return 0;
+
+    const brutoNecesario = (((precioOdoo * 1.25)) * 1.19 + envio) / (1 - comision);
+
+    //console.log(comision);
+
+    // 🔵 redondear a 990
+    const redondeado = Math.floor(brutoNecesario / 1000) * 1000 + 990;
+
+    return redondeado;
+  }
 });
