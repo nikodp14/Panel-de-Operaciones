@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const START_ROW = 6;
   const mlInput = document.getElementById('mlVentasFile');
   const analyzeBtn = document.getElementById('analyzeVentasBtn');
   const statusEl = document.getElementById('statusVentas');
@@ -13,10 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // === ÍNDICES ML (Ventas ML) ===
   // Ajusta aquí si cambia el formato del Excel de ML
   const ML_COL_VENTA = 0;      // Col A: Número de venta ML
-  const ML_COL_UNIDADES = 6;   // Col G: Unidades
-  const ML_COL_PUBML = 16;     // Col Q: Número de publicación ML
-  const ML_COL_TITULO = 18;    // Col S: Título
-  const ML_COL_VARIANTE = 19;  // Col R: Variante
 
   let odooQtyByVentaCodigo = new Map();
 
@@ -390,6 +387,61 @@ document.addEventListener('DOMContentLoaded', () => {
       const wbML = XLSX.read(mlBuf, { type: 'array' });
       const wsML = wbML.Sheets[wbML.SheetNames[0]];
       const mlRows = XLSX.utils.sheet_to_json(wsML, { header: 1, raw: false });
+      //const HEADER_ROW_INDEX = 5; // fila donde están los títulos
+      const HEADER_ROW_INDEX = START_ROW - 1;
+      const headerRow = mlRows[HEADER_ROW_INDEX] || [];
+
+      function findColIndexByName(posiblesNombres = []) {
+        return headerRow.findIndex(col => {
+          const text = String(col || '').toLowerCase().trim();
+          return posiblesNombres.some(nombre =>
+            text.includes(nombre.toLowerCase())
+          );
+        });
+      }
+
+      const ML_COL_TITULO = findColIndexByName([
+        'título de la publicación',
+        'titulo de la publicacion'
+      ]);
+
+      if (ML_COL_TITULO === -1) {
+        throw new Error('No se encontró la columna "Título de la publicación" en el Excel.');
+      }
+
+      const ML_COL_TOTAL = findColIndexByName([
+        'total (clp)',
+        'total clp'
+      ]);
+
+      if (ML_COL_TOTAL === -1) {
+        throw new Error('No se encontró la columna "Total (CLP)" en el Excel de Ventas ML.');
+      }
+
+      const ML_COL_UNIDADES = findColIndexByName([
+        'unidades'
+      ]);
+
+      if (ML_COL_UNIDADES === -1) {
+        throw new Error('No se encontró la columna "Unidades" en el Excel de Ventas ML.');
+      }
+
+      const ML_COL_PUBML = findColIndexByName([
+        '# de publicación',
+        '# de publicacion'
+      ]);
+
+      if (ML_COL_PUBML === -1) {
+        throw new Error('No se encontró la columna "# de publicación" en el Excel de Ventas ML.');
+      }
+
+      const ML_COL_VARIANTE = findColIndexByName([
+        'variante'
+      ]);
+
+      if (ML_COL_VARIANTE === -1) {
+        throw new Error('No se encontró la columna "Variante" en el Excel de Ventas ML.');
+      }
 
       // === Odoo ===
       const odooRes = await fetch('/api/odoo/ventas/ultimo');
@@ -460,10 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       //console.log(packMap);
 
-      const START_ROW = 6;
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
-      const cutoff = new Date('2026-02-17');
+      const cutoff = new Date('2026-02-28');
       const observaciones = [];
       const observacionesOK = [];
       const odooQtyByVenta = new Map();
@@ -498,7 +549,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const ventaML = String(r[ML_COL_VENTA] || '').trim(); // Col A (# de venta)
         const fecha = parseDate(r[1]);  // Col B (Fecha de venta)
         const estadoML = String(r[2] || '');; // Col C (Estado ML)
-        const totalCLPraw = r[12];         // Col M
+        //const totalCLPraw = r[13];         // Col M
+        const totalCLPraw = r[ML_COL_TOTAL];
         const ingresoEnvioCLP = r[9]; // Col J
         const costoEnvioCLP = r[10];  // Col K
         const cantidadRaw = r[ML_COL_UNIDADES]; // Col G (Unidades)
@@ -553,10 +605,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!ventaML || !fecha) continue;
         if (fecha < cutoff) continue;
-
-        if (ventaML == 2000011823355679 || ventaML == 2000015369110766 || ventaML ==2000015369106936){
-          console.log('esLineaHijaPaquete: ' + esLineaHijaPaquete + 'ventaPaqueteActiva: ' + ventaPaqueteActiva);
-        }
 
         if(
           isNaN(totalCLP) &&
