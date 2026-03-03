@@ -11,8 +11,8 @@ const __dirname = path.dirname(__filename);
 // Carpeta data
 const UPLOAD_DIR = path.join(__dirname, "data");
 if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR);
-}
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}s
 const upload = multer({ dest: UPLOAD_DIR });
 
 // ============================
