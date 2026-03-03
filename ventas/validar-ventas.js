@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 2️⃣ Registrar venta
-        else if (!existeEnOdoo && totalCLP > 0) {
+        else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete)){
           obs = 'REGISTRAR VENTA';
         }
 
