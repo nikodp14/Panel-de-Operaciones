@@ -174,8 +174,6 @@ app.post("/api/odoo/ventas", upload.single("archivo"), (req, res) => {
 function renderWithSidebar(res, filePath) {
   const html = fs.readFileSync(filePath, "utf-8");
   const sidebar = fs.readFileSync(path.join(__dirname, "partials", "sidebar.html"), "utf-8");
-
-  console.log("Checking sidebar path:", path.join(__dirname, "partials", "sidebar.html"));
   const out = html.replace('<div id="__SIDEBAR__"></div>', sidebar);
   res.send(out);
 }
