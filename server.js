@@ -378,8 +378,8 @@ app.get("*", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "index.html"));
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
