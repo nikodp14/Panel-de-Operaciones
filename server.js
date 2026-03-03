@@ -106,6 +106,14 @@ app.get("/odoo/ventas-odoo.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "odoo", "ventas-odoo.html"));
 });
 
+app.get("/odoo/stock-odoo.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "odoo", "stock-odoo.html"));
+});
+
+app.get("/compras/compra-nacional.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "compras", "compra-nacional.html"));
+});
+
 app.get("/api/odoo/ventas/info", (req, res) => {
   const metaPath = path.join(UPLOAD_DIR, "ventas_odoo_meta.json");
   if (!fs.existsSync(metaPath)) {
@@ -362,4 +370,17 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
+});
+
+app.get("/debug-storage", (req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+
+  const dataPath = path.join(__dirname, "data");
+
+  res.json({
+    uploadDir: dataPath,
+    exists: fs.existsSync(dataPath),
+    files: fs.existsSync(dataPath) ? fs.readdirSync(dataPath) : []
+  });
 });

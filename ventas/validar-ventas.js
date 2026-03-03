@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const START_ROW = 6;
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
-      const cutoff = new Date('2026-02-28');
+      const cutoff = new Date('2026-02-17');
       const observaciones = [];
       const observacionesOK = [];
       const odooQtyByVenta = new Map();
@@ -553,6 +553,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!ventaML || !fecha) continue;
         if (fecha < cutoff) continue;
+
+        if (ventaML == 2000011823355679 || ventaML == 2000015369110766 || ventaML ==2000015369106936){
+          console.log('esLineaHijaPaquete: ' + esLineaHijaPaquete + 'ventaPaqueteActiva: ' + ventaPaqueteActiva);
+        }
 
         if(
           isNaN(totalCLP) &&

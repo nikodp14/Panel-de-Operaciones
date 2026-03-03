@@ -513,3 +513,108 @@ body.sidebar-collapsed .container {
 .variante-valor {
   color: #0f766e;
 }
+
+.compras-card {
+  overflow: visible;
+}
+
+.compras-card .table-wrap {
+  overflow: visible;
+}
+
+.producto-comprar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.producto-comprar .codigo-input {
+  margin-top: 4px;
+  max-width: 320px;
+}
+
+.linea-nombre,
+.linea-variante {
+  font-size: 12px;
+}
+
+.nombre-valor {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.variante-valor {
+  color: #0f766e;
+  background: #ecfeff;
+  border: 1px solid #67e8f9;
+  padding: 1px 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.producto-comprar {
+  display: flex;
+  flex-direction: column;
+}
+
+.producto-comprar .codigo-input {
+  width: 100%;
+  max-width: 320px;
+}
+
+.producto-info {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.producto-comprar {
+  display: flex;
+  flex-direction: column;
+}
+
+.producto-comprar .codigo-input {
+  width: 100%;
+  max-width: 320px;
+}
+
+#comprasResults td {
+  vertical-align: top;
+}
+
+#comprasResults .cantidad-input,
+#comprasResults .precio-input {
+  margin-top: 4px;
+}
+
+.delete-col {
+  width: 50px;
+  text-align: center;
+}
+
+.delete-row-btn {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.delete-row-btn:hover {
+  background: #fecaca;
+}
+
+#cotizacionInput {
+  width: 220px;
+}
+
+.ml-col {
+  background: #fff59d;
+}
+
+.ml-col input {
+  background: #fffde7;
+}

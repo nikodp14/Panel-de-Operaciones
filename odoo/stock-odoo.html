@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Ubicaciones Odoo</title>
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+    <div id="__SIDEBAR__"></div>
+    <main class="content">
+      <div class="container">
+        <!-- Instrucciones -->
+        <div class="card">
+          <h2>Descargar Stock Ubicaciones Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario</strong>.</li>
+            <li>Ingrese a <strong>Reportes->Ubicaciones</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → STOCK UBICACIONES ODOO</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Cargar archivo</h2>
+          <div class="field">
+            <label>Archivo Stock Ubicaciones Productos</label>
+            <input type="file" id="stockubicacionesproductosOdooFile" accept=".xlsx,.xls" />
+          </div>
+          <button id="uploadVentasOdooBtn" class="primary-btn" disabled>Subir archivo</button>
+
+          <p id="ventasOdooStatus" class="status"></p>
+          <p id="ventasOdooInfo" class="muted"></p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/layout.js"></script>
+  <script src="/odoo/ventas-odoo.js"></script>
+</body>
+</html>
