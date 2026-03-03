@@ -21,6 +21,18 @@ const upload = multer({ dest: UPLOAD_DIR });
 
 const CODIGOS_ML_PATH = path.join(UPLOAD_DIR, "ventas_ml_codigos.json");
 
+app.get("/api/debug-storage", (req, res) => {
+  const dataPath = path.join(__dirname, "data");
+
+  res.json({
+    uploadDir: dataPath,
+    exists: fs.existsSync(dataPath),
+    files: fs.existsSync(dataPath)
+      ? fs.readdirSync(dataPath)
+      : []
+  });
+});
+
 app.get("/api/ml/ventas/codigos", (req, res) => {
   if (!fs.existsSync(CODIGOS_ML_PATH)) {
     return res.json({});
@@ -370,17 +382,4 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
-});
-
-app.get("/debug-storage", (req, res) => {
-  const fs = require("fs");
-  const path = require("path");
-
-  const dataPath = path.join(__dirname, "data");
-
-  res.json({
-    uploadDir: dataPath,
-    exists: fs.existsSync(dataPath),
-    files: fs.existsSync(dataPath) ? fs.readdirSync(dataPath) : []
-  });
 });
