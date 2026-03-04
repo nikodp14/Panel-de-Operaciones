@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Validar Ventas ML</title>
+
+  <!-- MISMO ORDEN que el resto del sistema -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/js/config-helpers.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+   <div id="__SIDEBAR__"></div>
+
+   <div class="field">
+
+    <main class="content">
+      <div class="container">
+        <label>N° Cotización</label>
+        <input type="text" id="cotizacionInput" class="cotizacion-input" placeholder="Ingrese nro. cotización" />
+        <button id="cargarCotBtn">Cargar</button>
+      </div>
+      <div class="container">
+        <label>Fecha pedido</label>
+        <input type="date" id="fechaPedido">
+
+        <!--<label style="margin-left:20px;">USD + $30</label>-->
+        <label>Precio Dólar Compra: <span id="dolarCalculado">-</span></label>
+      </div>
+      <!--<div class="container">
+        <label>Para crear producto YAMAHA original duplicar: Base Producto Original</label>
+      </div>-->
+      <div class="container">
+        <section id="comprasResults" class="card compras-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto Cot.</th>
+                  <th>Cantidad</th>
+                  <th>Total USD</th>
+                  <th>Precio USD</th>
+                  <th>Precio Odoo</th>
+                  <th>Total línea Odoo</th>
+                  <th>N° Publicación</th>
+                  <th class="precio-jumpseller-header">Precio Jumpseller / Marketplace</th>
+                  <th>Costo Envío ML</th>
+                  <th>% Comis.</th>
+                  <th>Precio ML</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="comprasBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="5" style="text-align:right;"><strong>Total Odoo c/iva:</strong></td>
+                  <td id="totalConIvaFooter">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <button id="addRowBtn" class="primary-btn">+ Agregar línea</button>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/layout.js"></script>
+  <script src="/compras/compra-internacional.js"></script>
+
+  <div id="toast" class="toast hidden"></div>
+</body>
+</html>

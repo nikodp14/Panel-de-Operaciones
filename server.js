@@ -141,6 +141,10 @@ app.get("/compras/compra-nacional.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "compras", "compra-nacional.html"));
 });
 
+app.get("/compras/compra-internacional.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "compras", "compra-internacional.html"));
+});
+
 app.get("/api/odoo/ventas/info", (req, res) => {
   const metaPath = path.join(UPLOAD_DIR, "ventas_odoo_meta.json");
   if (!fs.existsSync(metaPath)) {

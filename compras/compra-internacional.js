@@ -8,8 +8,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalCompraFooter = document.getElementById('totalCompraFooter');
     const totalConIvaFooter = document.getElementById('totalConIvaFooter');
 
+    const STORAGE_KEY = 'comprasCotizacionesInternacional';
+
     const DESCUENTO = 0.25;
     const IVA = 1.19;
+
+    const fechaPedidoInput = document.getElementById('fechaPedido');
+    const dolarLabel = document.getElementById('dolarCalculado');
+
+    async function obtenerDolar(fecha) {
+
+      try {
+
+        const res = await fetch('https://mindicador.cl/api/dolar');
+        const data = await res.json();
+
+        const serie = data.serie;
+
+        const fechaBuscada = new Date(fecha).toISOString().slice(0,10);
+
+        const registro = serie.find(d =>
+          d.fecha.slice(0,10) === fechaBuscada
+        );
+
+        if (!registro) {
+          dolarLabel.textContent = 'No disponible';
+          return;
+        }
+
+        const dolar = registro.valor;
+        const dolarMas30 = dolar + 30;
+
+        dolarLabel.textContent = dolarMas30.toFixed(2);
+
+      } catch(err) {
+        console.error(err);
+        dolarLabel.textContent = 'Error';
+      }
+
+    }
+
+    fechaPedidoInput.addEventListener('change', e => {
+      const fecha = e.target.value;
+      if (fecha) obtenerDolar(fecha);
+      guardarCotizacion();
+    });
 
     let variantesCache = [];
 
@@ -235,12 +278,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         <input type="number" class="cantidad-input" min="0" value="0" />
       </td>
       <td>
-        <input type="number" class="precio-input" min="0" value="0" />
+        <input type="number" class="total-input" min="0" value="0" />
       </td>
-      <td class="total-compra">0</td>
+      <td class="precio-usd">0</td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
       <td class="ml-col numero-publicacion"></td>
+      <td class="ml-col precio-jumpseller">0</td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
       </td>
@@ -262,18 +306,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('#comprasBody tr').forEach(tr => {
 
       const cantidad = Number(tr.querySelector('.cantidad-input').value) || 0;
-      const precio = Number(tr.querySelector('.precio-input').value) || 0;
+      const totalLinea = Number(tr.querySelector('.total-input').value) || 0;
 
-      const totalLinea = cantidad * precio;
+      let precio = 0;
+      if (cantidad > 0) {
+        precio = totalLinea / cantidad;
+      }
 
-      const precioConDesc = precio * (1 - DESCUENTO);
-      const precioSinIva = precioConDesc / IVA;
+      const dolarCompra = Number(dolarLabel.textContent) || 0;
 
-      const totalOdooLinea = cantidad * precioSinIva;
+      // convertir USD → CLP
+      const precioOdoo = precio * dolarCompra;
+      // redondear al 990 hacia arriba
+      const precioJumpsellerBase = precioOdoo * 1.8 * 1.19;
+      const precioJumpseller =
+        Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
+      const totalOdooLinea = cantidad * precioOdoo;
 
-      tr.querySelector('.total-compra').textContent = totalLinea.toFixed(0);
-      tr.querySelector('.precio-odoo').textContent = precioSinIva.toFixed(0);
+      tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
+      tr.querySelector('.precio-odoo').textContent = precioOdoo.toFixed(0);
       tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
+      tr.querySelector('.precio-jumpseller').textContent = precioJumpseller.toFixed(0);
 
       totalCompra += totalLinea;
       totalOdoo += totalOdooLinea;
@@ -282,7 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
       const envio = Number(tr.querySelector('.costo-envio-input').value) || 0;
 
-      const precioML = calcularPrecioML(precioSinIva, comision, envio);
+      const precioML = calcularPrecioML(precioOdoo, comision, envio);
 
       const numeroPub = tr.querySelector('.numero-publicacion').textContent;
       const dataMap = comisionMapCache?.get(numeroPub);
@@ -305,7 +358,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.querySelector('.precio-ml').textContent = precioML.toFixed(0);
     });
 
-    totalCompraFooter.textContent = totalCompra.toFixed(0);
     totalConIvaFooter.textContent = (totalOdoo * 1.19).toFixed(0);
   }
 
@@ -381,10 +433,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (e.target.classList.contains('cantidad-input') ||
-        e.target.classList.contains('precio-input') ||
+        e.target.classList.contains('total-input') ||
         e.target.classList.contains('costo-envio-input')){
 
       recalcularTotales();
+      guardarCotizacion();
     }
 
     if (e.target.classList.contains('costo-envio-input')) {
@@ -469,29 +522,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         nombre: tr.querySelector('.nombre-valor')?.textContent || '',
         variante: tr.querySelector('.variante-valor')?.textContent || '',
         cantidad: tr.querySelector('.cantidad-input')?.value || 0,
-        precio: tr.querySelector('.precio-input')?.value || 0,
+        total: tr.querySelector('.total-input')?.value || 0,
         costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0
       });
     });
 
-    const data = JSON.parse(localStorage.getItem('comprasCotizaciones') || '{}');
-    data[cot] = { lineas };
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  data[cot] = {
+    fecha: fechaPedidoInput.value || '',
+    lineas
+  };
 
-    localStorage.setItem('comprasCotizaciones', JSON.stringify(data));
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));  }
 
   async function cargarCotizacion() {
     const cot = cotizacionInput.value.trim();
     if (!cot) return;
 
-    const data = JSON.parse(localStorage.getItem('comprasCotizaciones') || '{}');
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const cotData = data[cot];
+
+    if (cotData?.fecha) {
+      fechaPedidoInput.value = cotData.fecha;
+      obtenerDolar(cotData.fecha);
+    }
 
     body.innerHTML = '';
 
     if (!cotData) {
-      // 🔥 Si no existe, simplemente dejamos tabla vacía
-      addRow(); // permitimos empezar
+
+      // limpiar fecha y dólar
+      fechaPedidoInput.value = '';
+      dolarLabel.textContent = '-';
+
+      addRow();
       return;
     }
 
@@ -515,9 +579,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
-        tr.querySelector('.precio-input').value = l.precio;
+        tr.querySelector('.total-input').value = l.total;
         tr.querySelector('.costo-envio-input').value = l.costoEnvio || 0;
-
       })
     );
 
@@ -535,7 +598,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (comision >= 1) return 0;
 
-    const brutoNecesario = (((precioOdoo * 1.25)) * 1.19 + envio) / (1 - comision);
+    const brutoNecesario = (((precioOdoo * 1.8)) * 1.19 + envio) / (1 - comision);
 
     //console.log(comision);
 
@@ -544,4 +607,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     return redondeado;
   }
+
+  fechaPedidoInput.addEventListener('change', e => {
+    const fecha = e.target.value;
+    if (fecha) obtenerDolar(fecha);
+
+    recalcularTotales();   // ← agregar esto
+    guardarCotizacion();
+  });
 });

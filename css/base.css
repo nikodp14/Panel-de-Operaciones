@@ -633,5 +633,9 @@ body.sidebar-collapsed .container {
   font-weight: 700;
   background-color: #f3e5f5;
   border-radius: 4px;
-  padding: 2px 6px;
+}
+
+.precio-jumpseller {
+  background-color: #55bb69;
+  font-weight: 600;
 }
