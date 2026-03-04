@@ -5,6 +5,8 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 const app = express();
 
+app.use(express.json());
+
 // __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,7 +58,6 @@ app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
 
   let data = {};
   if (fs.existsSync(CODIGOS_ML_PATH)) {
-    let data = {};
     try {
       data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
     } catch {
@@ -384,6 +385,76 @@ app.post("/api/configuracion", upload.single("archivo"), (req, res) => {
     file: finalName,
     uploadedAt: meta.uploadedAt,
   });
+});
+
+const cotizacionesPath = path.join(UPLOAD_DIR, 'cotizaciones-internacional.json');
+
+app.get('/api/cotizaciones-internacional/:cot', (req, res) => {
+
+  const cot = req.params.cot;
+
+  if (!fs.existsSync(cotizacionesPath)) {
+    return res.json(null);
+  }
+
+  const data = JSON.parse(fs.readFileSync(cotizacionesPath, 'utf8'));
+
+  res.json(data[cot] || null);
+});
+
+app.post('/api/cotizaciones-internacional/:cot', (req, res) => {
+
+  const cot = req.params.cot;
+  const body = req.body;
+
+  let data = {};
+
+  try {
+    data = JSON.parse(fs.readFileSync(cotizacionesPath, "utf8"));
+  } catch {
+    data = {};
+  }
+
+  data[cot] = body;
+
+  fs.writeFileSync(cotizacionesPath, JSON.stringify(data, null, 2));
+
+  res.json({ ok: true });
+});
+
+const cotizacionesNacionalPath = path.join(UPLOAD_DIR, 'cotizaciones-nacional.json');
+
+app.get('/api/cotizaciones-nacional/:cot', (req, res) => {
+
+  const cot = req.params.cot;
+
+  if (!fs.existsSync(cotizacionesNacionalPath)) {
+    return res.json(null);
+  }
+
+  const data = JSON.parse(fs.readFileSync(cotizacionesNacionalPath, 'utf8'));
+
+  res.json(data[cot] || null);
+});
+
+app.post('/api/cotizaciones-nacional/:cot', (req, res) => {
+
+  const cot = req.params.cot;
+  const body = req.body;
+
+  let data = {};
+
+  try {
+    data = JSON.parse(fs.readFileSync(cotizacionesNacionalPath, "utf8"));
+  } catch {
+    data = {};
+  }
+
+  data[cot] = body;
+
+  fs.writeFileSync(cotizacionesNacionalPath, JSON.stringify(data, null, 2));
+
+  res.json({ ok: true });
 });
 
 /* ============================

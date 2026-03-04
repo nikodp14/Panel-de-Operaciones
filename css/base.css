@@ -639,3 +639,19 @@ body.sidebar-collapsed .container {
   background-color: #55bb69;
   font-weight: 600;
 }
+
+.copiable-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copiar-icon {
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.copiar-icon:hover {
+  opacity: 1;
+}

@@ -14,6 +14,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     let variantesCache = [];
 
     let packSetCache = null;
+    
+    document.addEventListener('click', e => {
+
+      if (e.target.classList.contains('copiar-icon')) {
+
+        const cell = e.target.closest('.copiable-cell');
+        const valor = cell.querySelector('.copiable-value').textContent;
+
+        copiarAlPortapapeles(valor);
+      }
+
+    });
+
+    function copiarAlPortapapeles(texto) {
+
+      if (!texto) return;
+
+      navigator.clipboard.writeText(texto);
+
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = 'Copiado';
+        toast.classList.remove('hidden');
+        toast.classList.add('show');
+
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 1200);
+      }
+    }
+
+    function renderCopiable(valor) {
+      return `
+        <div class="copiable-cell">
+          <span class="copiable-value">${valor}</span>
+          <span class="copiar-icon">📋</span>
+        </div>
+      `;
+    }
 
     function findIndiceComision(headerRow) {
       const header = headerRow.map(h => normalizeHeader(h || ''));
@@ -241,6 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
       <td class="ml-col numero-publicacion"></td>
+      <td class="ml-col precio-jumpseller">0</td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
       </td>
@@ -266,6 +306,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const totalLinea = cantidad * precio;
 
+      const precioJumpseller = precio;
+
       const precioConDesc = precio * (1 - DESCUENTO);
       const precioSinIva = precioConDesc / IVA;
 
@@ -274,6 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.querySelector('.total-compra').textContent = totalLinea.toFixed(0);
       tr.querySelector('.precio-odoo').textContent = precioSinIva.toFixed(0);
       tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
+      tr.querySelector('.precio-jumpseller').innerHTML = renderCopiable(precioJumpseller.toFixed(0));
 
       totalCompra += totalLinea;
       totalOdoo += totalOdooLinea;
@@ -291,9 +334,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioMLEl = tr.querySelector('.precio-ml');
 
-      precioMLEl.textContent = precioML.toFixed(0);
-      //console.log(precioActualML, precioML);
-      // 🔥 Comparación
+      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+
       if (precioActualML && precioML > precioActualML) {
         precioMLEl.style.color = 'red';
         precioMLEl.style.fontWeight = '700';
@@ -301,8 +343,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         precioMLEl.style.color = '';
         precioMLEl.style.fontWeight = '';
       }
-
-      tr.querySelector('.precio-ml').textContent = precioML.toFixed(0);
     });
 
     totalCompraFooter.textContent = totalCompra.toFixed(0);
@@ -326,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 🔥 Obtener comisión ML desde barcode
     const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
     guardarCotizacion();
 
     // 🔥 Limpiar si no coincide con barcode válido
@@ -424,7 +464,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resultado = await obtenerComisionDesdeBarcode(barcode);
 
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
     nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
 
@@ -457,9 +497,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     addRow();
   });
 
-  function guardarCotizacion() {
+  async function guardarCotizacion() {
+
     const cot = cotizacionInput.value.trim();
-    if (!cot) return; // 🔥 Si no hay número, no guardamos
+    if (!cot) return;
 
     const lineas = [];
 
@@ -474,24 +515,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    const data = JSON.parse(localStorage.getItem('comprasCotizaciones') || '{}');
-    data[cot] = { lineas };
-
-    localStorage.setItem('comprasCotizaciones', JSON.stringify(data));
+    await fetch(`/api/cotizaciones-nacional/${cot}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ lineas })
+    });
   }
 
   async function cargarCotizacion() {
+
     const cot = cotizacionInput.value.trim();
     if (!cot) return;
 
-    const data = JSON.parse(localStorage.getItem('comprasCotizaciones') || '{}');
-    const cotData = data[cot];
+    const res = await fetch(`/api/cotizaciones-nacional/${cot}`);
+    const cotData = await res.json();
 
     body.innerHTML = '';
 
     if (!cotData) {
-      // 🔥 Si no existe, simplemente dejamos tabla vacía
-      addRow(); // permitimos empezar
+      addRow();
       return;
     }
 
@@ -512,7 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resultado = await obtenerComisionDesdeBarcode(barcode);
 
         tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-        tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+        tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.precio-input').value = l.precio;

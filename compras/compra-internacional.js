@@ -16,6 +16,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fechaPedidoInput = document.getElementById('fechaPedido');
     const dolarLabel = document.getElementById('dolarCalculado');
 
+    document.addEventListener('click', e => {
+
+      if (e.target.classList.contains('copiar-icon')) {
+
+        const cell = e.target.closest('.copiable-cell');
+        const valor = cell.querySelector('.copiable-value').textContent;
+
+        copiarAlPortapapeles(valor);
+      }
+
+    });
+
+    function copiarAlPortapapeles(texto) {
+
+      if (!texto) return;
+
+      navigator.clipboard.writeText(texto);
+
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = 'Copiado';
+        toast.classList.remove('hidden');
+        toast.classList.add('show');
+
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 1200);
+      }
+    }
+
+    function renderCopiable(valor) {
+      return `
+        <div class="copiable-cell">
+          <span class="copiable-value">${valor}</span>
+          <span class="copiar-icon">📋</span>
+        </div>
+      `;
+    }
+
     async function obtenerDolar(fecha) {
 
       try {
@@ -326,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
       tr.querySelector('.precio-odoo').textContent = precioOdoo.toFixed(0);
       tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
-      tr.querySelector('.precio-jumpseller').textContent = precioJumpseller.toFixed(0);
+      tr.querySelector('.precio-jumpseller').innerHTML = renderCopiable(precioJumpseller.toFixed(0));
 
       totalCompra += totalLinea;
       totalOdoo += totalOdooLinea;
@@ -344,9 +383,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioMLEl = tr.querySelector('.precio-ml');
 
-      precioMLEl.textContent = precioML.toFixed(0);
-      //console.log(precioActualML, precioML);
-      // 🔥 Comparación
+      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+
       if (precioActualML && precioML > precioActualML) {
         precioMLEl.style.color = 'red';
         precioMLEl.style.fontWeight = '700';
@@ -355,7 +393,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         precioMLEl.style.fontWeight = '';
       }
 
-      tr.querySelector('.precio-ml').textContent = precioML.toFixed(0);
+      //console.log(precioActualML, precioML);
+      // 🔥 Comparación
     });
 
     totalConIvaFooter.textContent = (totalOdoo * 1.19).toFixed(0);
@@ -378,7 +417,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 🔥 Obtener comisión ML desde barcode
     const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
     guardarCotizacion();
 
     // 🔥 Limpiar si no coincide con barcode válido
@@ -477,8 +516,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resultado = await obtenerComisionDesdeBarcode(barcode);
 
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
-    nombreEl.textContent = info?.name || '';
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);    nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
 
     guardarCotizacion();
@@ -510,7 +548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     addRow();
   });
 
-  function guardarCotizacion() {
+  async function guardarCotizacion() {
     const cot = cotizacionInput.value.trim();
     if (!cot) return; // 🔥 Si no hay número, no guardamos
 
@@ -527,20 +565,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  data[cot] = {
-    fecha: fechaPedidoInput.value || '',
-    lineas
-  };
+    await fetch(`/api/cotizaciones-internacional/${cot}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha: fechaPedidoInput.value || '',
+        lineas
+      })
+    });
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));  }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));  
+  }
 
   async function cargarCotizacion() {
     const cot = cotizacionInput.value.trim();
     if (!cot) return;
 
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const cotData = data[cot];
+    const res = await fetch(`/api/cotizaciones-internacional/${cot}`);
+    const cotData = await res.json();
 
     if (cotData?.fecha) {
       fechaPedidoInput.value = cotData.fecha;
@@ -576,7 +618,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resultado = await obtenerComisionDesdeBarcode(barcode);
 
         tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-        tr.querySelector('.numero-publicacion').textContent = resultado.publicacion;
+        tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.total-input').value = l.total;
