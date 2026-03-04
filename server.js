@@ -21,6 +21,8 @@ const upload = multer({ dest: UPLOAD_DIR });
 
 const CODIGOS_ML_PATH = path.join(UPLOAD_DIR, "ventas_ml_codigos.json");
 
+fs.mkdirSync('data', { recursive: true });
+
 app.get("/api/debug-storage", (req, res) => {
   const dataPath = path.join(__dirname, "data");
 
