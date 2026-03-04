@@ -21,8 +21,6 @@ const upload = multer({ dest: UPLOAD_DIR });
 
 const CODIGOS_ML_PATH = path.join(UPLOAD_DIR, "ventas_ml_codigos.json");
 
-fs.mkdirSync('data', { recursive: true });
-
 app.get("/api/debug-storage", (req, res) => {
   const dataPath = path.join(__dirname, "data");
 
@@ -39,7 +37,13 @@ app.get("/api/ml/ventas/codigos", (req, res) => {
   if (!fs.existsSync(CODIGOS_ML_PATH)) {
     return res.json({});
   }
-  const data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
+  
+  let data = {};
+  try {
+    data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
+  } catch {
+    data = {};
+  }
   res.json(data);
 });
 
@@ -52,7 +56,12 @@ app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
 
   let data = {};
   if (fs.existsSync(CODIGOS_ML_PATH)) {
-    data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
+    let data = {};
+    try {
+      data = JSON.parse(fs.readFileSync(CODIGOS_ML_PATH, "utf-8"));
+    } catch {
+      data = {};
+    }
   }
 
   data[key] = {
@@ -201,7 +210,7 @@ app.get("/odoo/variantes.html", (req, res) => {
 });
 
 // Archivos estáticos
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname)));
 
 // ============================
 // Publicaciones ML (persistente)
