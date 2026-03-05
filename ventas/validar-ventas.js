@@ -964,6 +964,10 @@ document.addEventListener('DOMContentLoaded', () => {
                       </div>
                     `;
                   })()}
+                  <div class="scan-area">
+                    <button class="scan-btn">📷 Escanear</button>
+                    <div class="scan-result">—</div>
+                  </div>
                   <div class="odoo-suggestions hidden"></div>
                 </div>
               `
@@ -1606,4 +1610,97 @@ saveTimeout = setTimeout(async () => {
       el.innerHTML = '';
     });
   });
+
+  let scanner;
+  let currentInput = null;
+
+  resultsBody.addEventListener('click', async (e) => {
+
+    const btn = e.target.closest('.scan-btn');
+    if (!btn) return;
+
+    const tr = btn.closest('tr');
+    const input = tr.querySelector('.codigo-input');
+    const resultEl = tr.querySelector('.scan-result');
+
+    currentInput = input;
+
+    if (!scanner) {
+      scanner = new ZXing.BrowserBarcodeReader();
+    }
+
+    try {
+
+      const video = document.createElement('video');
+      video.style.position = 'fixed';
+      video.style.top = '0';
+      video.style.left = '0';
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.background = 'black';
+      video.style.zIndex = '9999';
+
+      document.body.appendChild(video);
+
+      const devices = await ZXing.BrowserBarcodeReader.listVideoInputDevices();
+
+      const deviceId = devices[0].deviceId;
+
+      scanner.decodeFromVideoDevice(deviceId, video, (result, err) => {
+
+        if (result) {
+
+          const code = result.getText();
+
+          resultEl.textContent = code;
+
+          if (currentInput) {
+            currentInput.value = code;
+            currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+
+          scanner.reset();
+          video.remove();
+        }
+
+      });
+
+    } catch (err) {
+      console.error(err);
+    }
+
+  });
+
+  let lastScanTs = 0;
+
+  async function pollScanner() {
+
+    try {
+
+      const res = await fetch('/api/scanner/last', { cache:'no-store' });
+      const json = await res.json();
+
+      if (!json.code) return;
+
+      if (json.ts === lastScanTs) return;
+
+      lastScanTs = json.ts;
+
+      const activeInput = document.querySelector('.codigo-input:focus');
+
+      if (activeInput) {
+
+        activeInput.value = json.code;
+
+        activeInput.dispatchEvent(
+          new Event('input', { bubbles:true })
+        );
+
+      }
+
+    } catch {}
+
+  }
+
+  setInterval(pollScanner, 500);
 });

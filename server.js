@@ -23,6 +23,34 @@ const upload = multer({ dest: UPLOAD_DIR });
 
 const CODIGOS_ML_PATH = path.join(UPLOAD_DIR, "ventas_ml_codigos.json");
 
+let lastScan = null;
+
+app.post('/api/scanner', express.json(), (req, res) => {
+
+  const code = req.body.code || req.body.barcode || req.body.text;
+
+  if (!code) {
+    return res.status(400).json({ error: 'No code' });
+  }
+
+  lastScan = {
+    code,
+    ts: Date.now()
+  };
+
+  res.json({ ok: true });
+});
+
+app.get('/api/scanner/last', (req, res) => {
+
+  if (!lastScan) {
+    return res.json({ code: null });
+  }
+
+  res.json(lastScan);
+
+});
+
 app.get("/api/debug-storage", (req, res) => {
   const dataPath = path.join(__dirname, "data");
 
