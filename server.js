@@ -189,6 +189,51 @@ app.post("/api/odoo/ventas", upload.single("archivo"), (req, res) => {
   res.json({ message: "Ventas Odoo cargadas correctamente", ...meta });
 });
 
+app.post('/api/odoo/stock', upload.single('archivo'), (req, res) => {
+
+  const filePath = path.join(UPLOAD_DIR, 'stock-odoo.xlsx');
+
+  fs.renameSync(req.file.path, filePath);
+
+  const info = {
+    uploadedAt: new Date().toISOString()
+  };
+
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, 'stock-odoo-info.json'),
+    JSON.stringify(info, null, 2)
+  );
+
+  res.json({
+    message: 'Stock Odoo cargado correctamente',
+    uploadedAt: info.uploadedAt
+  });
+});
+
+app.get('/api/odoo/stock/info', (req, res) => {
+
+  const infoPath = path.join(UPLOAD_DIR, 'stock-odoo-info.json');
+
+  if (!fs.existsSync(infoPath)) {
+    return res.status(404).json({ message: 'No hay archivo cargado' });
+  }
+
+  const info = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
+  res.json(info);
+});
+
+app.get('/api/odoo/stock/ultimo', (req, res) => {
+
+  const filePath = path.join(UPLOAD_DIR, 'stock-odoo.xlsx');
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'No hay stock Odoo cargado' });
+  }
+
+  res.sendFile(filePath);
+
+});
+
 // ...
 
 function renderWithSidebar(res, filePath) {

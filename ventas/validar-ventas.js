@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let toastTimer = null;
 
   let variantesOdooCache = [];
+  
+  let stockOdooCache = [];
 
   async function loadUltimasVariantesOdooParaBusqueda() {
     if (variantesOdooCache.length) return;
@@ -43,6 +45,50 @@ document.addEventListener('DOMContentLoaded', () => {
       name: String(r[2] || '').trim(),      // C
       variant: String(r[5] || '').trim()    // F
     })).filter(v => v.barcode);
+  }
+
+  async function loadStockOdoo() {
+
+    if (stockOdooCache.length) return;
+
+    const res = await fetch('/api/odoo/stock/ultimo', { cache: 'no-store' });
+
+    if (!res.ok) return;
+
+    const buf = await res.arrayBuffer();
+
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    const header = rows[0].map(h => String(h).toLowerCase());
+
+    const COL_BARCODE = header.findIndex(h =>
+      h.includes('producto/código') || h.includes('código de barras')
+    );
+
+    const COL_UBICACION = header.findIndex(h =>
+      h.includes('ubicación')
+    );
+
+    stockOdooCache = rows.slice(1).map(r => ({
+      barcode: String(r[COL_BARCODE] || '').trim(),
+      ubicacion: String(r[COL_UBICACION] || '').trim()
+    })).filter(r => r.barcode);
+
+  }
+  
+  function getUbicacionesPorCodigo(barcode) {
+
+    if (!barcode) return [];
+
+    const code = String(barcode).trim().toLowerCase();
+
+    return stockOdooCache
+      .filter(r => r.barcode.toLowerCase() === code)
+      .map(r => r.ubicacion)
+      .filter(Boolean);
   }
 
   function getVarianteOdooPorCodigo(barcode) {
@@ -375,6 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     statusEl.textContent = 'Procesando archivos...';
     await loadUltimasVariantesOdooParaBusqueda();
+    await loadStockOdoo();
     resultsBody.innerHTML = '';
     resultsSection.classList.add('hidden');
 
@@ -922,8 +969,23 @@ document.addEventListener('DOMContentLoaded', () => {
               `
               : `—`}
           </td>
-          <td class="edit-col">
-            <button type="button" class="edit-btn" title="Modificar producto despachado">✏️</button>
+          <td class="ubicaciones-col">
+            ${(() => {
+
+              const ubicaciones = getUbicacionesPorCodigo(item.codigoPersistido);
+
+              if (!ubicaciones.length) return '—';
+
+             return ubicaciones
+            .map(u => `
+              <div class="ubicacion-tag">
+                <span class="ubicacion-text">${u}</span>
+                <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
+              </div>
+            `)
+            .join('');
+
+            })()}
           </td>
           <td>
             ${obs !== 'OK'
@@ -1150,6 +1212,28 @@ saveTimeout = setTimeout(async () => {
 
     const info = getVarianteOdooPorCodigo(valor);
 
+    await loadStockOdoo();
+
+    const ubicaciones = getUbicacionesPorCodigo(valor);
+    const ubicacionesCell = tr.querySelector('.ubicaciones-col');
+
+    if (ubicacionesCell) {
+
+      if (!ubicaciones.length) {
+        ubicacionesCell.innerHTML = '—';
+      } else {
+        ubicacionesCell.innerHTML = ubicaciones
+        .map(u => `
+          <div class="ubicacion-tag">
+            <span class="ubicacion-text">${u}</span>
+            <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
+          </div>
+        `)
+        .join('');
+      }
+
+    }
+
     const nombreEl = tr.querySelector('.nombre-valor');
     const varianteEl = tr.querySelector('.variante-valor');
     const codigoEl = tr.querySelector('.codigo-valor');
@@ -1361,6 +1445,22 @@ saveTimeout = setTimeout(async () => {
     // ML suele tener columnas: Venta, Fecha, Estado, Producto, Precio, Envío, etc.
     return tieneVenta && tieneEstado && tieneFecha;
   }
+
+  resultsBody.addEventListener('click', async (e) => {
+
+    const btn = e.target.closest('.copy-ubicacion');
+    if (!btn) return;
+
+    const ubicacion = btn.dataset.ubicacion;
+
+    try {
+      await navigator.clipboard.writeText(ubicacion);
+      showToast(`Ubicación copiada: ${ubicacion}`, 1500, 'success');
+    } catch {
+      console.warn('No se pudo copiar');
+    }
+
+  });
 
   analyzeBtn.addEventListener('click', async () => {
     try {

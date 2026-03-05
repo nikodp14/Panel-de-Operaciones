@@ -655,3 +655,28 @@ body.sidebar-collapsed .container {
 .copiar-icon:hover {
   opacity: 1;
 }
+
+.ubicaciones-col{
+  min-width:220px;
+}
+
+.ubicacion-tag{
+  display:inline-flex;
+  align-items:center;
+  background:#eef2ff;
+  border:1px solid #c7d2fe;
+  border-radius:6px;
+  padding:3px 6px;
+  font-size:12px;
+  margin:2px;
+  gap:6px;
+}
+
+.copy-ubicacion{
+  cursor:pointer;
+  opacity:0.7;
+}
+
+.copy-ubicacion:hover{
+  opacity:1;
+}

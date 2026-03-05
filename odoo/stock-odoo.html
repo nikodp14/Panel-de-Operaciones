@@ -32,18 +32,19 @@
           <h2>Cargar archivo</h2>
           <div class="field">
             <label>Archivo Stock Ubicaciones Productos</label>
-            <input type="file" id="stockubicacionesproductosOdooFile" accept=".xlsx,.xls" />
+            <input type="file" id="stockOdooFile" accept=".xlsx,.xls" />
           </div>
-          <button id="uploadVentasOdooBtn" class="primary-btn" disabled>Subir archivo</button>
+          <button id="uploadStockOdooBtn" class="primary-btn" disabled>Subir archivo</button>
 
-          <p id="ventasOdooStatus" class="status"></p>
-          <p id="ventasOdooInfo" class="muted"></p>
+          <p id="stockOdooStatus" class="status"></p>
+          <p id="stockOdooInfo" class="muted"></p>
+
         </div>
       </div>
     </main>
   </div>
 
   <script src="/layout.js"></script>
-  <script src="/odoo/ventas-odoo.js"></script>
+  <script src="/odoo/stock-odoo.js"></script>
 </body>
 </html>
