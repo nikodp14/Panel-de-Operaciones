@@ -1100,7 +1100,24 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </td>
           <!-- Modificar producto despachado -->
-          <td class="edit-col">—</td>
+          <td class="ubicaciones-col">
+            ${(() => {
+
+              const ubicaciones = getUbicacionesPorCodigo(item.codigoPersistido);
+
+              if (!ubicaciones.length) return '—';
+
+              return ubicaciones
+                .map(u => `
+                  <div class="ubicacion-tag">
+                    <span class="ubicacion-text">${u}</span>
+                    <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
+                  </div>
+                `)
+                .join('');
+
+            })()}
+          </td>
 
           <td>
             <input type="checkbox" ${item.cambioProducto ? 'checked' : ''} disabled />
