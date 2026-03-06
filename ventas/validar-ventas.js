@@ -14,14 +14,211 @@ document.addEventListener('DOMContentLoaded', () => {
   // === ÍNDICES ML (Ventas ML) ===
   // Ajusta aquí si cambia el formato del Excel de ML
   const ML_COL_VENTA = 0;      // Col A: Número de venta ML
-
   let odooQtyByVentaCodigo = new Map();
-
   let toastTimer = null;
-
   let variantesOdooCache = [];
-  
   let stockOdooCache = [];
+  let codigosPorVenta = {};
+  let lastScannerTs = 0;
+  let scanInterval = null;
+  let scanTargetInput = null;
+  let scanResultEl = null;
+  let lastScanTs = 0;
+  let lastScannedCode = null;
+  let scannerLock = false;
+
+  async function pollScanner() {
+
+    try {
+
+      const res = await fetch('/api/scanner/last');
+      const data = await res.json();
+
+     if (!data || !data.code) {
+        scanInterval = setTimeout(pollScanner, 250);
+        return;
+      }
+
+      handleScan(data);
+
+    } catch (err) {
+      console.error("Scanner error", err);
+    }
+
+    scanInterval = setTimeout(pollScanner, 250);
+  }
+
+  async function handleScan(data) {
+
+    const code = String(data.code || '').trim();
+    if (!code) return;
+
+    if (!scanResultEl) return;
+
+    const tr = scanResultEl.closest("tr");
+    if (!tr) return;
+
+    const input = tr.querySelector(".codigo-input");
+    if (!input) return;
+
+    const ventaML = input.dataset.venta;
+    const pubML = input.dataset.pubml;
+
+    const keyPersistencia = `${ventaML}|${pubML}`;
+
+    lastScannedCode = code;
+    lastScanTs = data.ts || Date.now();
+
+    // Mostrar escaneo en pantalla
+    scanResultEl.textContent = code;
+
+    try {
+
+      // Persistir escaneo
+      await fetch('/api/ml/ventas/codigos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: keyPersistencia,
+          ventaML,
+          pubML,
+          escaneado: code
+        })
+      });
+
+      // actualizar cache local
+      codigosPorVenta[keyPersistencia] = {
+        ...(codigosPorVenta[keyPersistencia] || {}),
+        escaneado: code
+      };
+
+    } catch (err) {
+      console.error("Error guardando escaneo", err);
+    }
+
+    await validarLineaDespacho(tr, input);
+
+    showToast("Producto escaneado 📦", 1500);
+
+  }
+
+  async function validarLineaDespacho(tr, input) {
+
+    const obsCell = tr.querySelector('.obs-cell');
+    const checkbox = tr.querySelector('.cambio-checkbox');
+
+    const pubML = input.dataset.pubml;
+    const ventaML = input.dataset.venta;
+    const valor = input.value || '';
+
+    const keyPersistencia = `${ventaML}|${pubML}`;
+
+    const pubKey = String(pubML || '').replace(/^MLC/i, '').trim();
+    const cambioProducto = checkbox && checkbox.checked;
+
+    const escaneado =
+      codigosPorVenta[keyPersistencia]?.escaneado || null;
+
+    const codigoEfectivo = normCodigo(valor);
+    const ventaKey = normVentaKey(ventaML);
+
+    // 🔹 Si no hay código ingresado
+    if (!codigoEfectivo) {
+      obsCell.textContent = 'INGRESE PRODUCTO A DESPACHAR';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    // 🔴 Producto incorrecto
+    if (!cambioProducto && !contienePubML(codigoEfectivo, pubKey)) {
+      obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    // 🟡 Falta escaneo
+    if (!escaneado) {
+      obsCell.textContent = 'ESCANEE EL PRODUCTO';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    // 🔴 Escaneo distinto
+    if (normCodigo(valor) !== normCodigo(escaneado)) {
+      obsCell.textContent = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    // 🔹 Validación Odoo
+    const existeProductoEnOdoo =
+      odooQtyByVentaCodigo.has(`${ventaKey}|${codigoEfectivo}`);
+
+    if (!existeProductoEnOdoo) {
+      obsCell.textContent = 'PRODUCTO NO REGISTRADO EN ODOO';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    const unidadesDespachar = Number(
+      tr.querySelector('.qty-despachar')?.textContent || 0
+    );
+
+    const qtyOdoo =
+      odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
+
+    if (qtyOdoo < unidadesDespachar) {
+      obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    if (qtyOdoo > unidadesDespachar) {
+      obsCell.textContent = 'EXCESO DE UNIDADES REGISTRADAS';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+    }
+
+    obsCell.textContent = 'OK';
+    obsCell.classList.remove('error-cell');
+    obsCell.classList.add('ok-cell');
+
+    lastScannedCode = null;
+
+    await runValidacionVentas();
+
+    return true;
+  }
+
+  resultsBody.addEventListener("click", async (e) => {
+
+    const btn = e.target.closest(".scan-btn");
+    if (!btn) return;
+
+    const tr = btn.closest("tr");
+
+    scanResultEl = tr.querySelector(".scan-result");
+
+    // reset
+    lastScannedCode = null;
+    lastScanTs = Date.now() + 300; 
+
+    document.activeElement.blur();
+
+    clearTimeout(scanInterval);
+
+    pollScanner();
+
+    showToast("Esperando escaneo 📡");
+
+  });
 
   async function loadUltimasVariantesOdooParaBusqueda() {
     if (variantesOdooCache.length) return;
@@ -45,6 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
       name: String(r[2] || '').trim(),      // C
       variant: String(r[5] || '').trim()    // F
     })).filter(v => v.barcode);
+
+    clearInterval(scanInterval);
+    scanInterval = null;
   }
 
   async function loadStockOdoo() {
@@ -416,8 +616,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function runValidacionVentas() {
+    codigosPorVenta = {};
     const codigosRes = await fetch('/api/ml/ventas/codigos');
-    const codigosPorVenta = await codigosRes.json();
+    codigosPorVenta = await codigosRes.json();
 
     statusEl.textContent = 'Procesando archivos...';
     await loadUltimasVariantesOdooParaBusqueda();
@@ -813,6 +1014,44 @@ document.addEventListener('DOMContentLoaded', () => {
             precioUnitarioFinal = 0;
           }
 
+          // 🔒 No permitir OK si no hubo escaneo
+          const escaneado =
+          codigosPorVenta[keyPersistencia]?.escaneado || null;
+
+          const pubKey = String(pubProcesar || '').replace(/^MLC/i, '').trim();
+          const cambioProducto = cambioProductoPersistido;
+
+          const codigoIngresado =
+          codigosPorVenta[keyPersistencia]?.codigo || null;
+
+          const escaneoValido =
+          codigoIngresado &&
+          escaneado &&
+          normCodigo(escaneado) === normCodigo(codigoIngresado);
+
+          // 🔴 Primero validar producto correcto
+          if (
+            codigoIngresado &&
+            !cambioProducto &&
+            !contienePubML(codigoIngresado, pubProcesar)
+          ) {
+            obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+          }
+
+          // 🟡 Luego validar escaneo
+          else if (codigoIngresado && !escaneado) {
+            obsFinal = 'ESCANEE EL PRODUCTO';
+          }
+
+          // 🔴 Escaneo incorrecto
+          else if (
+            codigoIngresado &&
+            escaneado &&
+            normCodigo(codigoIngresado) !== normCodigo(escaneado)
+          ) {
+            obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+          }
+
           const itemBase = {
           r: [...r],
           ventaMLFinal,
@@ -830,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
-          if (!obsFinal) {
+          if (!obsFinal && escaneoValido) {
             observacionesOK.push(itemBase);
           } else {
             observaciones.push(itemBase);
@@ -911,10 +1150,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.innerHTML = `
           <td>
-            ${item.ventaLink
-              ? `<a href="${item.ventaLink}" target="_blank" class="venta-link">${item.ventaMLFinal}</a>`
-              : item.ventaMLFinal
-            }
+            <div class="venta-copy">
+              ${item.ventaLink
+                ? `<a href="${item.ventaLink}" target="_blank" class="venta-link">${item.ventaMLFinal}</a>`
+                : item.ventaMLFinal
+              }
+              <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
+            </div>
           </td>
           <td>${item.r[1]}</td>
           <td>${item.r[2]}</td>
@@ -942,6 +1184,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     data-pubml="${pubMLSinMLC}"
                     value="${item.codigoPersistido || ''}"
                   />
+
+                  <div class="odoo-suggestions hidden"></div>
                   ${(() => {
                     const info = getVarianteOdooPorCodigo(item.codigoPersistido);
 
@@ -966,10 +1210,19 @@ document.addEventListener('DOMContentLoaded', () => {
                   })()}
                   <div class="scan-area">
                     <button class="scan-btn">📷 Escanear</button>
-                    <div class="scan-result">—</div>
+
+                    <div class="scan-result-wrapper">
+                      <span class="scan-result">
+                        ${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.escaneado || '—'}
+                      </span>
+                      <span 
+                        class="copy-scan" 
+                        data-scan="${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.escaneado || ''}"
+                        title="Copiar código escaneado"
+                      >📋</span>
+                    </div>
+
                   </div>
-                  <div class="odoo-suggestions hidden"></div>
-                </div>
               `
               : `—`}
           </td>
@@ -993,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
           <td>
             ${obs !== 'OK'
-              ? `<input type="checkbox" class="cambio-checkbox" />`
+              ? `<input type="checkbox" class="cambio-checkbox" ${item.cambioProducto ? 'checked' : ''} />`
               : `—`}
           </td>
           <td>${unidadesML}</td>
@@ -1008,8 +1261,13 @@ document.addEventListener('DOMContentLoaded', () => {
           }">
             ${qtyRegistradaOdoo}
           </td>
-          <td>${item.precioUnitario.toLocaleString('es-CL')}</td>
-          <td class="obs-cell">${item.obs}</td>
+          <td>
+            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+          </td>
+          <td class="obs-cell ${item.obs === 'INGRESE PRODUCTO A DESPACHAR' || item.obs === 'ESCANEE EL PRODUCTO' || item.obs === 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER' || item.obs === 'PRODUCTO A DESPACHAR INCORRECTO' ? 'error-cell' : ''}">
+            ${item.obs}
+          </td>
         `;
 
         resultsBody.appendChild(tr);
@@ -1048,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.dataset.pubml = item.pubProcesar;
 
-        const ventaMLRow = String(item.r[ML_COL_VENTA] || '').trim();
+        const ventaMLRow = item.ventaMLFinal;        
         const codigoKey = normCodigo(item.codigoPersistido);
         const ventaKey = normVentaKey(ventaMLRow);
 
@@ -1056,7 +1314,15 @@ document.addEventListener('DOMContentLoaded', () => {
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
 
         tr.innerHTML = `
-          <td>${item.r[0]}</td>
+          <td>
+            <div class="venta-copy">
+              ${item.ventaLink
+                ? `<a href="${item.ventaLink}" target="_blank" class="venta-link">${item.ventaMLFinal}</a>`
+                : item.ventaMLFinal
+              }
+              <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
+            </div>
+          </td>
           <td>${item.r[1]}</td>
           <td>${item.r[2]}</td>
           <td>
@@ -1088,6 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <div class="linea-codigo">
                     <span class="codigo-label">Código despachado:</span>
                     <span class="codigo-valor">${item.codigoPersistido || '—'}</span>
+                    <span class="copy-codigo" data-codigo="${item.codigoPersistido}" title="Copiar código">📋</span>
                   </div>
 
                   <div class="linea-nombre">
@@ -1137,7 +1404,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>—</td>
 
           <!-- Precio -->
-          <td>${item.precioUnitario.toLocaleString('es-CL')}</td>
+          <td>
+            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+          </td>
 
           <td class="obs-cell ok-cell">OK</td>
         `;
@@ -1201,161 +1471,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const pubML = input.dataset.pubml;   // # publicación ML sin MLC
     const ventaML = input.dataset.venta; // # venta ML
     const valor = input.value || '';
+
     const keyPersistencia = `${ventaML}|${pubML}`;
 
     // 🔹 Persistir SIEMPRE el código (aunque no sea OK)
-    clearTimeout(saveTimeout);
-
-saveTimeout = setTimeout(async () => {
-
-  const cambioProductoActual =
+    const cambioProductoActual =
     tr.querySelector('.cambio-checkbox')?.checked || false;
 
-      try {
-        await fetch('/api/ml/ventas/codigos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            key: keyPersistencia,
-            ventaML,
-            pubML,
-            codigo: valor,
-            cambioProducto: cambioProductoActual
-          })
-        });
-      } catch (err) {
-        console.error('Error guardando código provisional', err);
-      }
-    }, 500);
+    try {
+      await fetch('/api/ml/ventas/codigos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: keyPersistencia,
+          ventaML,
+          pubML,
+          codigo: valor,
+          cambioProducto: cambioProductoActual
+        })
+      });
 
-    // 🔹 Actualizar info variante debajo del input
-    await loadUltimasVariantesOdooParaBusqueda();
-
-    const info = getVarianteOdooPorCodigo(valor);
-
-    await loadStockOdoo();
-
-    const ubicaciones = getUbicacionesPorCodigo(valor);
-    const ubicacionesCell = tr.querySelector('.ubicaciones-col');
-
-    if (ubicacionesCell) {
-
-      if (!ubicaciones.length) {
-        ubicacionesCell.innerHTML = '—';
-      } else {
-        ubicacionesCell.innerHTML = ubicaciones
-        .map(u => `
-          <div class="ubicacion-tag">
-            <span class="ubicacion-text">${u}</span>
-            <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
-          </div>
-        `)
-        .join('');
-      }
-
+      codigosPorVenta[`${ventaML}|${pubML}`] = {
+        ...(codigosPorVenta[`${ventaML}|${pubML}`] || {}),
+        codigo: valor
+      };
+    } catch (err) {
+      console.error('Error guardando código provisional', err);
     }
-
-    const nombreEl = tr.querySelector('.nombre-valor');
-    const varianteEl = tr.querySelector('.variante-valor');
-    const codigoEl = tr.querySelector('.codigo-valor');
-
-    if (codigoEl) codigoEl.textContent = valor || '—';
-
-    if (info) {
-      if (nombreEl) nombreEl.textContent = info.name || '—';
-      if (varianteEl) varianteEl.textContent = info.variant || '—';
-    } else {
-      if (nombreEl) nombreEl.textContent = '—';
-      if (varianteEl) varianteEl.textContent = '—';
-    }
-
-    // 1) Validación visual (si no hay cambio de producto)
-    const codigoEfectivo = normCodigo(valor);
-    const ventaKey = normVentaKey(ventaML);
-    const pubKey = String(pubML || '').replace(/^MLC/i, '').trim();
-    const cambioProducto = checkbox && checkbox.checked;
-
-    // 1️⃣ Input vacío
-    if (!codigoEfectivo) {
-      obsCell.textContent = 'INGRESE PRODUCTO A DESPACHAR';
-      obsCell.style.color = '#0b5ed7';
-      return;
-    }
-
-    // 2️⃣ Si NO está marcado cambioProducto → validar publicación
-    if (!cambioProducto && !contienePubML(codigoEfectivo, pubKey)) {
-      obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
-      obsCell.style.color = 'red';
-      return;
-    }
-
-    // 3️⃣ Validar contra Odoo
-    const existeProductoEnOdoo =
-      odooQtyByVentaCodigo.has(`${ventaKey}|${codigoEfectivo}`);
-
-    const existeVentaEnOdooConOtroCodigo = Array.from(odooQtyByVentaCodigo.keys())
-      .some(k => k.startsWith(`${ventaKey}|`));
-
-    if (!existeProductoEnOdoo) {
-
-      if (existeVentaEnOdooConOtroCodigo) {
-        obsCell.textContent = 'EXISTE LA VENTA EN ODOO, PERO CON OTRO CÓDIGO';
-      } else {
-        obsCell.textContent = 'PRODUCTO NO REGISTRADO EN ODOO';
-      }
-
-      obsCell.style.color = 'red';
-      return;
-    }
-
-    // 4️⃣ Validar cantidades
-    const unidadesDespachar = Number(
-      tr.querySelector('.qty-despachar')?.textContent || 0
-    );
-
-    const qtyOdoo =
-      odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
-
-    if (qtyOdoo < unidadesDespachar) {
-      obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR';
-      obsCell.style.color = 'red';
-      return;
-    }
-
-    if (qtyOdoo > unidadesDespachar) {
-      obsCell.textContent = 'EXCESO DE UNIDADES REGISTRADAS';
-      obsCell.style.color = '#b45309';
-      return;
-    }
-
-    // 5️⃣ OK real
-    /*await fetch('/api/ml/ventas/codigos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ventaML,
-        codigo: valor,
-        cambioProducto
-      })
-    });*/
-
-    await fetch('/api/ml/ventas/codigos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key: keyPersistencia,
-        ventaML,
-        pubML,
-        codigo: valor,
-        cambioProducto
-      })
-    });
-
-    showToast('Venta validada y movida a OK ✅', 2500, 'success');
-
-    tr.remove();
-    await runValidacionVentas();
-    return;
+    
+    await validarLineaDespacho(tr, input);
   });
 
   // 🔎 AUTOCOMPLETE VARIANTES ODOO
@@ -1367,6 +1511,13 @@ saveTimeout = setTimeout(async () => {
     const suggestionsEl = tr.querySelector('.odoo-suggestions');
 
     if (!suggestionsEl) return;
+
+    // 🚫 No mostrar variantes si el código no coincide con el escáner
+    if (lastScannedCode && normCodigo(input.value) !== normCodigo(lastScannedCode)) {
+      suggestionsEl.classList.add('hidden');
+      suggestionsEl.innerHTML = '';
+      return;
+    }
 
     const value = input.value.trim().toLowerCase();
 
@@ -1483,6 +1634,47 @@ saveTimeout = setTimeout(async () => {
 
   });
 
+  resultsBody.addEventListener('click', async (e) => {
+
+    const ventaBtn = e.target.closest('.copy-venta');
+    if (ventaBtn) {
+      const venta = ventaBtn.dataset.venta;
+      await navigator.clipboard.writeText(venta);
+      showToast(`Venta copiada: ${venta}`, 1500);
+      return;
+    }
+
+    const codigoBtn = e.target.closest('.copy-codigo');
+    if (codigoBtn) {
+      const codigo = codigoBtn.dataset.codigo;
+      await navigator.clipboard.writeText(codigo);
+      showToast(`Código copiado: ${codigo}`, 1500);
+      return;
+    }
+
+    const precioBtn = e.target.closest('.copy-precio');
+    if (precioBtn) {
+      const precio = precioBtn.dataset.precio;
+      await navigator.clipboard.writeText(precio);
+      showToast(`Precio copiado: ${Number(precio).toLocaleString('es-CL')}`, 1500);
+      return;
+    }
+
+    const scanBtn = e.target.closest('.copy-scan');
+    if (scanBtn) {
+      const code = scanBtn.dataset.scan;
+
+      if (!code) {
+        showToast('No hay código escaneado', 1500, 'error');
+        return;
+      }
+
+      await navigator.clipboard.writeText(code);
+      showToast(`Código escaneado copiado: ${code}`, 1500);
+      return;
+    }
+  });
+
   analyzeBtn.addEventListener('click', async () => {
     try {
       resetResultadosUI();
@@ -1524,7 +1716,7 @@ saveTimeout = setTimeout(async () => {
     }
   });
 
-  resultsBody.addEventListener('change', (e) => {
+  resultsBody.addEventListener('change', async (e) => {
     if (!e.target.classList.contains('cambio-checkbox')) return;
 
     const tr = e.target.closest('tr');
@@ -1532,8 +1724,22 @@ saveTimeout = setTimeout(async () => {
 
     if (!input) return;
 
+    const pubML = input.dataset.pubml;
+    const ventaML = input.dataset.venta;
+
+    await fetch('/api/ml/ventas/codigos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: `${ventaML}|${pubML}`,
+        ventaML,
+        pubML,
+        cambioProducto: e.target.checked
+      })
+    });
+
     // 🔁 Forzar revalidación
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    validarLineaDespacho(tr, input);
   });
 
   resultsBody.addEventListener('click', (e) => {
@@ -1610,97 +1816,4 @@ saveTimeout = setTimeout(async () => {
       el.innerHTML = '';
     });
   });
-
-  let scanner;
-  let currentInput = null;
-
-  resultsBody.addEventListener('click', async (e) => {
-
-    const btn = e.target.closest('.scan-btn');
-    if (!btn) return;
-
-    const tr = btn.closest('tr');
-    const input = tr.querySelector('.codigo-input');
-    const resultEl = tr.querySelector('.scan-result');
-
-    currentInput = input;
-
-    if (!scanner) {
-      scanner = new ZXing.BrowserBarcodeReader();
-    }
-
-    try {
-
-      const video = document.createElement('video');
-      video.style.position = 'fixed';
-      video.style.top = '0';
-      video.style.left = '0';
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.style.background = 'black';
-      video.style.zIndex = '9999';
-
-      document.body.appendChild(video);
-
-      const devices = await ZXing.BrowserBarcodeReader.listVideoInputDevices();
-
-      const deviceId = devices[0].deviceId;
-
-      scanner.decodeFromVideoDevice(deviceId, video, (result, err) => {
-
-        if (result) {
-
-          const code = result.getText();
-
-          resultEl.textContent = code;
-
-          if (currentInput) {
-            currentInput.value = code;
-            currentInput.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-
-          scanner.reset();
-          video.remove();
-        }
-
-      });
-
-    } catch (err) {
-      console.error(err);
-    }
-
-  });
-
-  let lastScanTs = 0;
-
-  async function pollScanner() {
-
-    try {
-
-      const res = await fetch('/api/scanner/last', { cache:'no-store' });
-      const json = await res.json();
-
-      if (!json.code) return;
-
-      if (json.ts === lastScanTs) return;
-
-      lastScanTs = json.ts;
-
-      const activeInput = document.querySelector('.codigo-input:focus');
-
-      if (activeInput) {
-
-        activeInput.value = json.code;
-
-        activeInput.dispatchEvent(
-          new Event('input', { bubbles:true })
-        );
-
-      }
-
-    } catch {}
-
-  }
-
-  setInterval(pollScanner, 500);
 });

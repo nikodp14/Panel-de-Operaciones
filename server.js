@@ -47,7 +47,12 @@ app.get('/api/scanner/last', (req, res) => {
     return res.json({ code: null });
   }
 
-  res.json(lastScan);
+  const scan = lastScan;
+
+  // 🔹 consumir escaneo (evita repetir el último)
+  lastScan = null;
+
+  res.json(scan);
 
 });
 
@@ -78,8 +83,7 @@ app.get("/api/ml/ventas/codigos", (req, res) => {
 });
 
 app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
-  const { key, codigo, cambioProducto } = req.body;
-
+  const { key, codigo, escaneado, cambioProducto } = req.body;
   if (!key) {
     return res.status(400).json({ error: "key requerida (venta|publicacion)" });
   }
@@ -94,8 +98,10 @@ app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
   }
 
   data[key] = {
-    codigo: codigo || "",
-    cambioProducto: !!cambioProducto,
+    ...(data[key] || {}),
+    codigo: codigo ?? data[key]?.codigo ?? "",
+    escaneado: escaneado ?? data[key]?.escaneado ?? null,
+    cambioProducto: cambioProducto ?? data[key]?.cambioProducto ?? false,
     updatedAt: new Date().toISOString()
   };
 
@@ -236,6 +242,10 @@ app.post('/api/odoo/stock', upload.single('archivo'), (req, res) => {
     message: 'Stock Odoo cargado correctamente',
     uploadedAt: info.uploadedAt
   });
+});
+
+app.get("/scanner", (req, res) => {
+  res.sendFile(path.join(__dirname, "scanner","scanner-bridge.html"));
 });
 
 app.get('/api/odoo/stock/info', (req, res) => {

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Scanner Bridge</title>
+<style>
+body{
+  font-family: Arial;
+  padding:40px;
+  text-align:center;
+}
+
+input{
+  font-size:24px;
+  padding:10px;
+  width:80%;
+}
+
+.status{
+  margin-top:20px;
+  font-size:14px;
+  color:#666;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Escáner conectado</h2>
+
+<input id="barcodeInput" placeholder="Esperando escaneo..." autofocus>
+
+<div class="status" id="status">Esperando código...</div>
+
+<script>
+
+const input = document.getElementById("barcodeInput");
+const status = document.getElementById("status");
+
+input.addEventListener("input", async () => {
+
+  const code = input.value.trim();
+
+  if(!code) return;
+
+  try{
+
+    await fetch("/api/scanner",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({ code })
+    });
+
+    status.textContent = "Código enviado: " + code;
+
+  }catch(err){
+
+    status.textContent = "Error enviando código";
+
+  }
+
+  input.value = "";
+  input.focus();
+
+});
+
+</script>
+
+</body>
+</html>

@@ -702,3 +702,40 @@ body.sidebar-collapsed .container {
   font-size:12px;
   color:#374151;
 }
+
+.error-cell{
+  color:#dc2626;
+  font-weight:600;
+}
+
+.copy-venta,
+.copy-codigo {
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.copy-venta:hover,
+.copy-codigo:hover {
+  opacity: 1;
+}
+
+.copy-precio {
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.copy-precio:hover {
+  opacity: 1;
+}
+
+.copy-scan {
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.copy-scan:hover {
+  opacity: 1;
+}
