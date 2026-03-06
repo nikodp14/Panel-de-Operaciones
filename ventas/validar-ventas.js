@@ -762,7 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
-      const cutoff = new Date('2026-02-28');
+      const cutoff = new Date('2026-03-06');
       const observaciones = [];
       const observacionesOK = [];
       const odooQtyByVenta = new Map();
