@@ -18,6 +18,14 @@ function normalizeHeader(str) {
     .trim();
 }
 
+function normalizeMlPublication(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace('MLC','')
+    .replace(/[^0-9]/g,'')
+    .trim();
+}
+
 function validarExcelPublicacionesML(rows) {
   // En tu export de ML, los encabezados reales están en la fila 3 (index 2)
   const headerRow = rows[2] || [];
@@ -46,15 +54,65 @@ function validarExcelPublicacionesML(rows) {
 }
 
 async function loadOmitidosFromConfig() {
+  const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
+  if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
+
+  const arrayBuffer = await res.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+  if (!stockMlConfigCache) {
+    stockMlConfigCache = new Map();
+  }
+
   if (omitidosSetCache) return omitidosSetCache;
 
   try {
     const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
 
-    const arrayBuffer = await res.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const packsSheet = workbook.SheetNames.find(n =>
+      normalizeHeader(n).includes('pack')
+    );
 
+    if (packsSheet) {
+      const sheet = workbook.Sheets[packsSheet];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      const packMap = new Map();
+
+      rows.forEach(r => {
+
+        const pub = normalizeMlPublication(r[0]);
+        const sku = normalizeMlPublication(r[1]);
+
+        //console.log(pub, sku);
+
+        if (!pub || !sku) return;
+
+        if (!packMap.has(pub)) packMap.set(pub, []);
+
+        packMap.get(pub).push(sku);
+
+      });
+
+      // unir packs con la config existente
+      packMap.forEach((skus, pub) => {
+
+        if (!stockMlConfigCache) {
+          stockMlConfigCache = new Map();
+        }
+
+        const existing = stockMlConfigCache.get(pub) || {};
+
+        stockMlConfigCache.set(pub, {
+          ...existing,
+          skus
+        });
+
+      });
+
+    }
+    
     const sheetName =
       workbook.SheetNames.find((n) => normalizeHeader(n).includes('omitidos')) ||
       workbook.SheetNames[0];
@@ -453,6 +511,55 @@ async function loadVariantesValidarFromConfig() {
     const arrayBuffer = await res.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
+    if (!stockMlConfigCache) {
+      stockMlConfigCache = new Map();
+    }
+
+    // 🔹 Buscar hoja packs después de leer el workbook
+    const packsSheet = workbook.SheetNames.find(n =>
+      normalizeHeader(n).includes('pack')
+    );
+
+    if (packsSheet) {
+      const sheet = workbook.Sheets[packsSheet];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      const packMap = new Map();
+
+      rows.forEach(r => {
+
+        const pub = normalizeMlPublication(r[0]);
+        const sku = normalizeMlPublication(r[1]);
+
+        if (!pub || !sku) return;
+
+        if (!packMap.has(pub)) packMap.set(pub, []);
+
+        packMap.get(pub).push(sku);
+
+      });
+
+      packMap.forEach((skus, pub) => {
+
+        if (!stockMlConfigCache) {
+          stockMlConfigCache = new Map();
+        }
+
+        const existing = stockMlConfigCache.get(pub) || {};
+
+        stockMlConfigCache.set(pub, {
+          ...existing,
+          skus
+        });
+
+      });
+
+    }
+
+    if (!stockMlConfigCache) {
+      stockMlConfigCache = new Map();
+    }
+
     const sheetName =
       workbook.SheetNames.find((n) => normalizeHeader(n).includes('variantes validar')) ||
       workbook.SheetNames.find((n) => normalizeHeader(n).includes('variantes'));
@@ -698,9 +805,66 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
       }
     }
 
-    const hasMatchInOdoo = matches.length > 0;
-    const odooStock = hasMatchInOdoo ? Math.min(...matches.map((m) => m.stock)) : 0;
-    const cfg = stockMlConfigMap.get(normalizedPublication);
+    let hasMatchInOdoo = matches.length > 0;
+
+    const cfg = {
+      ...(stockMlConfigMap.get(normalizedPublication) || {}),
+      ...(stockMlConfigCache?.get(normalizedPublication) || {})
+    };
+    //console.log(normalizedPublication);
+    //console.log(cfg);
+    //console.log(stockMlConfigMap);
+
+    let odooStock = 0;
+    //console.log("cfg completo:", normalizedPublication, cfg);
+    // 🔹 Si la publicación tiene SKUs definidos en configuración (pack)
+    if (cfg?.skus) {
+      //console.log('skus');
+
+      const packSkus = String(cfg.skus)
+        .split(/[\/,]/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      /*console.log('📦 PACK DETECTADO');
+      console.log('Publicación ML:', normalizedPublication);
+      console.log('SKUs del pack:', packSkus);*/
+
+      let skuStocks = [];
+
+      for (const sku of packSkus) {
+        //console.log('🔎 Buscando SKU en Odoo:', sku);
+
+        const odooMatch = odooNormalized.filter(o =>
+          extractBaseCodes(o.barcode).some(code => code.includes(sku))
+        );
+
+        // 🔴 Si un SKU del pack no existe en Odoo → pack sin stock
+        if (!odooMatch.length) {
+          skuStocks = [0];
+          break;
+        }
+
+        const stockSku = Math.min(...odooMatch.map(m => m.stock));
+        skuStocks.push(stockSku);
+        //console.log('Stock encontrado:', stockSku);
+      }
+
+      odooStock = skuStocks.length ? Math.min(...skuStocks) : 0;
+
+      // 🔧 FIX: si es pack y encontramos SKUs, no es NO ENCONTRADO
+      if (packSkus.length) {
+        hasMatchInOdoo = true;
+      }
+
+    } else {
+
+      // 🔹 comportamiento normal (no pack)
+      odooStock = hasMatchInOdoo
+        ? Math.min(...matches.map((m) => m.stock))
+        : 0;
+    }
+
     /*if (normalizedPublication === '3394755938') {
       console.log(cfg);
     }*/
