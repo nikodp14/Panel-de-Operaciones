@@ -24,6 +24,16 @@
     <!-- Contenido -->
     <main class="content">
       <div class="container">
+        <!-- Instrucciones -->
+        <div class="card">
+          <h2>Descargar Variantes Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
 
         <!-- Instrucciones -->
         <div class="card">
@@ -40,21 +50,28 @@
 
         <!-- Carga y acción -->
         <div class="card">
-          <h2>Cargar archivo de Publicaciones ML</h2>
+          <h2>Analizar Publicaciones ML</h2>
 
           <div class="field">
+            <!--<label for="fileInput">Archivo de Publicaciones ML (.xlsx)</label>
+            <input type="file" id="mlFile" accept=".xlsx,.xls" />-->
             <p id="mlInfo" class="status">Publicaciones ML: no cargadas</p>
-            <label for="fileInput">Archivo de Publicaciones ML (.xlsx)</label>
-            <input type="file" id="mlFile" accept=".xlsx,.xls" />
+            <p id="odooInfo" class="status">Variantes Odoo: cargando información...</p>
+
+            <p class="muted">
+            Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
+            </p>
+            <p class="muted">- Variantes de producto (product.product)</p>
+            <p class="muted">- Publicaciones-</p>
+
+            <button id="autoUpdateBtn" class="primary-btn">
+              Actualizar todo desde Carpeta
+            </button>
+
+            <button id="analyzeBtn" class="primary-btn" disabled>
+              Analizar observaciones
+            </button>
           </div>
-
-          <p id="odooInfo" class="status">
-            Variantes Odoo: cargando información...
-          </p>
-
-          <button id="analyzeBtn" class="primary-btn" disabled>
-            Analizar observaciones
-          </button>
 
           <div id="actionCounters" class="action-counters hidden"></div>
           <p id="status" class="status"></p>

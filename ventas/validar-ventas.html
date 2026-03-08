@@ -23,6 +23,34 @@
     <main class="content">
       <div class="container">
         <div class="card">
+          <h2>Descargar Variantes Odoo (Sólo si se crearon o modificaron productos)</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Descargar Ventas Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Ventas</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Plantilla Ventas</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Descargar Stock Ubicaciones Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario</strong>.</li>
+            <li>Ingrese a <strong>Reportes->Ubicaciones</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → STOCK UBICACIONES ODOO</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
           <h2>Descargar Excel Ventas ML</h2>
           <ol>
              <li>1. Ingresar Menú <strong>Ventas</strong>.</li>
@@ -32,17 +60,25 @@
         </div>
 
         <div class="card">
-          <h2>Cargar archivo</h2>
+          <!--<h2>Cargar archivo</h2>
 
           <div class="field">
             <label>Archivo Ventas ML</label>
             <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
-          </div>
+          </div>-->
+          <h2>Analizar Ventas MercadoLibre</h2>
           <p id="mlVentasInfo" class="muted"></p>
           <p id="odooVentasInfo" class="muted"></p>
           <p class="muted">
-            Se utilizará el último archivo de Ventas ML cargado en el sistema.
+            Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
           </p>
+          <p class="muted">- Variantes de producto (product.product)</p>
+          <p class="muted">- Quants (stock.quant)</p>
+          <p class="muted">- Orden de venta (sale.order)</p>
+          <p class="muted">- ML_Ventas_CL_Mercado_Libre_y_Mercado_Shops</p>
+           <button id="autoUpdateBtn" class="primary-btn">
+            Actualizar todo desde Carpeta
+          </button>
           <button id="analyzeVentasBtn" class="primary-btn" disabled>Validar ventas</button>
           <p id="statusVentas" class="status"></p>
         </div>
@@ -59,10 +95,10 @@
                   <th>Estado ML</th>
                   <th>Producto despachar</th>
                   <th>Ubicaciones</th>
-                  <th>Cambio producto</th>
+                  <th>Cambio</th>
                   <th>Unid. ML</th>
-                  <th>Unid. a despachar</th>
-                  <th>Unid. en Odoo</th>
+                  <th>Unid. Desp.</th>
+                  <th>Unid. Odoo</th>
                   <th>Precio</th>
                   <th>Observación</th>
                 </tr>

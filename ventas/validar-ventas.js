@@ -401,7 +401,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function updateAnalyzeAvailability() {
     try {
-      const hasFileSelected = mlInput.files && mlInput.files.length > 0;
+      const hasFileSelected =
+        mlInput && mlInput.files && mlInput.files.length > 0;
 
       // Si hay archivo seleccionado, SIEMPRE permitir validar (porque subirá)
       if (hasFileSelected) {
@@ -593,13 +594,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const labels = {
       TODOS: 'TODOS',
-      CON_OBS: 'CON OBSERVACIONES',
+      CON_OBS: 'OBSERVACIONES',
       OK: 'OK'
     };
 
     pillsOrder.forEach(k => {
       const pill = document.createElement('span');
-      pill.className = 'pill' + (k === 'TODOS' ? ' active' : '');
+      pill.className = 'pill' + (k === 'CON_OBS' ? ' active' : '');
       pill.dataset.filter = k;
       pill.textContent = `${labels[k]} (${counts[k] || 0})`;
 
@@ -613,6 +614,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     countersEl.classList.remove('hidden');
+
+    applyFilter('CON_OBS');
   }
 
   async function runValidacionVentas() {
@@ -1176,16 +1179,18 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
 
                   <!-- 👇 Input SIEMPRE visible en NO OK -->
-                  <input
-                    type="text"
-                    class="codigo-input"
-                    placeholder="${item.codigoPersistido ? 'Modificar código' : 'Ingresar código'}"
-                    data-venta="${ventaMLRow}"
-                    data-pubml="${pubMLSinMLC}"
-                    value="${item.codigoPersistido || ''}"
-                  />
+                  <div class="codigo-wrapper">
+                    <input
+                      type="text"
+                      class="codigo-input"
+                      placeholder="${item.codigoPersistido ? 'Modificar código' : 'Ingresar código'}"
+                      data-venta="${ventaMLRow}"
+                      data-pubml="${pubMLSinMLC}"
+                      value="${item.codigoPersistido || ''}"
+                    />
+                    <div class="odoo-suggestions hidden"></div>
+                  </div>
 
-                  <div class="odoo-suggestions hidden"></div>
                   ${(() => {
                     const info = getVarianteOdooPorCodigo(item.codigoPersistido);
 
@@ -1679,7 +1684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       resetResultadosUI();
       // 1) Validar que el archivo seleccionado sea Ventas ML (si hay archivo)
-      if (mlInput.files.length) {
+      /*if (mlInput.files.length) {
         const file = mlInput.files[0];
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf, { type: 'array' });
@@ -1701,7 +1706,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const t = await up.text();
           throw new Error('Error subiendo Ventas ML: ' + t);
         }
-      }
+      }*/
 
       // 3) Validar contra el último Ventas ML persistido
       await runValidacionVentas();
@@ -1777,22 +1782,25 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => input.classList.add('hidden'), 150);
   }, true);*/
 
-  mlInput.addEventListener('pointerdown', resetResultadosUI);
-  mlInput.addEventListener('change', resetResultadosUI);
-  mlInput.addEventListener('change', updateAnalyzeAvailability);
-  
-  let lastFileValue = mlInput.value;
+  if (mlInput) {
 
-  setInterval(() => {
-    if (mlInput.value !== lastFileValue) {
-      lastFileValue = mlInput.value;
+    mlInput.addEventListener('pointerdown', resetResultadosUI);
+    mlInput.addEventListener('change', resetResultadosUI);
+    mlInput.addEventListener('change', updateAnalyzeAvailability);
 
-      // Si quedó vacío (el usuario borró el archivo con la "x")
-      if (!mlInput.value) {
-        resetResultadosUI();
+    let lastFileValue = mlInput.value;
+
+    setInterval(() => {
+      if (mlInput.value !== lastFileValue) {
+        lastFileValue = mlInput.value;
+
+        if (!mlInput.value) {
+          resetResultadosUI();
+        }
       }
-    }
-  }, 300);
+    }, 300);
+
+  }
 
   resultsBody.addEventListener('keydown', (e) => {
     if (!e.target.classList.contains('codigo-input')) return;
@@ -1816,4 +1824,92 @@ document.addEventListener('DOMContentLoaded', () => {
       el.innerHTML = '';
     });
   });
+
+  const autoBtn = document.getElementById("autoUpdateBtn");
+
+  autoBtn.addEventListener("click", async () => {
+
+    let dirHandle;
+
+    try {
+      dirHandle = await window.showDirectoryPicker();
+    } catch {
+      return; // usuario canceló
+    }
+
+    const patterns = {
+      variantes: "Variantes de producto (product.product)",
+      ventasOdoo: "Orden de venta (sale.order)",
+      publicaciones: "Publicaciones-",
+      quants: "Quants (stock.quant)",
+      ventasML: "_Ventas_CL_Mercado_Libre_y_Mercado_Shops"
+    };
+
+    const latest = {};
+
+    for await (const entry of dirHandle.values()) {
+
+      if (entry.kind !== "file") continue;
+
+      const file = await entry.getFile();
+
+      for (const key in patterns) {
+
+        if (file.name.includes(patterns[key])) {
+
+          if (!latest[key]) {
+            latest[key] = file;
+          } else {
+
+            const current = latest[key];
+
+            if (
+              file.lastModified > current.lastModified
+            ) {
+              latest[key] = file;
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
+    //console.log("Archivos detectados:", latest);
+
+    await uploadIfExists(latest.variantes, "/api/odoo/variantes");
+    await uploadIfExists(latest.ventasOdoo, "/api/odoo/ventas");
+    await uploadIfExists(latest.quants, "/api/odoo/stock");
+    await uploadIfExists(latest.publicaciones, "/api/ml/publicaciones");
+    await uploadIfExists(latest.ventasML, "/api/ml/ventas");
+
+    variantesOdooCache = [];
+    stockOdooCache = [];
+    odooQtyByVentaCodigo = new Map();
+
+    await loadUltimasVariantesOdooParaBusqueda();
+    await loadStockOdoo();
+
+    showToast("Archivos actualizados ✔", 2000);
+
+    analyzeBtn.click();
+  });
+
+  async function uploadIfExists(file, url) {
+
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append("archivo", file);
+
+    await fetch(url, {
+      method: "POST",
+      body: fd
+    });
+
+    //console.log("Subido:", file.name);
+
+  }
 });

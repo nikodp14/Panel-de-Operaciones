@@ -408,24 +408,21 @@ body.sidebar-collapsed .container {
    AUTOCOMPLETE VARIANTES ODOO
 ================================ */
 
-.odoo-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
+.odoo-suggestions{
+  position:absolute;
+  top:100%;
+  left:0;
 
-  /* 🔥 MÁS ANCHA */
-  width: 1100px;
-  max-width: 90vw;
+  width:700px;
+  max-width:90vw;
 
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: 0 18px 45px rgba(0,0,0,0.18);
+  background:#ffffff;     /* 👈 fondo sólido */
+  border:1px solid #e2e8f0;
+  border-radius:8px;
 
-  margin-top: 6px;
-  max-height: 420px;
-  overflow: hidden;
-  z-index: 9999;
+  box-shadow:0 8px 24px rgba(0,0,0,0.12);
+
+  z-index:50;             /* 👈 sobre la tabla */
 }
 
 /* Header */
@@ -472,32 +469,14 @@ body.sidebar-collapsed .container {
 }
 
 /* Columnas */
-.odoo-barcode {
-  font-size: 13px;       /* 👈 más pequeño */
-  font-weight: 600;
-  color: #2563eb;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.odoo-name {
-  font-size: 13px;
-  color: #1e293b;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.odoo-barcode,
+.odoo-name,
 .odoo-variant {
-  font-size: 13px;
-  color: #0f766e;
+  font-size:13px;
 
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;     /* 👈 permite salto de línea */
+  overflow: visible;       /* 👈 no cortar texto */
+  text-overflow: unset;    /* 👈 elimina ... */
 }
 
 .linea-nombre,
@@ -738,4 +717,39 @@ body.sidebar-collapsed .container {
 
 .copy-scan:hover {
   opacity: 1;
+}
+
+.table-wrap{
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
+  margin-right: 12px;
+}
+
+.table-wrap thead th{
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 5;
+  border-bottom: 2px solid #e3e8f3;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table-wrap table {
+  min-width: 1100px;
+}
+
+/* Observaciones validar-ml */
+.pill[data-filter="OBS"] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.codigo-wrapper{
+  position:relative;
+  width:100%;
+  max-width:320px;
 }

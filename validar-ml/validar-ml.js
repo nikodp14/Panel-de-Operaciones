@@ -150,22 +150,22 @@ function renderActionCounters(rows) {
   const counts = rows.reduce(
     (acc, r) => {
       acc.OK += r.action === 'OK' ? 1 : 0;
-      acc.SUBIR += r.action === 'SUBIR' ? 1 : 0;
-      acc.BAJAR += r.action === 'BAJAR' ? 1 : 0;
-      acc.OMITIDOS += r.action === 'OMITIDOS' ? 1 : 0;
+      acc.OBS += (r.action === 'SUBIR' || r.action === 'BAJAR') ? 1 : 0;
       acc['NO ENCONTRADO'] += r.action === 'NO ENCONTRADO' ? 1 : 0;
       acc['2da. Sel.'] += r.action === '2da. Sel.' ? 1 : 0;
+      acc.OMITIDOS += r.action === 'OMITIDOS' ? 1 : 0;
       acc.ALL += 1;
       return acc;
     },
-    { OK: 0, SUBIR: 0, BAJAR: 0, 'NO ENCONTRADO': 0, '2da. Sel.': 0, OMITIDOS: 0, ALL: 0 }
+    { OK: 0, OBS: 0, 'NO ENCONTRADO': 0, '2da. Sel.': 0, OMITIDOS: 0, ALL: 0 }
   );
 
   actionCountersEl.innerHTML = `
-    <span class="pill ${activeFilter === 'ALL' ? 'active' : ''}" data-filter="ALL">Todos: <strong>${counts.ALL}</strong></span>
+    <span class="pill ${activeFilter === 'ALL' ? 'active' : ''}" data-filter="ALL">TODOS: <strong>${counts.ALL}</strong></span>
+    <span class="pill ${activeFilter === 'OBS' ? 'active' : ''}" data-filter="OBS">
+      OBSERVACIONES: <strong>${counts.OBS}</strong>
+    </span>
     <span class="pill ${activeFilter === 'OK' ? 'active' : ''}" data-filter="OK">OK: <strong>${counts.OK}</strong></span>
-    <span class="pill ${activeFilter === 'SUBIR' ? 'active' : ''}" data-filter="SUBIR">SUBIR: <strong>${counts.SUBIR}</strong></span>
-    <span class="pill ${activeFilter === 'BAJAR' ? 'active' : ''}" data-filter="BAJAR">BAJAR: <strong>${counts.BAJAR}</strong></span>
     <span class="pill ${activeFilter === 'NO ENCONTRADO' ? 'active' : ''}" data-filter="NO ENCONTRADO">NO ENCONTRADO: <strong>${counts['NO ENCONTRADO']}</strong></span>
     <span class="pill ${activeFilter === '2da. Sel.' ? 'active' : ''}" data-filter="2da. Sel.">2da. Sel.: <strong>${counts['2da. Sel.']}</strong></span>
     <span class="pill ${activeFilter === 'OMITIDOS' ? 'active' : ''}" data-filter="OMITIDOS">OMITIDOS: <strong>${counts.OMITIDOS}</strong></span>
@@ -187,7 +187,9 @@ function applyActiveFilter() {
   const filtered =
     activeFilter === 'ALL'
       ? lastObservations
-      : lastObservations.filter((row) => row.action === activeFilter);
+      : activeFilter === 'OBS'
+        ? lastObservations.filter(r => r.action === 'SUBIR' || r.action === 'BAJAR')
+        : lastObservations.filter(r => r.action === activeFilter);
 
   renderObservations(filtered);
   renderActionCounters(lastObservations);  // 👈 siempre usar el universo completo
@@ -199,7 +201,9 @@ function applyActiveFilter() {
 
 async function updateButtonState() {
   try {
-    const hasLocalFile = mlFileInput.files && mlFileInput.files.length > 0;
+    if (mlFileInput && mlFileInput.files && mlFileInput.files.length) {
+      fileToUse = mlFileInput.files[0];
+    }
 
     if (hasLocalFile) {
       analyzeBtn.disabled = false;
@@ -215,7 +219,9 @@ async function updateButtonState() {
   }
 }
 
-mlFileInput.addEventListener('change', updateButtonState);
+if (mlFileInput) {
+  mlFileInput.addEventListener('change', updateButtonState);
+}
 
 async function uploadPublicacionesML(fileToUse) {
   const fd = new FormData();
@@ -257,21 +263,19 @@ analyzeBtn.addEventListener('click', async () => {
   try {
     clearView();
 
-    let fileToUse = null;
+    let fileToUse;
 
-    if (mlFileInput.files.length) {
-      fileToUse = mlFileInput.files[0];
-    } else {
-      // Usar el último Publicaciones ML del servidor
-      const mlData = await fetchUltimasPublicacionesML();
-      if (!mlData) {
-        throw new Error('Aún no hay Publicaciones ML cargadas en el servidor.');
-      }
-      fileToUse = mlData.file;
+    // Usar siempre el último Publicaciones ML del servidor
+    const mlData = await fetchUltimasPublicacionesML();
 
-      mlInfoEl.innerText =
-        `Usando Publicaciones ML cargadas el: ${new Date(mlData.info.uploadedAt).toLocaleString()}`;
+    if (!mlData) {
+      throw new Error('Aún no hay Publicaciones ML cargadas en el servidor.');
     }
+
+    fileToUse = mlData.file;
+
+    mlInfoEl.innerText =
+      `Usando Publicaciones ML cargadas el: ${new Date(mlData.info.uploadedAt).toLocaleString()}`;
 
     statusEl.textContent = 'Validando archivo de Publicaciones ML...';
 
@@ -346,9 +350,8 @@ analyzeBtn.addEventListener('click', async () => {
     );
 
     lastObservations = observations;
-    activeFilter = 'ALL';
-    renderObservations(observations);
-    renderActionCounters(observations);
+    activeFilter = 'OBS';
+    applyActiveFilter();
     statusEl.textContent = '';
 
   } catch (error) {
@@ -656,10 +659,22 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
   const mlVariantCol = detectColumn(mlHeaders, ['variantes', 'variante']);
   const mlTitleCol = detectColumn(mlHeaders, ['titulo']);
   const mlPubCol = detectColumn(mlHeaders, ['numero de publicacion']);
-  const mlStockCol = detectColumn(mlHeaders, ['en mi deposito']);
+  const mlStockCol = detectColumn(mlHeaders, ['en mi deposito', 'en tu deposito']);
 
-  if (!mlVariantCol || !mlTitleCol || !mlPubCol || !mlStockCol) {
-    throw new Error('En PUBLICACIONES ML faltan columnas requeridas.');
+  if (!mlVariantCol) {
+    throw new Error('En PUBLICACIONES ML falta la columna Variante.');
+  }
+
+  if (!mlTitleCol) {
+    throw new Error('En PUBLICACIONES ML falta la columna Título.');
+  }
+
+  if (!mlPubCol) {
+    throw new Error('En PUBLICACIONES ML falta la columna Número de Publicación.');
+  }
+
+  if (!mlStockCol) {
+    throw new Error('En PUBLICACIONES ML falta la columna Stock.');
   }
 
   const odooVariantCol = detectColumn(odooHeaders, ['valores de las variantes/valor', 'valores de las variantes', 'valor']);
@@ -826,31 +841,42 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
         .map(s => s.trim())
         .filter(Boolean);
 
-      /*console.log('📦 PACK DETECTADO');
-      console.log('Publicación ML:', normalizedPublication);
-      console.log('SKUs del pack:', packSkus);*/
-
-      let skuStocks = [];
+      let packCapacity = [];
 
       for (const sku of packSkus) {
-        //console.log('🔎 Buscando SKU en Odoo:', sku);
 
         const odooMatch = odooNormalized.filter(o =>
           extractBaseCodes(o.barcode).some(code => code.includes(sku))
         );
 
-        // 🔴 Si un SKU del pack no existe en Odoo → pack sin stock
         if (!odooMatch.length) {
-          skuStocks = [0];
+          packCapacity = [0];
           break;
         }
 
         const stockSku = Math.min(...odooMatch.map(m => m.stock));
-        skuStocks.push(stockSku);
-        //console.log('Stock encontrado:', stockSku);
+
+        // 🔹 obtener units por SKU (si no existe usar 1)
+        const unitsSku =
+          stockMlConfigMap.get(sku)?.units ??
+          stockMlConfigCache?.get(sku)?.units ??
+          1;
+
+        const packsFromSku = Math.floor(stockSku / unitsSku);
+
+        packCapacity.push(packsFromSku);
+
+        if (normalizedPublication === '3394633742') {
+          console.log('SKU DEBUG', {
+            sku,
+            stockSku,
+            unitsSku,
+            packsFromSku
+          });
+        }
       }
 
-      odooStock = skuStocks.length ? Math.min(...skuStocks) : 0;
+      odooStock = packCapacity.length ? Math.min(...packCapacity) : 0;
 
       // 🔧 FIX: si es pack y encontramos SKUs, no es NO ENCONTRADO
       if (packSkus.length) {
@@ -875,28 +901,35 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     const maxByConfigInPacks = Math.floor(maxMlConfigured / unitsPerPack);
 
     // Cuántos packs ML se pueden activar según stock real de Odoo
-    const maxByOdoo = Math.floor(odooStock / unitsPerPack);
+
+    if (normalizedPublication === '3394633742') {
+      console.log(odooStock);
+      console.log(unitsPerPack);
+    }
+
+    const maxByOdoo = cfg?.skus
+      ? odooStock
+      : Math.floor(odooStock / unitsPerPack);
 
     // Máximo final permitido en ML (packs)
     const suggestedStock = Math.min(maxByConfigInPacks, maxByOdoo);
 
-    /*if (normalizedPublication === '3394755938') {
-      console.log('🔎 DEBUG MLC3394755938');
-      console.log({
-        mlStock,
-        odooStock,
-        unitsPerPack,
-        divisionExacta: odooStock / unitsPerPack,
-        maxByOdoo,
-        maxByConfigInPacks,
-        suggestedStock,
-        matches: matches.map(m => ({
-          barcode: m.barcode,
-          stock: m.stock,
-          variant: m.variant
-        }))
-      });
-    }*/
+    if (normalizedPublication === '3394633742') {
+        console.log('📦 PACK DETECTADO');
+        console.log('Publicación ML:', normalizedPublication);
+        //console.log('SKUs del pack:', packSkus);
+        console.log('🔎 DEBUG PACK 3394633742');
+        console.log({
+          //packSkus,
+          odooStock,
+          mlStock,
+          maxMlConfigured,
+          unitsPerPack,
+          maxByConfigInPacks,
+          maxByOdoo,
+          suggestedStock
+        });
+      }
 
     // 🏷️ Clasificación 2da. Sel. (prioridad máxima)
     const is2daSel =
@@ -965,7 +998,9 @@ function renderObservations(observations) {
   observations.forEach((row) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${row.publication}</td>
+      <td class="numero-publicacion">
+        ${normalizeMlPublication(row.publication)}
+        <span class="copy-venta" data-copy="${normalizeMlPublication(row.publication)}" title="Copiar publicación">📋</span>      </td>
       <td>${row.mlTitleDisplay || ''}</td>
       <td>${row.mlVariantDisplay || ''}</td>
       <td>${row.mlStock}</td>
@@ -979,6 +1014,11 @@ function renderObservations(observations) {
       <td>${row.detail}</td>
     `;
     resultsBody.appendChild(tr);
+
+    tr.querySelector('.copy-venta')?.addEventListener('click', (e) => {
+      const text = e.target.dataset.copy;
+      navigator.clipboard.writeText(text);
+    });
   });
 
   summaryEl.classList.remove('hidden');
@@ -1010,3 +1050,108 @@ function renderObservations(observations) {
 })();
 
 updateButtonState();
+
+const autoBtn = document.getElementById("autoUpdateBtn");
+
+autoBtn.addEventListener("click", async () => {
+
+  let dirHandle;
+
+  try {
+    dirHandle = await window.showDirectoryPicker();
+  } catch {
+    return; // usuario canceló
+  }
+
+  const patterns = {
+    variantes: "Variantes de producto (product.product)",
+    publicaciones: "Publicaciones-"
+  };
+  const latest = {};
+
+  for await (const entry of dirHandle.values()) {
+
+    if (entry.kind !== "file") continue;
+
+    const file = await entry.getFile();
+
+    for (const key in patterns) {
+
+      if (file.name.includes(patterns[key])) {
+
+        if (!latest[key]) {
+          latest[key] = file;
+        } else {
+
+          const current = latest[key];
+
+          if (
+            file.lastModified > current.lastModified
+          ) {
+            latest[key] = file;
+          }
+
+        }
+
+      }
+
+    }
+
+  }
+
+  //console.log("Archivos detectados:", latest);
+
+  await uploadIfExists(latest.variantes, "/api/odoo/variantes");
+  await uploadIfExists(latest.publicaciones, "/api/ml/publicaciones");
+
+  const odoo = await fetch('/api/odoo/variantes/info').then(r => r.json());
+  const ml = await fetch('/api/ml/publicaciones/info').then(r => r.json());
+
+  document.getElementById('odooInfo').innerText =
+    `Variantes Odoo cargadas el: ${new Date(odoo.uploadedAt).toLocaleString()}`;
+
+  document.getElementById('mlInfo').innerText =
+    `Publicaciones ML cargadas el: ${new Date(ml.uploadedAt).toLocaleString()}`;
+
+  analyzeBtn.disabled = false;
+
+  showToast("Archivos actualizados ✔", 2000);
+
+  analyzeBtn.click();
+});
+
+async function uploadIfExists(file, url) {
+
+  if (!file) return;
+
+  const fd = new FormData();
+  fd.append("archivo", file);
+
+  await fetch(url, {
+    method: "POST",
+    body: fd
+  });
+
+  //console.log("Subido:", file.name);
+
+}
+
+function showToast(message, duration = 3000, type = 'success') {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.style.background =
+    type === 'success' ? '#16a34a' :
+    type === 'error'   ? '#dc2626' :
+    '#1f2937';
+
+  toast.classList.remove('hidden');
+  requestAnimationFrame(() => toast.classList.add('show'));
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.classList.add('hidden'), 250);
+  }, duration);
+}
