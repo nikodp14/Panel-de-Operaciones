@@ -1,6 +1,10 @@
 // /public/js/config-helpers.js
 
-// === Normalización de publicación ML (MLC / sin MLC, espacios, símbolos) ===
+// === Normalización de publicación ML (MLC / sin MLC, espacios, símbolos) ===7
+
+// === Cache del Stock ML (configuracion.xlsx) ===
+let __stockMlConfigCache = null;
+
 function normalizeMlPublication(value) {
   return String(value || '')
     .toUpperCase()
@@ -17,6 +21,10 @@ function normalizeHeader(header) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizeBarcode(value) {
+  return String(value || '').toUpperCase().replace(/\s+/g, '');
 }
 
 // === Detección flexible de columnas ===
@@ -44,9 +52,6 @@ function toNumber(value) {
   );
   return Number.isFinite(parsed) ? parsed : 0;
 }
-
-// === Cache del Stock ML (configuracion.xlsx) ===
-let __stockMlConfigCache = null;
 
 // === Cargar Stock ML desde configuracion.xlsx (hoja "Stock ML") ===
 async function loadStockMlConfigFromConfig() {
@@ -104,4 +109,99 @@ async function calcularCantidadDespacho(pubML, unidadesML) {
   const unitsPerKit = cfg?.units ?? 1;   // 👈 si no es kit, 1
 
   return unitsPerKit * uML;
+}
+
+// === Cache variantes validar ===
+let variantesValidarCache = null;
+
+async function loadVariantesValidarFromConfig() {
+  if (variantesValidarCache) return variantesValidarCache;
+
+  try {
+    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
+    if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
+
+    const arrayBuffer = await res.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+    if (!__stockMlConfigCache) {
+      __stockMlConfigCache = new Map();
+    }
+
+    // 🔹 Buscar hoja packs después de leer el workbook
+    const packsSheet = workbook.SheetNames.find(n =>
+      normalizeHeader(n).includes('pack')
+    );
+
+    if (packsSheet) {
+      const sheet = workbook.Sheets[packsSheet];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      const packMap = new Map();
+
+      rows.forEach(r => {
+
+        const pub = normalizeMlPublication(r[0]);
+        const sku = normalizeMlPublication(r[1]);
+
+        if (!pub || !sku) return;
+
+        if (!packMap.has(pub)) packMap.set(pub, []);
+
+        packMap.get(pub).push(sku);
+
+      });
+
+      packMap.forEach((skus, pub) => {
+
+        if (!__stockMlConfigCache) {
+          __stockMlConfigCache = new Map();
+        }
+
+        const existing = __stockMlConfigCache.get(pub) || {};
+
+        __stockMlConfigCache.set(pub, {
+          ...existing,
+          skus
+        });
+
+      });
+
+    }
+
+    if (!__stockMlConfigCache) {
+      __stockMlConfigCache = new Map();
+    }
+
+    const sheetName =
+      workbook.SheetNames.find((n) => normalizeHeader(n).includes('variantes validar')) ||
+      workbook.SheetNames.find((n) => normalizeHeader(n).includes('variantes'));
+
+    if (!sheetName) {
+      variantesValidarCache = new Set();
+      return variantesValidarCache;
+    }
+
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+
+    const set = new Set(
+      rows
+        .map((r) =>
+          normalizeVariantColor(r[Object.keys(r)[0]])
+            .replace(/[-_/]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+        )
+        .filter(Boolean)
+    );
+
+    variantesValidarCache = set;
+    //console.log('VARIANTES VALIDAR cargadas:', Array.from(set));
+    return set;
+  } catch (e) {
+    console.warn('No se pudo cargar VARIANTES VALIDAR desde configuracion.xlsx.', e);
+    variantesValidarCache = new Set();
+    return variantesValidarCache;
+  }
 }

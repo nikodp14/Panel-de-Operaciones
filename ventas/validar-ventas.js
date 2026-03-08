@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastScanTs = 0;
   let lastScannedCode = null;
   let scannerLock = false;
+  let variantesValidarSet = new Set();
 
   async function pollScanner() {
 
@@ -123,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ventaKey = normVentaKey(ventaML);
 
     // 🔹 Si no hay código ingresado
+    console.log('codigoEfectivo');
     if (!codigoEfectivo) {
       obsCell.textContent = 'INGRESE PRODUCTO A DESPACHAR';
       obsCell.classList.remove('ok-cell');
@@ -237,11 +239,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Col C = Nombre
     // Col E = Variante
 
-    variantesOdooCache = rows.slice(1).map(r => ({
-      barcode: String(r[1] || '').trim(),   // B
-      name: String(r[2] || '').trim(),      // C
-      variant: String(r[5] || '').trim()    // F
-    })).filter(v => v.barcode);
+    variantesOdooCache = rows.slice(1)
+      .map(r => ({
+        barcode: normalizeBarcode(r[1]),
+
+        // versión original (para mostrar)
+        name: String(r[2] || '').trim(),
+        variant: String(r[5] || '').trim(),
+
+        // versión normalizada (para comparar)
+        nameNorm: normalizeVariantColor(r[2] || ''),
+        variantNorm: normalizeVariantColor(r[5] || '')
+      }))
+      .filter(v => v.barcode);
 
     clearInterval(scanInterval);
     scanInterval = null;
@@ -626,6 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
     statusEl.textContent = 'Procesando archivos...';
     await loadUltimasVariantesOdooParaBusqueda();
     await loadStockOdoo();
+    variantesValidarSet = await loadVariantesValidarFromConfig();
     resultsBody.innerHTML = '';
     resultsSection.classList.add('hidden');
 
@@ -765,7 +776,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
-      const cutoff = new Date('2026-03-06');
+      const cutoff = location.hostname === 'localhost'
+        ? new Date('2026-02-28')   // entorno local
+        : new Date('2026-03-06');  // producción
       const observaciones = [];
       const observacionesOK = [];
       const odooQtyByVenta = new Map();
@@ -890,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2️⃣ Registrar venta
         else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete)){
-          obs = 'REGISTRAR VENTA';
+          obs = 'REGISTRAR VENTA EN ODOO';
         }
 
         // 3️⃣ Entregar
@@ -927,7 +940,35 @@ document.addEventListener('DOMContentLoaded', () => {
           const codigoPersistido =
             codigosPorVenta[keyPersistencia]?.codigo || '';
 
-          const codigoKey = normCodigo(codigoPersistido);
+          // 🔹 calcular sugerido igual que en el render
+          let codigoSugeridoTemp = '';
+
+          try {
+            const varianteML = String(r[ML_COL_VARIANTE] || '')
+              .replace(/color\s*:/i, '')
+              .trim();
+
+            const matches = resolveMlVariant({
+              publication: pubProcesar,
+              mlVariantRaw: varianteML,
+              mlTitle: titulo,
+              odooProducts: variantesOdooCache,
+              variantesValidarSet
+            });
+
+            if (matches && matches.length) {
+              codigoSugeridoTemp = matches[0].barcode;
+            }
+
+          } catch (err) {
+            console.warn("Resolver variante ML error", err);
+          }
+
+          // 🔹 usar persistido o sugerido
+          const codigoEfectivoTemp =
+            codigoPersistido || codigoSugeridoTemp || '';
+
+          const codigoKey = normCodigo(codigoEfectivoTemp);
 
           const cambioProductoPersistido =
             codigosPorVenta[keyPersistencia]?.cambioProducto || false;
@@ -975,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          if (obsFinal === 'REGISTRAR VENTA' && !codigoKey) {
+          if (obsFinal === 'REGISTRAR VENTA EN ODOO' && !codigoKey) {
             obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
           }
 
@@ -1089,7 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const obs = item.obs;
         const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
 
-        const isRegistrar = obs === 'REGISTRAR VENTA';
+        const isRegistrar = obs === 'REGISTRAR VENTA EN ODOO';
 
         const tr = document.createElement('tr');
 
@@ -1127,7 +1168,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const tituloPub = tituloReal
           ? tituloReal
           : String(item.r[ML_COL_TITULO] || '').trim();// Col S
-        let variante = String(item.r[ML_COL_VARIANTE] || '').trim(); // Col T
+        let variante = String(item.r[ML_COL_VARIANTE] || '')
+          .replace(/color\s*:/i, '')
+          .trim(); // Col T
 
         // Normalización de variante
         const varianteNorm = variante.toLowerCase();
@@ -1150,6 +1193,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigoKey = normCodigo(item.codigoPersistido);
         const qtyRegistradaOdoo =
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
+        let codigoSugerido = '';
+
+        try {
+          const matches = resolveMlVariant({
+            publication: pubMLSinMLC,
+            mlVariantRaw: variante,
+            mlTitle: tituloPub,
+            odooProducts: variantesOdooCache,
+            variantesValidarSet
+          });
+          
+          if (pubMLSinMLC == 2823789240){
+            console.log(pubMLSinMLC, variante, tituloPub, variantesOdooCache, variantesValidarSet, matches);
+          }
+
+          if (matches && matches.length) {
+            codigoSugerido = matches[0].barcode;
+          }
+
+        } catch (err) {
+          console.warn("Resolver variante ML error", err);
+        }
+
+        const codigoPersistidoLimpio =
+          (item.codigoPersistido || '').trim();
+
+        const codigoEfectivo =
+          codigoPersistidoLimpio
+            ? codigoPersistidoLimpio
+            : (codigoSugerido || '');
 
         tr.innerHTML = `
           <td>
@@ -1186,20 +1259,13 @@ document.addEventListener('DOMContentLoaded', () => {
                       placeholder="${item.codigoPersistido ? 'Modificar código' : 'Ingresar código'}"
                       data-venta="${ventaMLRow}"
                       data-pubml="${pubMLSinMLC}"
-                      value="${item.codigoPersistido || ''}"
+                      value="${codigoEfectivo}"
                     />
                     <div class="odoo-suggestions hidden"></div>
                   </div>
 
                   ${(() => {
-                    const info = getVarianteOdooPorCodigo(item.codigoPersistido);
-
-                    return `
-                    `;
-                  })()}
-
-                  ${(() => {
-                    const info = getVarianteOdooPorCodigo(item.codigoPersistido);
+                    const info = getVarianteOdooPorCodigo(codigoEfectivo);
 
                     return `
                       <div class="linea-nombre">
@@ -1234,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="ubicaciones-col">
             ${(() => {
 
-              const ubicaciones = getUbicacionesPorCodigo(item.codigoPersistido);
+              const ubicaciones = getUbicacionesPorCodigo(codigoEfectivo);
 
               if (!ubicaciones.length) return '—';
 
@@ -1471,7 +1537,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = e.target;
     const tr = input.closest('tr');
     const obsCell = tr.querySelector('.obs-cell');
-    const checkbox = tr.querySelector('.cambio-checkbox');
+    const nombreEl = tr.querySelector('.nombre-valor');
+    const varianteEl = tr.querySelector('.variante-valor');
+
+    const info = getVarianteOdooPorCodigo(input.value);
+
+    if (info) {
+      if (nombreEl) nombreEl.textContent = info.name || '—';
+      if (varianteEl) varianteEl.textContent = info.variant || '—';
+    } else {
+      if (nombreEl) nombreEl.textContent = '—';
+      if (varianteEl) varianteEl.textContent = '—';
+    }
+        const checkbox = tr.querySelector('.cambio-checkbox');
 
     const pubML = input.dataset.pubml;   // # publicación ML sin MLC
     const ventaML = input.dataset.venta; // # venta ML
@@ -1491,14 +1569,14 @@ document.addEventListener('DOMContentLoaded', () => {
           key: keyPersistencia,
           ventaML,
           pubML,
-          codigo: valor,
+          codigo: valor.trim(),
           cambioProducto: cambioProductoActual
         })
       });
 
       codigosPorVenta[`${ventaML}|${pubML}`] = {
         ...(codigosPorVenta[`${ventaML}|${pubML}`] || {}),
-        codigo: valor
+        codigo: valor.trim()
       };
     } catch (err) {
       console.error('Error guardando código provisional', err);
@@ -1763,9 +1841,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   resultsBody.addEventListener('keydown', (e) => {
     if (!e.target.classList.contains('codigo-input')) return;
+
     if (e.key === 'Enter') {
       e.preventDefault();
-      e.target.classList.add('hidden');
+      e.stopPropagation();
+      e.target.blur(); // solo confirmar edición
     }
   });
 
@@ -1891,6 +1971,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     await loadUltimasVariantesOdooParaBusqueda();
     await loadStockOdoo();
+    variantesValidarSet = await loadVariantesValidarFromConfig();
 
     showToast("Archivos actualizados ✔", 2000);
 

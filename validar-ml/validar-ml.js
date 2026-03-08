@@ -60,8 +60,8 @@ async function loadOmitidosFromConfig() {
   const arrayBuffer = await res.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-  if (!stockMlConfigCache) {
-    stockMlConfigCache = new Map();
+  if (!__stockMlConfigCache) {
+    __stockMlConfigCache = new Map();
   }
 
   if (omitidosSetCache) return omitidosSetCache;
@@ -98,13 +98,13 @@ async function loadOmitidosFromConfig() {
       // unir packs con la config existente
       packMap.forEach((skus, pub) => {
 
-        if (!stockMlConfigCache) {
-          stockMlConfigCache = new Map();
+        if (!__stockMlConfigCache) {
+          __stockMlConfigCache = new Map();
         }
 
-        const existing = stockMlConfigCache.get(pub) || {};
+        const existing = __stockMlConfigCache.get(pub) || {};
 
-        stockMlConfigCache.set(pub, {
+        __stockMlConfigCache.set(pub, {
           ...existing,
           skus
         });
@@ -143,8 +143,6 @@ async function loadOmitidosFromConfig() {
     return omitidosSetCache;
   }
 }
-
-let stockMlConfigCache = null;
 
 function renderActionCounters(rows) {
   const counts = rows.reduce(
@@ -381,26 +379,6 @@ function normalizeMlVariantForOdoo(variant) {
   return v;
 }
 
-function extractColorFromMlVariant(variantRaw) {
-  if (!variantRaw) return '';
-
-  const v = normalizeVariantColor(variantRaw);
-
-  let cleaned = v
-    // quitar izquierdo/derecho en todas sus formas
-    .replace(/\bizquierdo\s*\/\s*derecho\b/g, '')
-    .replace(/\bizquierdo\b/g, '')
-    .replace(/\bderecho\b/g, '')
-    // reglas existentes
-    .replace(/amboslados|ambos lados/g, '')
-    // separadores
-    .replace(/[\/\-+]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return cleaned;
-}
-
 function readExcelRows(fileToUse, options = {}) {
   if (!fileToUse) throw new Error('Falta cargar uno de los archivos.');
 
@@ -463,18 +441,6 @@ function detectColumn(headers, candidates) {
   return null;
 }
 
-function normalizeBarcode(value) {
-  return String(value || '').toUpperCase().replace(/\s+/g, '');
-}
-
-function normalizeVariantColor(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 function isSecondSelection(text) {
   const t = String(text || '')
     .toLowerCase()
@@ -500,126 +466,6 @@ function toNumber(value) {
       .replace(/[^0-9.-]/g, '')
   );
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-let variantesValidarCache = null;
-
-async function loadVariantesValidarFromConfig() {
-  if (variantesValidarCache) return variantesValidarCache;
-
-  try {
-    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
-    if (!res.ok) throw new Error('No se pudo cargar configuracion.xlsx');
-
-    const arrayBuffer = await res.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-
-    if (!stockMlConfigCache) {
-      stockMlConfigCache = new Map();
-    }
-
-    // 🔹 Buscar hoja packs después de leer el workbook
-    const packsSheet = workbook.SheetNames.find(n =>
-      normalizeHeader(n).includes('pack')
-    );
-
-    if (packsSheet) {
-      const sheet = workbook.Sheets[packsSheet];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-      const packMap = new Map();
-
-      rows.forEach(r => {
-
-        const pub = normalizeMlPublication(r[0]);
-        const sku = normalizeMlPublication(r[1]);
-
-        if (!pub || !sku) return;
-
-        if (!packMap.has(pub)) packMap.set(pub, []);
-
-        packMap.get(pub).push(sku);
-
-      });
-
-      packMap.forEach((skus, pub) => {
-
-        if (!stockMlConfigCache) {
-          stockMlConfigCache = new Map();
-        }
-
-        const existing = stockMlConfigCache.get(pub) || {};
-
-        stockMlConfigCache.set(pub, {
-          ...existing,
-          skus
-        });
-
-      });
-
-    }
-
-    if (!stockMlConfigCache) {
-      stockMlConfigCache = new Map();
-    }
-
-    const sheetName =
-      workbook.SheetNames.find((n) => normalizeHeader(n).includes('variantes validar')) ||
-      workbook.SheetNames.find((n) => normalizeHeader(n).includes('variantes'));
-
-    if (!sheetName) {
-      variantesValidarCache = new Set();
-      return variantesValidarCache;
-    }
-
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
-
-    const set = new Set(
-      rows
-        .map((r) =>
-          normalizeVariantColor(r[Object.keys(r)[0]])
-            .replace(/[-_/]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-        )
-        .filter(Boolean)
-    );
-
-    variantesValidarCache = set;
-    //console.log('VARIANTES VALIDAR cargadas:', Array.from(set));
-    return set;
-  } catch (e) {
-    console.warn('No se pudo cargar VARIANTES VALIDAR desde configuracion.xlsx.', e);
-    variantesValidarCache = new Set();
-    return variantesValidarCache;
-  }
-}
-
-function extractBaseCodes(value) {
-  const s = String(value || '').toUpperCase();
-
-  // Quitar sufijo -1, -2, etc.
-  const noSuffix = s.split('-')[0];
-
-  // Separar por "/" para obtener todos los códigos base posibles
-  const parts = noSuffix.split('/');
-
-  // Limpiar cada parte (solo alfanumérico)
-  return parts
-    .map((p) => p.replace(/[^0-9A-Z]/g, ''))
-    .filter(Boolean);
-}
-
-function matchesFibraCarbono(oVar, oName, mlVariant) {
-  const a = 'fibra de carbono';
-  const b = 'fibra carbono';
-
-  if (mlVariant === a || mlVariant === b) {
-    if (oVar) return oVar === a || oVar === b;
-    return oName.includes(a) || oName.includes(b);
-  }
-  return false;
 }
 
 function normalizeMlCategory(text) {
@@ -686,12 +532,14 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     throw new Error('En STOCK ODOO faltan columnas requeridas.');
   }
 
-  const odooNormalized = odooRows.map((row) => ({
-    barcode: normalizeBarcode(row[odooBarcodeCol]),
-    variant: normalizeVariantColor(row[odooVariantCol]),
-    name: normalizeVariantColor(row[odooNameCol] || ''),
-    stock: Math.max(0, toNumber(row[odooStockCol])),
-  }));
+  const odooNormalized = odooRows
+    .map((row) => ({
+      barcode: normalizeBarcode(row[odooBarcodeCol]),
+      variant: normalizeVariantColor(row[odooVariantCol]),
+      name: normalizeVariantColor(row[odooNameCol] || ''),
+      stock: Math.max(0, toNumber(row[odooStockCol])),
+    }))
+    .filter(p => p.barcode);
 
   const filteredMlRows = mlRows; // no eliminar filas aquí
 
@@ -767,75 +615,29 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     });
 
     // Si hay variante ML, filtrar por variante/nombre; si no, usar todos
-    let matches = allMatchesByCode;
-
-    const isColorVariant = mlVariant && variantesValidarSet.has(mlVariant);
-
-    // 1) Intentar match por variante (si existe)
-    if (mlVariant) {
-      matches = allMatchesByCode.filter((o) => {
-      const oVar = o.variant || '';
-      const oName = o.name || '';
-
-      if (matchesFibraCarbono(oVar, oName, mlVariant)) return true;
-
-      if (oVar) {
-        return oVar === mlVariant; // exacto en columna variante
-      }
-
-      return oName.includes(mlVariant); // permisivo en nombre
+    // lógica centralizada en /js/ml-variant-resolver.js
+    let matches = resolveMlVariant({
+      publication: normalizedPublication,
+      mlVariantRaw,
+      mlTitle,
+      odooProducts: odooNormalized,
+      variantesValidarSet
     });
-    }
 
-    // 2) Si NO hubo match por variante, manejar fallback según reglas
-    if (matches.length === 0) {
-      const mlVariantFull = mlVariant; // ya normalizada
-      const isColorVariant2 = mlVariant && variantesValidarSet.has(mlVariant);
-      const isCompositeVariant = mlVariantFull && mlVariantFull.includes(' ');
-
-      // Para variantes compuestas validables: SOLO match completo, sin parciales
-      let strictVariantMatches = [];
-      if (mlVariantFull) {
-        strictVariantMatches = allMatchesByCode.filter((o) => {
-        const oVar = o.variant || '';
-        const oName = o.name || '';
-
-        if (matchesFibraCarbono(oVar, oName, mlVariantFull)) return true;
-
-        if (oVar) {
-          return oVar === mlVariantFull; // exacto
-        }
-        return oName.includes(mlVariantFull); // frase completa
-      });
-      }
-
-      if (strictVariantMatches.length > 0) {
-        matches = strictVariantMatches;
-      } else if ((isColorVariant2 || (mlVariantFull && mlVariantFull.includes(' '))) && allMatchesByCode.length > 1) {
-        // 🔒 Colores/variantes validables + múltiples SKUs → NO mezclar, no fallback
-        matches = [];
-      } else {
-        // ✅ SKU único (o no es color/variante validable) → fallback por código
-        matches = allMatchesByCode;
-      }
+    if (normalizedPublication == 2823789240){
+      console.log(normalizedPublication, mlVariantRaw, mlTitle, odooNormalized, variantesValidarSet, matches);
     }
 
     let hasMatchInOdoo = matches.length > 0;
 
     const cfg = {
       ...(stockMlConfigMap.get(normalizedPublication) || {}),
-      ...(stockMlConfigCache?.get(normalizedPublication) || {})
+      ...(__stockMlConfigCache?.get(normalizedPublication) || {})
     };
-    //console.log(normalizedPublication);
-    //console.log(cfg);
-    //console.log(stockMlConfigMap);
 
     let odooStock = 0;
-    //console.log("cfg completo:", normalizedPublication, cfg);
     // 🔹 Si la publicación tiene SKUs definidos en configuración (pack)
     if (cfg?.skus) {
-      //console.log('skus');
-
       const packSkus = String(cfg.skus)
         .split(/[\/,]/)
         .map(s => s.trim())
@@ -859,21 +661,12 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
         // 🔹 obtener units por SKU (si no existe usar 1)
         const unitsSku =
           stockMlConfigMap.get(sku)?.units ??
-          stockMlConfigCache?.get(sku)?.units ??
+          __stockMlConfigCache?.get(sku)?.units ??
           1;
 
         const packsFromSku = Math.floor(stockSku / unitsSku);
 
         packCapacity.push(packsFromSku);
-
-        if (normalizedPublication === '3394633742') {
-          console.log('SKU DEBUG', {
-            sku,
-            stockSku,
-            unitsSku,
-            packsFromSku
-          });
-        }
       }
 
       odooStock = packCapacity.length ? Math.min(...packCapacity) : 0;
@@ -901,36 +694,13 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     const maxByConfigInPacks = Math.floor(maxMlConfigured / unitsPerPack);
 
     // Cuántos packs ML se pueden activar según stock real de Odoo
-
-    if (normalizedPublication === '3394633742') {
-      console.log(odooStock);
-      console.log(unitsPerPack);
-    }
-
     const maxByOdoo = cfg?.skus
       ? odooStock
       : Math.floor(odooStock / unitsPerPack);
 
     // Máximo final permitido en ML (packs)
     const suggestedStock = Math.min(maxByConfigInPacks, maxByOdoo);
-
-    if (normalizedPublication === '3394633742') {
-        console.log('📦 PACK DETECTADO');
-        console.log('Publicación ML:', normalizedPublication);
-        //console.log('SKUs del pack:', packSkus);
-        console.log('🔎 DEBUG PACK 3394633742');
-        console.log({
-          //packSkus,
-          odooStock,
-          mlStock,
-          maxMlConfigured,
-          unitsPerPack,
-          maxByConfigInPacks,
-          maxByOdoo,
-          suggestedStock
-        });
-      }
-
+    
     // 🏷️ Clasificación 2da. Sel. (prioridad máxima)
     const is2daSel =
       isSecondSelection(mlTitle) ||
@@ -958,25 +728,9 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     } else if (mlStock < suggestedStock) {
       action = 'SUBIR';
       detail = `Subir ${suggestedStock - mlStock} unidad(es).`;
-       /*if (normalizedPublication === '582291290') {
-        console.log('DEBUG 582291290', {
-          mlVariant,
-          allMatchesByCode,
-          matchesByColor: matches,
-          odooStock,
-        });
-      }*/
     } else if (mlStock > suggestedStock) {
       action = 'BAJAR';
       detail = `Bajar ${mlStock - suggestedStock} unidad(es).`;
-      if (normalizedPublication === '1032755107') {
-        /*console.log('DEBUG 1032755107', {
-          mlVariant,
-          allMatchesByCode,
-          matchesByColor: matches,
-          odooStock,
-        });*/
-      }
     }
 
     return {
