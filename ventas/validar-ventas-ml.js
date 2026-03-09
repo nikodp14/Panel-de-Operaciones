@@ -103,6 +103,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }
 
+  function restaurarEstadoDespachoUI() {
+
+    const rows = resultsBody.querySelectorAll("tr");
+
+    rows.forEach(tr => {
+
+      const input = tr.querySelector(".codigo-input");
+      const scanEl = tr.querySelector(".scan-result");
+
+      if (!input) return;
+
+      const venta = input.dataset.venta;
+      const pub = input.dataset.pubml;
+
+      const key = `${venta}|${pub}`;
+
+      const data = codigosPorVenta[key];
+
+      if (!data) return;
+
+      // 🔹 Restaurar código ingresado
+      if (data.codigo) {
+        input.value = data.codigo;
+      }
+
+      // 🔹 Restaurar escaneo
+      if (scanEl && data.escaneado) {
+        scanEl.textContent = data.escaneado;
+      }
+
+    });
+
+  }
+
   async function validarLineaDespacho(tr, input) {
 
     const obsCell = tr.querySelector('.obs-cell');
@@ -291,40 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ubicacion: String(r[COL_UBICACION] || '').trim(),
       cantidad: Number(r[COL_CANTIDAD] || 0)
     })).filter(r => r.barcode);
-
-  }
-
-  function restaurarEstadoDespachoUI() {
-
-    const rows = resultsBody.querySelectorAll("tr");
-
-    rows.forEach(tr => {
-
-      const input = tr.querySelector(".codigo-input");
-      const scanEl = tr.querySelector(".scan-result");
-
-      if (!input) return;
-
-      const venta = input.dataset.venta;
-      const pub = input.dataset.pubml;
-
-      const key = `${venta}|${pub}`;
-
-      const data = codigosPorVenta[key];
-
-      if (!data) return;
-
-      // 🔹 Restaurar código ingresado
-      if (data.codigo) {
-        input.value = data.codigo;
-      }
-
-      // 🔹 Restaurar escaneo
-      if (scanEl && data.escaneado) {
-        scanEl.textContent = data.escaneado;
-      }
-
-    });
 
   }
   
@@ -1109,41 +1109,53 @@ document.addEventListener('DOMContentLoaded', () => {
           const cambioProducto = cambioProductoPersistido;
 
           const codigoIngresado =
-          codigosPorVenta[keyPersistencia]?.codigo || null;
+          codigosPorVenta[keyPersistencia]?.codigo || '';
+
+          const codigoEfectivo =
+          codigoIngresado || codigoSugeridoTemp || '';
 
           const escaneoValido =
-          codigoIngresado &&
+          codigoEfectivo &&
           escaneado &&
-          normCodigo(escaneado) === normCodigo(codigoIngresado);
+          normCodigo(escaneado) === normCodigo(codigoEfectivo);
 
           // 🔴 Primero validar producto correcto
           if (
-            codigoIngresado &&
-            !cambioProducto &&
-            !contienePubML(codigoIngresado, pubProcesar)
+          codigoEfectivo &&
+          !cambioProducto &&
+          !contienePubML(codigoEfectivo, pubProcesar)
           ) {
-            obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+          obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
-          // 🟡 Luego validar escaneo
-          else if (codigoIngresado && !escaneado) {
-            obsFinal = 'ESCANEE EL PRODUCTO';
+          else if (codigoEfectivo && !escaneado) {
+          obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
-          // 🔴 Escaneo incorrecto
           else if (
-            codigoIngresado &&
-            escaneado &&
-            normCodigo(codigoIngresado) !== normCodigo(escaneado)
+          codigoEfectivo &&
+          escaneado &&
+          normCodigo(codigoEfectivo) !== normCodigo(escaneado)
           ) {
-            obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+          obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+          }
+
+          let obsRender = obsFinal;
+
+          // 🔒 Nunca permitir OK sin escaneo válido
+          if (!obsRender) {
+            if (!escaneoValido) {
+              obsRender = 'ESCANEE EL PRODUCTO';
+            } else {
+              obsRender = 'OK';
+            }
           }
 
           const itemBase = {
           r: [...r],
           ventaMLFinal,
           ventaLink: ventaLinkFinal,
-          obs: obsFinal || 'OK',
+          obs: obsRender,
           precioMostrado: precioMostradoFinal,
           precioUnitario: precioUnitarioFinal,
           cantidad: unidadesML,

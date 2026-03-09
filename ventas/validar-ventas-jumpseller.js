@@ -1134,34 +1134,35 @@ document.addEventListener('DOMContentLoaded', () => {
           const cambioProducto = cambioProductoPersistido;
 
           const codigoIngresado =
-          codigosPorVenta[keyPersistencia]?.codigo || null;
+          codigosPorVenta[keyPersistencia]?.codigo || '';
+
+          const codigoEfectivo =
+          codigoIngresado || codigoSugeridoTemp || '';
 
           const escaneoValido =
-          codigoIngresado &&
+          codigoEfectivo &&
           escaneado &&
-          normCodigo(escaneado) === normCodigo(codigoIngresado);
+          normCodigo(escaneado) === normCodigo(codigoEfectivo);
 
           // 🔴 Primero validar producto correcto
           if (
-            codigoIngresado &&
-            !cambioProducto &&
-            !contienePubML(codigoIngresado, pubProcesar)
+          codigoEfectivo &&
+          !cambioProducto &&
+          !contienePubML(codigoEfectivo, pubProcesar)
           ) {
-            obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+          obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
-          // 🟡 Luego validar escaneo
-          else if (codigoIngresado && !escaneado) {
-            obsFinal = 'ESCANEE EL PRODUCTO';
+          else if (codigoEfectivo && !escaneado) {
+          obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
-          // 🔴 Escaneo incorrecto
           else if (
-            codigoIngresado &&
-            escaneado &&
-            normCodigo(codigoIngresado) !== normCodigo(escaneado)
+          codigoEfectivo &&
+          escaneado &&
+          normCodigo(codigoEfectivo) !== normCodigo(escaneado)
           ) {
-            obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+          obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
           }
 
           let obsRender = obsFinal;

@@ -685,6 +685,20 @@ app.get('/api/debug/data-files/:name', (req, res) => {
 
 });
 
+app.get('/api/debug/codigos', (req, res) => {
+
+  const ml = fs.existsSync(CODIGOS_ML_PATH)
+    ? JSON.parse(fs.readFileSync(CODIGOS_ML_PATH))
+    : {};
+
+  const jumpseller = fs.existsSync(CODIGOS_JUMPSELLER_PATH)
+    ? JSON.parse(fs.readFileSync(CODIGOS_JUMPSELLER_PATH))
+    : {};
+
+  res.json({ ml, jumpseller });
+
+});
+
 /* ============================
    Rutas SPA / Fallback
 ============================ */
