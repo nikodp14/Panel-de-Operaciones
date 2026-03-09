@@ -282,9 +282,14 @@ document.addEventListener('DOMContentLoaded', () => {
       h.includes('ubicación')
     );
 
+    const COL_CANTIDAD = header.findIndex(h =>
+      h.includes('cantidad')
+    );
+
     stockOdooCache = rows.slice(1).map(r => ({
       barcode: String(r[COL_BARCODE] || '').trim(),
-      ubicacion: String(r[COL_UBICACION] || '').trim()
+      ubicacion: String(r[COL_UBICACION] || '').trim(),
+      cantidad: Number(r[COL_CANTIDAD] || 0)
     })).filter(r => r.barcode);
 
   }
@@ -297,8 +302,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return stockOdooCache
       .filter(r => r.barcode.toLowerCase() === code)
-      .map(r => r.ubicacion)
-      .filter(Boolean);
+      .map(r => ({
+        ubicacion: r.ubicacion,
+        cantidad: r.cantidad
+      }))
+      .filter(r => r.ubicacion);
+
   }
 
   function getVarianteOdooPorCodigo(barcode) {
@@ -1304,14 +1313,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
               if (!ubicaciones.length) return '—';
 
-             return ubicaciones
-            .map(u => `
-              <div class="ubicacion-tag">
-                <span class="ubicacion-text">${u}</span>
-                <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
-              </div>
-            `)
-            .join('');
+              return ubicaciones
+              .map(u => `
+                <div class="ubicacion-tag">
+                  <span class="ubicacion-text">
+                    ${u.ubicacion} <b>(${u.cantidad})</b>
+                  </span>
+                  <span class="copy-ubicacion" data-ubicacion="${u.ubicacion}" title="Copiar ubicación">📋</span>
+                </div>
+              `)
+              .join('');
 
             })()}
           </td>
