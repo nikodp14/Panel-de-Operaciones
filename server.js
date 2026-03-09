@@ -22,6 +22,7 @@ const upload = multer({ dest: UPLOAD_DIR });
 // ============================
 
 const CODIGOS_ML_PATH = path.join(UPLOAD_DIR, "ventas_ml_codigos.json");
+const CODIGOS_JUMPSELLER_PATH = path.join(UPLOAD_DIR, "ventas_jumpseller_codigos.json");
 
 let lastScan = null;
 
@@ -82,6 +83,20 @@ app.get("/api/ml/ventas/codigos", (req, res) => {
   res.json(data);
 });
 
+app.get("/api/jumpseller/ventas/codigos", (req, res) => {
+  if (!fs.existsSync(CODIGOS_JUMPSELLER_PATH)) {
+    return res.json({});
+  }
+  
+  let data = {};
+  try {
+    data = JSON.parse(fs.readFileSync(CODIGOS_JUMPSELLER_PATH, "utf-8"));
+  } catch {
+    data = {};
+  }
+  res.json(data);
+});
+
 app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
   const { key, codigo, escaneado, cambioProducto } = req.body;
   if (!key) {
@@ -122,10 +137,32 @@ app.get("/api/ml/ventas/info", (req, res) => {
   res.json(meta);
 });
 
+app.get("/api/jumpseller/ventas/info", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "ventas_jumpseller_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Ventas Jumpseller cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  res.json(meta);
+});
+
 app.get("/api/ml/ventas/ultimo", (req, res) => {
   const metaPath = path.join(UPLOAD_DIR, "ventas_ml_meta.json");
   if (!fs.existsSync(metaPath)) {
     return res.status(404).json({ error: "No hay Ventas ML cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const filePath = path.join(UPLOAD_DIR, meta.file);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Archivo no encontrado en disco" });
+  }
+  res.sendFile(filePath);
+});
+
+app.get("/api/jumpseller/ventas/ultimo", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "ventas_jumpseller_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Ventas Jumpseller cargadas aún" });
   }
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
   const filePath = path.join(UPLOAD_DIR, meta.file);
@@ -156,6 +193,26 @@ app.post("/api/ml/ventas", upload.single("archivo"), (req, res) => {
   res.json({ message: "Ventas ML cargadas correctamente", ...meta });
 });
 
+app.post("/api/jumpseller/ventas", upload.single("archivo"), (req, res) => {
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, "0");
+  const ts =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+  const finalName = `ventas_jumpseller_${ts}.xlsx`;
+  const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = { file: finalName, uploadedAt: now.toISOString() };
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "ventas_jumpseller_meta.json"),
+    JSON.stringify(meta, null, 2)
+  );
+
+  res.json({ message: "Ventas Jumpseller cargadas correctamente", ...meta });
+});
 
 // ============================
 // Ventas Odoo (persistente)
@@ -293,6 +350,10 @@ app.get("/ventas/validar-ventas-ml.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas-ml.html"));
 });
 
+app.get("/ventas/validar-ventas-jumpseller.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas-jumpseller.html"));
+});
+
 app.get("/odoo/variantes.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "odoo", "variantes.html"));
 });
@@ -317,6 +378,19 @@ app.get("/api/ml/publicaciones/ultimo", (req, res) => {
   const metaPath = path.join(UPLOAD_DIR, "publicaciones_ml_meta.json");
   if (!fs.existsSync(metaPath)) {
     return res.status(404).json({ error: "No hay Publicaciones ML cargadas aún" });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const filePath = path.join(UPLOAD_DIR, meta.file);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Archivo no encontrado en disco" });
+  }
+  res.sendFile(filePath);
+});
+
+app.get("/api/jumpseller/publicaciones/ultimo", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "publicaciones_jumpseller_meta.json");
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Publicaciones Jumpseller cargadas aún" });
   }
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
   const filePath = path.join(UPLOAD_DIR, meta.file);
@@ -351,6 +425,36 @@ app.post("/api/ml/publicaciones", upload.single("archivo"), (req, res) => {
 
   res.json({
     message: "Publicaciones ML cargadas correctamente ✔",
+    file: finalName,
+    uploadedAt: meta.uploadedAt,
+  });
+});
+
+app.post("/api/jumpseller/publicaciones", upload.single("archivo"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No se recibió ningún archivo (campo 'archivo')" });
+  }
+
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, "0");
+
+  const ts =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+  const finalName = `publicaciones_jumpseller_${ts}.xlsx`;
+  const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = { file: finalName, uploadedAt: now.toISOString() };
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "publicaciones_jumpseller_meta.json"),
+    JSON.stringify(meta, null, 2)
+  );
+
+  res.json({
+    message: "Publicaciones Jumpseller cargadas correctamente ✔",
     file: finalName,
     uploadedAt: meta.uploadedAt,
   });

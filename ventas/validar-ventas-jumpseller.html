@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Validar Ventas ML</title>
+  <title>Validar Ventas Jumpseller</title>
 
   <!-- MISMO ORDEN que el resto del sistema -->
   <link rel="stylesheet" href="/css/menu.css" />
@@ -50,11 +50,11 @@
           </ol>
         </div>
         <div class="card">
-          <h2>Descargar Excel Ventas ML</h2>
+          <h2>Descargar Excel Ventas Jumpseller</h2>
           <ol>
-             <li>Ingresar Menú <strong>Ventas</strong>.</li>
-             <li>Quitar fitro de envíos de Hoy.</li>
-             <li>Descargar Excel de Ventas.</li>
+             <li>Ingresar Menú <strong>Pedidos</strong>.</li>
+             <li>Esportar->Formato Excel (XLS)->Con Información de Producto.</li>
+             <li>Exportar.</li>
           </ol>
         </div>
 
@@ -65,8 +65,8 @@
             <label>Archivo Ventas ML</label>
             <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
           </div>-->
-          <h2>Analizar Ventas MercadoLibre</h2>
-          <p id="mlVentasInfo" class="muted"></p>
+          <h2>Analizar Ventas Jumpseller</h2>
+          <p id="jumpsellerVentasInfo" class="muted"></p>
           <p id="odooVentasInfo" class="muted"></p>
           <p class="muted">
             Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
@@ -74,7 +74,7 @@
           <p class="muted">- Variantes de producto (product.product)</p>
           <p class="muted">- Quants (stock.quant)</p>
           <p class="muted">- Orden de venta (sale.order)</p>
-          <p class="muted">- ML_Ventas_CL_Mercado_Libre_y_Mercado_Shops</p>
+          <p class="muted">- demoto_Pedidos_</p>
            <button id="autoUpdateBtn" class="primary-btn">
             Actualizar todo desde Carpeta
           </button>
@@ -89,13 +89,13 @@
             <table>
               <thead>
                 <tr>
-                  <th># Venta ML</th>
+                  <th># Venta Jumpseller</th>
                   <th>Fecha de venta</th>
-                  <th>Estado ML</th>
+                  <th>Estado Pago</th>
                   <th>Producto despachar</th>
                   <th>Ubicaciones</th>
                   <th>Cambio prod</th>
-                  <th>Unid. ML</th>
+                  <th>Unid. Jumpseller</th>
                   <th>Unid. Desp.</th>
                   <th>Unid. Odoo</th>
                   <th>Precio</th>
@@ -115,7 +115,7 @@
   <script src="/js/config-helpers.js"></script>
   <script src="/js/ml-variant-resolver.js"></script>
   <script src="https://unpkg.com/@zxing/library@latest"></script>
-  <script src="/ventas/validar-ventas-ml.js"></script>
+  <script src="/ventas/validar-ventas-jumpseller.js"></script>
 
   <div id="toast" class="toast hidden"></div>
 </body>

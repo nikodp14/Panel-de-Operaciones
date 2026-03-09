@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const START_ROW = 6;
-  const mlInput = document.getElementById('mlVentasFile');
+  const START_ROW = 1;
+  const mlInput = null;
   const analyzeBtn = document.getElementById('analyzeVentasBtn');
   const statusEl = document.getElementById('statusVentas');
   const resultsSection = document.getElementById('ventasResults');
   const resultsBody = document.getElementById('ventasResultsBody');
   const odooVentasInfo = document.getElementById('odooVentasInfo');
-  const mlVentasInfo = document.getElementById('mlVentasInfo');
+  const jumpsellerVentasInfo = document.getElementById('jumpsellerVentasInfo');
   // === ÍNDICES ODOO (ajusta una vez y listo) ===
   const ODOO_COL_VENTA = 6;    // Col G: Número de venta (ML)
   const ODOO_COL_CODIGO = 8;   // Col C: Código de producto
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
 
       // Persistir escaneo
-      await fetch('/api/ml/ventas/codigos', {
+      await fetch('/api/jumpseller/ventas/codigos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,6 +101,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showToast("Producto escaneado 📦", 1500);
 
+  }
+
+  function restaurarEstadoDespachoUI() {
+
+    const rows = resultsBody.querySelectorAll("tr");
+
+    rows.forEach(tr => {
+
+      const input = tr.querySelector(".codigo-input");
+      const scanEl = tr.querySelector(".scan-result");
+
+      if (!input) return;
+
+      const venta = input.dataset.venta;
+      const pub = input.dataset.pubml;
+
+      const key = `${venta}|${pub}`;
+
+      const data = codigosPorVenta[key];
+
+      if (!data) return;
+
+      // 🔹 Restaurar código ingresado
+      if (data.codigo) {
+        input.value = data.codigo;
+      }
+
+      // 🔹 Restaurar escaneo
+      if (scanEl && data.escaneado) {
+        scanEl.textContent = data.escaneado;
+      }
+
+    });
+
+  }
+
+  function extraerColorDesdeTitulo(titulo) {
+
+    if (!titulo) return '';
+
+    const match = titulo.match(/\(color:\s*([^)]+)\)/i);
+
+    if (match) {
+      return match[1].trim();
+    }
+
+    return '';
   }
 
   async function validarLineaDespacho(tr, input) {
@@ -293,40 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
     })).filter(r => r.barcode);
 
   }
-
-  function restaurarEstadoDespachoUI() {
-
-    const rows = resultsBody.querySelectorAll("tr");
-
-    rows.forEach(tr => {
-
-      const input = tr.querySelector(".codigo-input");
-      const scanEl = tr.querySelector(".scan-result");
-
-      if (!input) return;
-
-      const venta = input.dataset.venta;
-      const pub = input.dataset.pubml;
-
-      const key = `${venta}|${pub}`;
-
-      const data = codigosPorVenta[key];
-
-      if (!data) return;
-
-      // 🔹 Restaurar código ingresado
-      if (data.codigo) {
-        input.value = data.codigo;
-      }
-
-      // 🔹 Restaurar escaneo
-      if (scanEl && data.escaneado) {
-        scanEl.textContent = data.escaneado;
-      }
-
-    });
-
-  }
   
   function getUbicacionesPorCodigo(barcode) {
 
@@ -464,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Si no hay archivo seleccionado, depender del último Ventas ML persistido
-      const res = await fetch('/api/ml/ventas/info', { cache: 'no-store' });
+      const res = await ventasRefetch('/api/jumpseller/ventas/info', { cache: 'no-store' });
       analyzeBtn.disabled = !res.ok;
 
     } catch {
@@ -673,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function runValidacionVentas() {
     codigosPorVenta = {};
-    const codigosRes = await fetch('/api/ml/ventas/codigos');
+    const codigosRes = await fetch('/api/jumpseller/ventas/codigos');
     codigosPorVenta = await codigosRes.json();
 
     statusEl.textContent = 'Procesando archivos...';
@@ -684,11 +697,11 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsSection.classList.add('hidden');
 
     try {
-      const mlRes = await fetch('/api/ml/ventas/ultimo');
-      if (!mlRes.ok) {
-        throw new Error('No hay Ventas ML cargadas. Sube el archivo primero.');
+      const ventasRes = await fetch('/api/jumpseller/ventas/ultimo');
+      if (!ventasRes.ok) {
+        throw new Error('No hay Ventas Jumpseller cargadas. Sube el archivo primero.');
       }
-      const mlBuf = await mlRes.arrayBuffer();
+      const mlBuf = await ventasRes.arrayBuffer();
       const wbML = XLSX.read(mlBuf, { type: 'array' });
       const wsML = wbML.Sheets[wbML.SheetNames[0]];
       const mlRows = XLSX.utils.sheet_to_json(wsML, { header: 1, raw: false });
@@ -706,47 +719,40 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const ML_COL_TITULO = findColIndexByName([
-        'título de la publicación',
-        'titulo de la publicacion'
+        'nombre del producto'
       ]);
 
       if (ML_COL_TITULO === -1) {
-        throw new Error('No se encontró la columna "Título de la publicación" en el Excel.');
+        throw new Error('No se encontró la columna "Nombre del producto" en el Excel.');
       }
 
       const ML_COL_TOTAL = findColIndexByName([
-        'total (clp)',
-        'total clp'
+        'total'
       ]);
 
       if (ML_COL_TOTAL === -1) {
-        throw new Error('No se encontró la columna "Total (CLP)" en el Excel de Ventas ML.');
+        throw new Error('No se encontró la columna "Total" en el Excel de Ventas ML.');
       }
 
       const ML_COL_UNIDADES = findColIndexByName([
-        'unidades'
+        'cantidad de productos'
       ]);
 
       if (ML_COL_UNIDADES === -1) {
-        throw new Error('No se encontró la columna "Unidades" en el Excel de Ventas ML.');
+        throw new Error('No se encontró la columna "Cantidad de Productos" en el Excel de Ventas ML.');
       }
 
       const ML_COL_PUBML = findColIndexByName([
-        '# de publicación',
-        '# de publicacion'
+        'sku del producto'
       ]);
 
       if (ML_COL_PUBML === -1) {
-        throw new Error('No se encontró la columna "# de publicación" en el Excel de Ventas ML.');
+        throw new Error('No se encontró la columna "SKU del Producto" en el Excel de Ventas ML.');
       }
 
       const ML_COL_VARIANTE = findColIndexByName([
         'variante'
       ]);
-
-      if (ML_COL_VARIANTE === -1) {
-        throw new Error('No se encontró la columna "Variante" en el Excel de Ventas ML.');
-      }
 
       // === Odoo ===
       const odooRes = await fetch('/api/odoo/ventas/ultimo');
@@ -761,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let tituloPorPublicacion = new Map();
 
       try {
-        const pubRes = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
+        const pubRes = await fetch('/api/jumpseller/publicaciones/ultimo', { cache: 'no-store' });
         if (pubRes.ok) {
 
           const pubBuf = await pubRes.arrayBuffer();
@@ -854,12 +860,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const excelRowIndex = START_ROW + i;
         const ventaLink = getCellHyperlink(wsML, excelRowIndex, ML_COL_VENTA);
         const ventaML = String(r[ML_COL_VENTA] || '').trim(); // Col A (# de venta)
-        const fecha = parseDate(r[1]);  // Col B (Fecha de venta)
-        const estadoML = String(r[2] || '');; // Col C (Estado ML)
+        const ML_COL_FECHA = findColIndexByName([
+          'fecha'
+        ]);
+        const fecha = parseDate(r[ML_COL_FECHA]);  // Col B (Fecha de venta)
+        const ML_COL_ESTADO = findColIndexByName([
+          'estado del pago'
+        ]);
+        const estadoML = String(r[ML_COL_ESTADO] || '');; // Col C (Estado ML)
         //const totalCLPraw = r[13];         // Col M
         const totalCLPraw = r[ML_COL_TOTAL];
+        const ML_COL_ENVIO = findColIndexByName([
+          'envío',
+          'envio'
+        ]);
         const ingresoEnvioCLP = r[9]; // Col J
-        const costoEnvioCLP = r[10];  // Col K
+        const costoEnvioCLP = 0;//r[10];  // Col K
         const cantidadRaw = r[ML_COL_UNIDADES]; // Col G (Unidades)
         const cantidad = Number(cantidadRaw) || 0;
         const totalCLP = typeof totalCLPraw === 'number'
@@ -987,9 +1003,16 @@ document.addEventListener('DOMContentLoaded', () => {
           let codigoSugeridoTemp = '';
 
           try {
-            const varianteML = String(r[ML_COL_VARIANTE] || '')
-              .replace(/color\s*:/i, '')
-              .trim();
+            let varianteML = '';
+            if (ML_COL_VARIANTE !== -1) {
+              varianteML = String(r[ML_COL_VARIANTE] || '')
+                .replace(/color\s*:/i, '')
+                .trim();
+            } else {
+              const tituloRaw = String(r[ML_COL_TITULO] || '');
+              varianteML = extraerColorDesdeTitulo(tituloRaw);
+              console.log(varianteML);
+            }
 
             const matches = resolveMlVariant({
               publication: pubProcesar,
@@ -998,6 +1021,8 @@ document.addEventListener('DOMContentLoaded', () => {
               odooProducts: variantesOdooCache,
               variantesValidarSet
             });
+
+            console.log(pubProcesar, varianteML, titulo, variantesOdooCache, variantesValidarSet);
 
             if (matches && matches.length) {
               codigoSugeridoTemp = matches[0].barcode;
@@ -1139,11 +1164,22 @@ document.addEventListener('DOMContentLoaded', () => {
             obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
           }
 
+          let obsRender = obsFinal;
+
+          // 🔒 Nunca permitir OK sin escaneo válido
+          if (!obsRender) {
+            if (!escaneoValido) {
+              obsRender = 'ESCANEE EL PRODUCTO';
+            } else {
+              obsRender = 'OK';
+            }
+          }
+
           const itemBase = {
           r: [...r],
           ventaMLFinal,
           ventaLink: ventaLinkFinal,
-          obs: obsFinal || 'OK',
+          obs: obsRender,
           precioMostrado: precioMostradoFinal,
           precioUnitario: precioUnitarioFinal,
           cantidad: unidadesML,
@@ -1563,14 +1599,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadMlInfo() {
     try {
-      const res = await fetch('/api/ml/ventas/info', { cache: 'no-store' }); // 👈
-      if (!res.ok) throw new Error('No hay Ventas ML cargadas aún');
+      const res = await ventasRefetch('/api/jumpseller/ventas/info', { cache: 'no-store' }); // 👈
+      if (!res.ok) throw new Error('No hay Ventas Jumpseller cargadas aún');
       const json = await res.json();
-      mlVentasInfo.textContent =
+      jumpsellerVentasInfo.textContent =
         `Usando Ventas ML cargadas el: ${new Date(json.uploadedAt).toLocaleString('es-CL')}`;
     } catch {
-      mlVentasInfo.textContent =
-        'No hay Ventas ML cargadas aún. Ve al menú "Ventas ML" para cargar el archivo.';
+      jumpsellerVentasInfo.textContent =
+        'No hay Ventas Jumpseller cargadas aún. Ve al menú "Ventas ML" para cargar el archivo.';
     }
   }
 
@@ -1609,7 +1645,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tr.querySelector('.cambio-checkbox')?.checked || false;
 
     try {
-      await fetch('/api/ml/ventas/codigos', {
+      await fetch('/api/jumpseller/ventas/codigos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1736,7 +1772,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function validarExcelVentasML(file, rows) {
+  function validarExcelVentasJumpseller(file, rows) {
     // Heurísticas típicas del Excel de Ventas ML
     // Ajusta estos textos a los encabezados reales de tu archivo de ML
     const header = (rows[5] || rows[0] || []).join(' ').toLowerCase(); // tu ML parte desde fila 6
@@ -1816,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
 
-        if (!validarExcelVentasML(file, rows)) {
+        if (!validarExcelVentasJumpseller(file, rows)) {
           statusEl.textContent = '❌ El archivo seleccionado no parece ser Ventas ML. Revisa que descargaste el Excel correcto desde MercadoLibre.';
           return;
         }
@@ -1826,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fd.append('archivo', file);
 
         statusEl.textContent = 'Subiendo Ventas ML...';
-        const up = await fetch('/api/ml/ventas', { method: 'POST', body: fd });
+        const up = await fetch('/api/jumpseller/ventas', { method: 'POST', body: fd });
         if (!up.ok) {
           const t = await up.text();
           throw new Error('Error subiendo Ventas ML: ' + t);
@@ -1857,7 +1893,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pubML = input.dataset.pubml;
     const ventaML = input.dataset.venta;
 
-    await fetch('/api/ml/ventas/codigos', {
+    await fetch('/api/jumpseller/ventas/codigos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1969,7 +2005,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ventasOdoo: "Orden de venta (sale.order)",
       publicaciones: "Publicaciones-",
       quants: "Quants (stock.quant)",
-      ventasML: "_Ventas_CL_Mercado_Libre_y_Mercado_Shops"
+      ventasJumpseller: "demoto_Pedidos_"
     };
 
     const latest = {};
@@ -2009,8 +2045,8 @@ document.addEventListener('DOMContentLoaded', () => {
     await uploadIfExists(latest.variantes, "/api/odoo/variantes");
     await uploadIfExists(latest.ventasOdoo, "/api/odoo/ventas");
     await uploadIfExists(latest.quants, "/api/odoo/stock");
-    //await uploadIfExists(latest.publicaciones, "/api/ml/publicaciones");
-    await uploadIfExists(latest.ventasML, "/api/ml/ventas");
+    //await uploadIfExists(latest.publicaciones, "/api/jumpseller/publicaciones");
+    await uploadIfExists(latest.ventasJumpseller, "/api/jumpseller/ventas");
 
     variantesOdooCache = [];
     stockOdooCache = [];
