@@ -644,6 +644,47 @@ app.post('/api/cotizaciones-nacional/:cot', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/debug/data-files', (req, res) => {
+
+  const dir = path.join(__dirname, 'data');
+
+  try {
+
+    const files = fs.readdirSync(dir);
+
+    const result = files.map(f => {
+
+      const full = path.join(dir, f);
+      const stat = fs.statSync(full);
+
+      return {
+        name: f,
+        size: stat.size,
+        modified: stat.mtime
+      };
+
+    });
+
+    res.json(result);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+
+});
+
+app.get('/api/debug/data-files/:name', (req, res) => {
+
+  const filePath = path.join(__dirname, 'data', req.params.name);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('Archivo no encontrado');
+  }
+
+  res.download(filePath);
+
+});
+
 /* ============================
    Rutas SPA / Fallback
 ============================ */
