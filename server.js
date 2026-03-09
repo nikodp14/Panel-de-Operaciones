@@ -289,8 +289,8 @@ app.get("/validar-ml/validar-ml.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "validar-ml", "validar-ml.html"));
 });
 
-app.get("/ventas/validar-ventas.html", (req, res) => {
-  renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas.html"));
+app.get("/ventas/validar-ventas-ml.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas-ml.html"));
 });
 
 app.get("/odoo/variantes.html", (req, res) => {

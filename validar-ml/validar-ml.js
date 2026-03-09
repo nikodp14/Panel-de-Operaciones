@@ -624,9 +624,9 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
       variantesValidarSet
     });
 
-    if (normalizedPublication == 2823789240){
+    /*if (normalizedPublication == 2823789240){
       console.log(normalizedPublication, mlVariantRaw, mlTitle, odooNormalized, variantesValidarSet, matches);
-    }
+    }*/
 
     let hasMatchInOdoo = matches.length > 0;
 

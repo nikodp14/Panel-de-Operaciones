@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ventaKey = normVentaKey(ventaML);
 
     // 🔹 Si no hay código ingresado
-    console.log('codigoEfectivo');
+    //console.log('codigoEfectivo');
     if (!codigoEfectivo) {
       obsCell.textContent = 'INGRESE PRODUCTO A DESPACHAR';
       obsCell.classList.remove('ok-cell');
@@ -1213,9 +1213,9 @@ document.addEventListener('DOMContentLoaded', () => {
             variantesValidarSet
           });
           
-          if (pubMLSinMLC == 2823789240){
+          /*if (pubMLSinMLC == 2823789240){
             console.log(pubMLSinMLC, variante, tituloPub, variantesOdooCache, variantesValidarSet, matches);
-          }
+          }*/
 
           if (matches && matches.length) {
             codigoSugerido = matches[0].barcode;
