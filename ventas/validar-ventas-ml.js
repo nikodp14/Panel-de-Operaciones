@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = tr.querySelector(".codigo-input");
     if (!input) return;
 
+    const codigoInput = (input?.value || '').trim();
+
     const ventaML = input.dataset.venta;
     const pubML = input.dataset.pubml;
 
@@ -83,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
           key: keyPersistencia,
           ventaML,
           pubML,
+          codigo: codigoInput,   // 👈 guardar código del input
           escaneado: code
         })
       });
@@ -90,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // actualizar cache local
       codigosPorVenta[keyPersistencia] = {
         ...(codigosPorVenta[keyPersistencia] || {}),
+        codigo: codigoInput,
         escaneado: code
       };
 
@@ -1509,8 +1513,10 @@ document.addEventListener('DOMContentLoaded', () => {
               return ubicaciones
                 .map(u => `
                   <div class="ubicacion-tag">
-                    <span class="ubicacion-text">${u}</span>
-                    <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
+                    <span class="ubicacion-text">
+                      ${u.ubicacion} <b>(${u.cantidad})</b>
+                    </span>
+                    <span class="copy-ubicacion" data-ubicacion="${u.ubicacion}" title="Copiar ubicación">📋</span>
                   </div>
                 `)
                 .join('');
