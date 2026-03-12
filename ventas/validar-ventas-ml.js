@@ -75,6 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mostrar escaneo en pantalla
     scanResultEl.textContent = code;
 
+    const copyBtn = scanResultEl.parentElement.querySelector('.copy-scan');
+    if (copyBtn) copyBtn.dataset.scan = code;
+
     try {
 
       // Persistir escaneo
@@ -824,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
       const cutoff = location.hostname === 'localhost'
-        ? new Date('2026-02-28')   // entorno local
+        ? new Date('2026-01-01')   // entorno local
         : new Date('2026-03-06');  // producción
       const observaciones = [];
       const observacionesOK = [];
@@ -949,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 2️⃣ Registrar venta
-        else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete)){
+        else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete) && !esCancelODevolucion){
           obs = 'REGISTRAR VENTA EN ODOO';
         }
 
@@ -1019,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const cambioProductoPersistido =
             codigosPorVenta[keyPersistencia]?.cambioProducto || false;
-
+          
           const cantidadADespachar = await calcularCantidadDespacho(
             pubProcesar,
             unidadesML
@@ -1103,6 +1106,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (esPack && idx > 0) {
             precioMostradoFinal = 0;
             precioUnitarioFinal = 0;
+            
+            if(mlData[i+1]){
+              esLineaHijaPaquete = !mlData[i+1][ML_COL_TOTAL];
+            }
           }
 
           // 🔒 No permitir OK si no hubo escaneo
@@ -1132,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', () => {
           obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
-          else if (codigoEfectivo && !escaneado) {
+          else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
           obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
@@ -1148,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 🔒 Nunca permitir OK sin escaneo válido
           if (!obsRender) {
-            if (!escaneoValido) {
+            if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
               obsRender = 'ESCANEE EL PRODUCTO';
             } else {
               obsRender = 'OK';
@@ -1214,12 +1221,11 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.classList.add('paquete-hija-row');
         }
 
-        if (highlightDespacho) {
-          tr.classList.add('kit-row');
-        }
-
         if (item.esPack) {
           tr.classList.add('pack-row');
+        }
+        else if (highlightDespacho) {
+          tr.classList.add('kit-row');
         }
 
         const tituloReal = tituloPorPublicacion.get(pubMLSinMLC);
@@ -1250,8 +1256,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigo = (item.codigoPersistido || '').toUpperCase();
         const ventaKey = normVentaKey(ventaMLRow);
         const codigoKey = normCodigo(item.codigoPersistido);
-        const qtyRegistradaOdoo =
-          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
         let codigoSugerido = '';
 
         try {
@@ -1282,6 +1286,9 @@ document.addEventListener('DOMContentLoaded', () => {
           codigoPersistidoLimpio
             ? codigoPersistidoLimpio
             : (codigoSugerido || '');
+
+        const qtyRegistradaOdoo =
+          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
 
         tr.innerHTML = `
           <td>
@@ -1426,12 +1433,11 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.classList.add('paquete-hija-row');
         }
 
-        if (highlightDespacho) {
-          tr.classList.add('kit-row');
-        }
-
         if (item.esPack) {
           tr.classList.add('pack-row');
+        }
+        else if (highlightDespacho) {
+          tr.classList.add('kit-row');
         }
 
         tr.dataset.obs = 'OK';
@@ -1506,7 +1512,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="ubicaciones-col">
             ${(() => {
 
-              const ubicaciones = getUbicacionesPorCodigo(item.codigoPersistido);
+              const codigoFinal =
+                normCodigo(item.codigoPersistido || '');
+
+              const ubicaciones = getUbicacionesPorCodigo(codigoFinal);
 
               if (!ubicaciones.length) return '—';
 

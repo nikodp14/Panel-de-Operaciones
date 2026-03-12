@@ -22,11 +22,74 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastScannerTs = 0;
   let scanInterval = null;
   let scanTargetInput = null;
+  let envioTimeout = null;
   let scanResultEl = null;
   let lastScanTs = 0;
   let lastScannedCode = null;
   let scannerLock = false;
   let variantesValidarSet = new Set();
+  let jumpsellerProductosCache = [];
+
+  async function loadJumpsellerProductos() {
+
+    if (jumpsellerProductosCache.length) return;
+
+    const res = await fetch('/api/jumpseller/productos/ultimo', { cache: 'no-store' });
+    if (!res.ok) return;
+
+    const buf = await res.arrayBuffer();
+
+    const wb = XLSX.read(buf, {
+      type: 'array',
+      raw: false,
+      cellText: true
+    });
+
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    jumpsellerProductosCache =
+      XLSX.utils.sheet_to_json(ws, {
+        header: 1,
+        defval: '',
+        raw: false
+      });
+  }
+
+  function getPublicacionDesdeJumpsellerSKU(skuBuscado) {
+
+    if (!skuBuscado) return null;
+
+    const rows = jumpsellerProductosCache;
+
+    for (let i = 0; i < rows.length; i++) {
+
+      const sku = normSKU(rows[i][15]); // columna P
+
+      if (sku !== skuBuscado) continue;
+
+      const estado = String(rows[i][14] || '').trim(); // columna O
+
+      // 🟢 Caso 1: es producto padre
+      if (estado) {
+        return sku.replace(/^MLC/i, '');
+      }
+
+      // 🟡 Caso 2: es variante → subir filas
+      for (let j = i - 1; j >= 0; j--) {
+
+        const estadoArriba = String(rows[j][14] || '').trim();
+
+        if (estadoArriba) {
+
+          const pub = String(rows[j][15] || '').trim();
+
+          return pub.replace(/^MLC/i, '');
+        }
+      }
+    }
+
+    return null;
+  }
 
   async function pollScanner() {
 
@@ -62,6 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = tr.querySelector(".codigo-input");
     if (!input) return;
 
+    const codigoInput = (input?.value || '').trim();
+
     const ventaML = input.dataset.venta;
     const pubML = input.dataset.pubml;
 
@@ -73,6 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mostrar escaneo en pantalla
     scanResultEl.textContent = code;
 
+    const copyBtn = scanResultEl.parentElement.querySelector('.copy-scan');
+    if (copyBtn) copyBtn.dataset.scan = code;
+
     try {
 
       // Persistir escaneo
@@ -83,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
           key: keyPersistencia,
           ventaML,
           pubML,
+          codigo: codigoInput,   // 👈 guardar código del input
           escaneado: code
         })
       });
@@ -90,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // actualizar cache local
       codigosPorVenta[keyPersistencia] = {
         ...(codigosPorVenta[keyPersistencia] || {}),
+        codigo: codigoInput,
         escaneado: code
       };
 
@@ -235,6 +305,28 @@ document.addEventListener('DOMContentLoaded', () => {
       return false;
     }
 
+    // 🔹 validar si requiere envío
+    const metodo = (tr.dataset.metodoenvio || '').toLowerCase();
+
+    const requiereEnvio =
+      !metodo.includes('demoto') &&
+      !(metodo.includes('santiago') &&
+        metodo.includes('colina') &&
+        metodo.includes('padre')) &&
+      !tr.classList.contains('paquete-hija-row');
+
+    const envioInput = tr.querySelector('.envio-input');
+    const envioValor = Number(envioInput?.value || 0);
+
+    if (requiereEnvio && !envioValor) {
+
+      obsCell.textContent = 'INGRESE COSTO DE ENVÍO';
+      obsCell.classList.remove('ok-cell');
+      obsCell.classList.add('error-cell');
+      return false;
+
+    }
+
     obsCell.textContent = 'OK';
     obsCell.classList.remove('error-cell');
     obsCell.classList.add('ok-cell');
@@ -266,6 +358,50 @@ document.addEventListener('DOMContentLoaded', () => {
     pollScanner();
 
     showToast("Esperando escaneo 📡");
+
+  });
+
+  resultsBody.addEventListener('input', (e) => {
+
+    if (!e.target.classList.contains('envio-input')) return;
+
+    const input = e.target;
+
+    const ventaML = input.dataset.venta;
+    const pubML = input.dataset.pubml;
+
+    const key = `${ventaML}|${pubML}`;
+    const valor = Number(input.value) || 0;
+
+    clearTimeout(envioTimeout);
+
+    envioTimeout = setTimeout(async () => {
+
+      try {
+
+        await fetch('/api/jumpseller/ventas/codigos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key,
+            ventaML,
+            pubML,
+            envioManual: valor
+          })
+        });
+
+        codigosPorVenta[key] = {
+          ...(codigosPorVenta[key] || {}),
+          envioManual: valor
+        };
+
+        await runValidacionVentas();
+
+      } catch (err) {
+        console.error("Error guardando envío", err);
+      }
+
+    }, 500);
 
   });
 
@@ -427,6 +563,13 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/\s+/g, '')     // quita espacios
       .replace(/[-–—]/g, '')  // quita guiones
       .replace(/\.0$/, '');   // quita .0 típico de Excel
+  }
+
+  function normSKU(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+      .trim()
+      .replace(/\.0$/, '');
   }
 
   function normVentaKey(v) {
@@ -692,6 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     statusEl.textContent = 'Procesando archivos...';
     await loadUltimasVariantesOdooParaBusqueda();
     await loadStockOdoo();
+    await loadJumpsellerProductos();
     variantesValidarSet = await loadVariantesValidarFromConfig();
     resultsBody.innerHTML = '';
     resultsSection.classList.add('hidden');
@@ -726,9 +870,20 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('No se encontró la columna "Nombre del producto" en el Excel.');
       }
 
-      const ML_COL_TOTAL = findColIndexByName([
-        'total'
+      const ML_COL_METODO_ENVIO = findColIndexByName([
+        'nombre del método de envío',
+        'metodo de envio',
+        'método de envío'
       ]);
+
+      if (ML_COL_METODO_ENVIO === -1) {
+        throw new Error('No se encontró la columna "Nombre del método de envío" en el Excel.');
+      }
+
+      const ML_COL_TOTAL = headerRow.findIndex(col => {
+        const text = String(col || '').toLowerCase().trim();
+        return text.includes('total') && !text.includes('subtotal');
+      });
 
       if (ML_COL_TOTAL === -1) {
         throw new Error('No se encontró la columna "Total" en el Excel de Ventas ML.');
@@ -753,6 +908,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const ML_COL_VARIANTE = findColIndexByName([
         'variante'
       ]);
+
+      const ML_COL_PAGO = findColIndexByName([
+        'nombre de pago'
+      ]);
+
+      if (ML_COL_PAGO === -1) {
+        throw new Error('No se encontró la columna "Nombre de Pago" en el Excel de Ventas Jumpseller.');
+      }
 
       // === Odoo ===
       const odooRes = await fetch('/api/odoo/ventas/ultimo');
@@ -826,7 +989,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
       const cutoff = location.hostname === 'localhost'
-        ? new Date('2026-02-28')   // entorno local
+        ? new Date('2026-01-01')   // entorno local
         : new Date('2026-03-06');  // producción
       const observaciones = [];
       const observacionesOK = [];
@@ -854,26 +1017,34 @@ document.addEventListener('DOMContentLoaded', () => {
       let primeraLineaPaquete = false;
       let ventaPaqueteActiva = null;
       let ventaLinkPaqueteActivo = null;
+      let ventaContexto = null;
+      let fechaContexto = null;
+      let pagoContexto = null;
+      let estadoContexto = null;
+      let ventaLinkContexto = null;
 
       for (let i = 0; i < mlData.length; i++) {
         const r = mlData[i];
         const excelRowIndex = START_ROW + i;
-        const ventaLink = getCellHyperlink(wsML, excelRowIndex, ML_COL_VENTA);
-        const ventaML = String(r[ML_COL_VENTA] || '').trim(); // Col A (# de venta)
+		    const ventaLink = '';
         const ML_COL_FECHA = findColIndexByName([
           'fecha'
         ]);
-        const fecha = parseDate(r[ML_COL_FECHA]);  // Col B (Fecha de venta)
-        const ML_COL_ESTADO = findColIndexByName([
-          'estado del pago'
-        ]);
-        const estadoML = String(r[ML_COL_ESTADO] || '');; // Col C (Estado ML)
-        //const totalCLPraw = r[13];         // Col M
-        const totalCLPraw = r[ML_COL_TOTAL];
         const ML_COL_ENVIO = findColIndexByName([
           'envío',
           'envio'
         ]);
+        const ML_COL_ESTADO = findColIndexByName([
+          'estado del pago'
+        ]);
+        
+        let ventaML = String(r[ML_COL_VENTA] || '').trim();
+        let fecha = parseDate(r[ML_COL_FECHA]);
+        let nombrePago = String(r[ML_COL_PAGO] || '').trim();
+        let estadoML = String(r[ML_COL_ESTADO] || '');
+        
+        //const totalCLPraw = r[13];         // Col M
+        const totalCLPraw = r[ML_COL_TOTAL];
         const ingresoEnvioCLP = r[9]; // Col J
         const costoEnvioCLP = 0;//r[10];  // Col K
         const cantidadRaw = r[ML_COL_UNIDADES]; // Col G (Unidades)
@@ -881,7 +1052,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalCLP = typeof totalCLPraw === 'number'
           ? totalCLPraw
           : parseFloat(String(totalCLPraw || '').replace(/\./g, '').replace(',', '.'));
-
+		    let fechaMostrada = r[ML_COL_FECHA];
+        let esLineaHijaPaquete = !totalCLP;
+   
+        primeraLineaPaquete = false;
+		
         const precioMostrado = calcularPrecioMostrado(
           totalCLP,
           ingresoEnvioCLP,
@@ -890,22 +1065,36 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         const titulo = String(r[ML_COL_TITULO] || '').toLowerCase();
+        let metodoEnvio = String(r[ML_COL_METODO_ENVIO] || '').trim();
 
-        let esHeaderPaquete = false;
-        let esLineaHijaPaquete = false;
+        if (!esLineaHijaPaquete) {
+          // Cabecera nueva
+          ventaContexto = ventaML;
+          fechaContexto = fechaMostrada;
+          pagoContexto = nombrePago;
+          estadoContexto = estadoML;
+        } else {
+          // Heredar contexto
+          ventaML = ventaContexto;
+          fecha = fechaContexto;
+          fechaMostrada = fechaContexto;
+          nombrePago = pagoContexto;
+          estadoML = estadoContexto;
+        }
 
         // Detectar inicio de paquete
-        if (estadoML.toLowerCase().includes('paquete de')) {
+        if (esLineaHijaPaquete) {
           paqueteActivo = true;
           precioPaqueteActivo = totalCLP;
-          primeraLineaPaquete = true;
 
           ventaPaqueteActiva = ventaML;        // 👈 guardar venta principal
           ventaLinkPaqueteActivo = ventaLink;  // 👈 guardar link principal
-
-          continue;
         }
 
+        if (nombrePago.toLowerCase().trim() === 'mercadolibre') {
+          continue;
+		    }
+		  
         // Si estamos dentro de un paquete
         if (paqueteActivo) {
           //console.log('total',totalCLP);
@@ -947,21 +1136,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const qtyEntrega = odooQtyByVenta.get(normVentaKey(ventaML)) || 0;
         const esCancelODevolucion = includesCancelOrReturn(estadoML);
 
-        /*if (ventaML === '2000011724053271') {
-          console.log({
-            estadoML,
-            esCancelODevolucion,
-            qtyEntrega
-          });
-        }*/
-
         // 1️⃣ PRIORIDAD MÁXIMA: DEVOLVER
         if (esCancelODevolucion && qtyEntrega > 0) {
           obs = 'DEVOLVER';
         }
 
         // 2️⃣ Registrar venta
-        else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete)){
+        else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete) && !esCancelODevolucion){
           obs = 'REGISTRAR VENTA EN ODOO';
         }
 
@@ -971,7 +1152,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const unidadesML = Number(r[ML_COL_UNIDADES] || 0);
-        const pubOriginal = String(r[ML_COL_PUBML] || '').replace(/^MLC/i, '').trim();
+        let pubOriginal = String(r[ML_COL_PUBML] || '')
+          .replace(/^MLC/i, '')
+          .trim();
+
+        // si no parece publicación ML
+        const pubDetectada =
+          getPublicacionDesdeJumpsellerSKU(normSKU(r[ML_COL_PUBML]));;
+        
+        if (pubDetectada) {
+          pubOriginal = pubDetectada;
+        }
 
         // 🔹 Ver si es pack
         const publicacionesPack = packMap.get(pubOriginal);
@@ -1011,7 +1202,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               const tituloRaw = String(r[ML_COL_TITULO] || '');
               varianteML = extraerColorDesdeTitulo(tituloRaw);
-              console.log(varianteML);
             }
 
             const matches = resolveMlVariant({
@@ -1021,8 +1211,6 @@ document.addEventListener('DOMContentLoaded', () => {
               odooProducts: variantesOdooCache,
               variantesValidarSet
             });
-
-            console.log(pubProcesar, varianteML, titulo, variantesOdooCache, variantesValidarSet);
 
             if (matches && matches.length) {
               codigoSugeridoTemp = matches[0].barcode;
@@ -1046,12 +1234,47 @@ document.addEventListener('DOMContentLoaded', () => {
             unidadesML
           );
 
+          let baseTotal = precioMostrado;
+
+          const metodo = (metodoEnvio || '').toLowerCase();
+          let obsFinal = obs; // copiamos el obs base
+
+          if (metodo.includes('demoto')) {
+
+            // retiro → no descontar nada
+            baseTotal = precioMostrado;
+
+          }
+          else if (metodo.includes('santiago') &&
+                  metodo.includes('colina') &&
+                  metodo.includes('padre')) {
+
+            // despacho propio
+            /*if(ventaKey == 3062){
+              console.log(precioMostrado);
+            }*/
+            baseTotal = precioMostrado - (3000);
+
+          }
+          else {
+
+            const envioInput =
+              codigosPorVenta[keyPersistencia]?.envioManual || 0;
+
+            if (!envioInput || Number(envioInput) == 0) {
+              obsFinal = 'INGRESE COSTO DE ENVÍO';
+            }
+
+            console.log(obsFinal);
+
+            baseTotal = precioMostrado - (envioInput / 1.19);
+
+          }
+
           const precioUnitarioCorrecto =
             cantidadADespachar > 0
-              ? Math.round(precioMostrado / cantidadADespachar)
-              : precioMostrado;
-
-          let obsFinal = obs; // copiamos el obs base
+              ? Math.round(baseTotal / cantidadADespachar)
+              : baseTotal;  
 
           // 🔹 VALIDACIÓN ODOO AQUÍ DENTRO
           if (existeEnOdoo && !includesCancelOrReturn(estadoML)) {
@@ -1124,6 +1347,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (esPack && idx > 0) {
             precioMostradoFinal = 0;
             precioUnitarioFinal = 0;
+            
+            if(mlData[i+1]){
+              esLineaHijaPaquete = !mlData[i+1][ML_COL_TOTAL];
+            }
           }
 
           // 🔒 No permitir OK si no hubo escaneo
@@ -1153,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
           obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
-          else if (codigoEfectivo && !escaneado) {
+          else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
           obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
@@ -1169,27 +1396,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 🔒 Nunca permitir OK sin escaneo válido
           if (!obsRender) {
-            if (!escaneoValido) {
-              obsRender = 'ESCANEE EL PRODUCTO';
-            } else {
-              obsRender = 'OK';
-            }
+
+          const requiereEnvio =
+            esLineaHijaPaquete &&
+            !(metodoEnvio || '').toLowerCase().includes('demoto') &&
+            !((metodoEnvio || '').toLowerCase().includes('santiago') &&
+              (metodoEnvio || '').toLowerCase().includes('colina') &&
+              (metodoEnvio || '').toLowerCase().includes('padre'));
+
+          const envioGuardado =
+            codigosPorVenta[keyPersistencia]?.envioManual || 0;
+
+          if (requiereEnvio && (!envioGuardado || envioGuardado == 0)) {
+            obsRender = 'INGRESE COSTO DE ENVÍO';
+          }
+          else if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
+            obsRender = 'ESCANEE EL PRODUCTO';
+          }
+          else {
+            obsRender = 'OK';
           }
 
+        }
+
           const itemBase = {
-          r: [...r],
-          ventaMLFinal,
-          ventaLink: ventaLinkFinal,
-          obs: obsRender,
-          precioMostrado: precioMostradoFinal,
-          precioUnitario: precioUnitarioFinal,
-          cantidad: unidadesML,
-          codigoPersistido,
-          cambioProducto: cambioProductoPersistido,
-          esPack,
-          esLineaHijaPaquete,
-          pubProcesar
-        };
+            r: [...r],
+            ventaMLFinal,
+            ventaLink: ventaLinkFinal,
+            obs: obsRender,
+            precioMostrado: precioMostradoFinal,
+            precioUnitario: precioUnitarioFinal,
+            cantidad: unidadesML,
+            codigoPersistido,
+            cambioProducto: cambioProductoPersistido,
+            esPack,
+            esLineaHijaPaquete,
+            pubProcesar,
+            fechaMostrada: fechaMostrada,
+            estadopagoMostrado : estadoML,
+            metodoEnvio
+          };
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
@@ -1205,6 +1451,8 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEl.textContent = 'No se encontraron observaciones 🎉';
         return;
       }
+
+      let ultimaFilaRenderizada = null;
 
       for (const item of observaciones) {
         const obs = item.obs;
@@ -1230,17 +1478,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const highlightDespacho = unidadesDespachar > unidadesML;
+        
+        /*if (item.ventaMLFinal == 3162){
+            console.log(item.esLineaHijaPaquete);
+            console.log('ultimaFilaRenderizada');
+            console.log(ultimaFilaRenderizada);
+            console.log(item.pubProcesar);
+          }*/
 
         if (item.esLineaHijaPaquete) {
           tr.classList.add('paquete-hija-row');
+          // 🔹 marcar cabecera retroactivamente
+          if (ultimaFilaRenderizada) {
+            ultimaFilaRenderizada.classList.remove('pack-row');
+            ultimaFilaRenderizada.classList.add('paquete-hija-row');
+          }
         }
-
-        if (highlightDespacho) {
-          tr.classList.add('kit-row');
-        }
-
-        if (item.esPack) {
+        else if (item.esPack) {
           tr.classList.add('pack-row');
+        }
+        else if (highlightDespacho) {
+          tr.classList.add('kit-row');
         }
 
         const tituloReal = tituloPorPublicacion.get(pubMLSinMLC);
@@ -1271,8 +1529,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigo = (item.codigoPersistido || '').toUpperCase();
         const ventaKey = normVentaKey(ventaMLRow);
         const codigoKey = normCodigo(item.codigoPersistido);
-        const qtyRegistradaOdoo =
-          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
         let codigoSugerido = '';
 
         try {
@@ -1304,6 +1560,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ? codigoPersistidoLimpio
             : (codigoSugerido || '');
 
+        const qtyRegistradaOdoo =
+          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
+
         tr.innerHTML = `
           <td>
             <div class="venta-copy">
@@ -1314,8 +1573,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
             </div>
           </td>
-          <td>${item.r[1]}</td>
-          <td>${item.r[2]}</td>
+          <td>${item.fechaMostrada}</td>
+          <td>${item.estadopagoMostrado}</td>
           <td>
             ${mostrarInfoProducto
               ? `
@@ -1415,6 +1674,22 @@ document.addEventListener('DOMContentLoaded', () => {
             ${qtyRegistradaOdoo}
           </td>
           <td>
+              ${!item.esLineaHijaPaquete &&
+              !(item.metodoEnvio || '').toLowerCase().includes('demoto') &&
+              !((item.metodoEnvio || '').toLowerCase().includes('santiago') &&
+                (item.metodoEnvio || '').toLowerCase().includes('colina') &&
+                (item.metodoEnvio || '').toLowerCase().includes('padre')) ? `
+                <div class="envio-input-wrapper">
+                  <input 
+                    type="number"
+                    class="envio-input"
+                    placeholder="Costo envío"
+                    data-venta="${ventaMLRow}"
+                    data-pubml="${pubMLSinMLC}"
+                    value="${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual || ''}"
+                  />
+                </div>
+              ` : ''}
             <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
             <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
           </td>
@@ -1424,6 +1699,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         resultsBody.appendChild(tr);
+        ultimaFilaRenderizada = tr;
       }
 
       // 👉 Renderizar ventas OK (ocultas por defecto)
@@ -1447,12 +1723,11 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.classList.add('paquete-hija-row');
         }
 
-        if (highlightDespacho) {
-          tr.classList.add('kit-row');
-        }
-
         if (item.esPack) {
           tr.classList.add('pack-row');
+        }
+        else if (highlightDespacho) {
+          tr.classList.add('kit-row');
         }
 
         tr.dataset.obs = 'OK';
@@ -1466,6 +1741,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const unidOdoo =
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
 
+        const ML_COL_FECHA = findColIndexByName([
+          'fecha'
+        ]);
+        const ML_COL_ESTADO = findColIndexByName([
+          'estado del pago'
+        ]);
+
         tr.innerHTML = `
           <td>
             <div class="venta-copy">
@@ -1476,8 +1758,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
             </div>
           </td>
-          <td>${item.r[1]}</td>
-          <td>${item.r[2]}</td>
+          <td>${item.fechaMostrada}</td>
+          <td>${item.estadopagoMostrado}</td>
           <td>
             <div class="producto-despachar">
               <div class="linea-pubml">
@@ -1527,15 +1809,20 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="ubicaciones-col">
             ${(() => {
 
-              const ubicaciones = getUbicacionesPorCodigo(item.codigoPersistido);
+              const codigoFinal =
+                normCodigo(item.codigoPersistido || '');
+
+              const ubicaciones = getUbicacionesPorCodigo(codigoFinal);
 
               if (!ubicaciones.length) return '—';
 
               return ubicaciones
                 .map(u => `
                   <div class="ubicacion-tag">
-                    <span class="ubicacion-text">${u}</span>
-                    <span class="copy-ubicacion" data-ubicacion="${u}" title="Copiar ubicación">📋</span>
+                    <span class="ubicacion-text">
+                      ${u.ubicacion} <b>(${u.cantidad})</b>
+                    </span>
+                    <span class="copy-ubicacion" data-ubicacion="${u.ubicacion}" title="Copiar ubicación">📋</span>
                   </div>
                 `)
                 .join('');
@@ -1558,9 +1845,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <!-- Precio -->
           <td>
-            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
-            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
-          </td>
+
+          ${(() => {
+
+            const key = `${item.ventaMLFinal}|${item.pubProcesar}`;
+            const envioGuardado = codigosPorVenta[key]?.envioManual;
+
+            if (envioGuardado) {
+              return `
+                <div class="envio-input-wrapper">
+                  <input 
+                    type="number"
+                    class="envio-input"
+                    value="${envioGuardado}"
+                    readonly
+                  />
+                </div>
+              `;
+            }
+
+            return '';
+
+          })()}
+
+          <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+          <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+
+        </td>
 
           <td class="obs-cell ok-cell">OK</td>
         `;
@@ -2006,7 +2317,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ventasOdoo: "Orden de venta (sale.order)",
       publicaciones: "Publicaciones-",
       quants: "Quants (stock.quant)",
-      ventasJumpseller: "demoto_Pedidos_"
+      ventasJumpseller: "demoto_Pedidos_",
+      productosJumpseller: "demoto_productos_",
     };
 
     const latest = {};
@@ -2048,6 +2360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await uploadIfExists(latest.quants, "/api/odoo/stock");
     //await uploadIfExists(latest.publicaciones, "/api/jumpseller/publicaciones");
     await uploadIfExists(latest.ventasJumpseller, "/api/jumpseller/ventas");
+    await uploadIfExists(latest.productosJumpseller, "/api/jumpseller/productos");
 
     variantesOdooCache = [];
     stockOdooCache = [];

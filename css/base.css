@@ -494,11 +494,13 @@ body.sidebar-collapsed .container {
 }
 
 .compras-card {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .compras-card .table-wrap {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
 }
 
 .producto-comprar {
@@ -563,8 +565,10 @@ body.sidebar-collapsed .container {
 }
 
 #comprasResults .cantidad-input,
-#comprasResults .precio-input {
+#comprasResults .precio-input,
+#comprasResults .costo-envio-input{
   margin-top: 4px;
+  width:60px;
 }
 
 .delete-col {
@@ -722,7 +726,7 @@ body.sidebar-collapsed .container {
 .table-wrap{
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 70vh;
+  max-height: 80vh;
   margin-right: 12px;
 }
 
@@ -732,10 +736,6 @@ body.sidebar-collapsed .container {
   background: #fff;
   z-index: 5;
   border-bottom: 2px solid #e3e8f3;
-}
-
-.table-wrap {
-  overflow-x: auto;
 }
 
 .table-wrap table {
@@ -752,4 +752,8 @@ body.sidebar-collapsed .container {
   position:relative;
   width:100%;
   max-width:320px;
+}
+
+.add-row-btn{
+  margin-top:12px;
 }

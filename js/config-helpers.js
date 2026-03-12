@@ -4,6 +4,7 @@
 
 // === Cache del Stock ML (configuracion.xlsx) ===
 let __stockMlConfigCache = null;
+let __variantesValidarCache = null;
 
 function normalizeMlPublication(value) {
   return String(value || '')
@@ -115,7 +116,9 @@ async function calcularCantidadDespacho(pubML, unidadesML) {
 let variantesValidarCache = null;
 
 async function loadVariantesValidarFromConfig() {
-  if (variantesValidarCache) return variantesValidarCache;
+  if (__variantesValidarCache) {
+    return __variantesValidarCache;
+  }
 
   try {
     const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
@@ -124,8 +127,8 @@ async function loadVariantesValidarFromConfig() {
     const arrayBuffer = await res.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-    if (!__stockMlConfigCache) {
-      __stockMlConfigCache = new Map();
+    if (!__variantesValidarCache) {
+      __variantesValidarCache = new Map();
     }
 
     // 🔹 Buscar hoja packs después de leer el workbook
@@ -154,13 +157,13 @@ async function loadVariantesValidarFromConfig() {
 
       packMap.forEach((skus, pub) => {
 
-        if (!__stockMlConfigCache) {
-          __stockMlConfigCache = new Map();
+        if (!__variantesValidarCache) {
+          __variantesValidarCache = new Map();
         }
 
-        const existing = __stockMlConfigCache.get(pub) || {};
+        const existing = __variantesValidarCache.get(pub) || {};
 
-        __stockMlConfigCache.set(pub, {
+        __variantesValidarCache.set(pub, {
           ...existing,
           skus
         });
@@ -169,8 +172,8 @@ async function loadVariantesValidarFromConfig() {
 
     }
 
-    if (!__stockMlConfigCache) {
-      __stockMlConfigCache = new Map();
+    if (!__variantesValidarCache) {
+      __variantesValidarCache = new Map();
     }
 
     const sheetName =

@@ -27,6 +27,93 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     });
 
+    function formatearPedido(numero) {
+      const n = Number(numero) || 0;
+      return 'P' + String(n).padStart(5, '0');
+    }
+
+    function obtenerFechaActual() {
+      const now = new Date();
+
+      const d = String(now.getDate()).padStart(2,'0');
+      const m = String(now.getMonth()+1).padStart(2,'0');
+      const y = now.getFullYear();
+
+      const h = String(now.getHours()).padStart(2,'0');
+      const min = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+
+      return `${d}-${m}-${y} ${h}:${min}:${s}`;
+    }
+
+    async function exportarPedidoExcel(){
+
+      const pedido = prompt('Número de última compra');
+      if(!pedido) return;
+
+      const refOrden = 'P' + String(Number(pedido) + 1).padStart(5,'0');
+      const cotizacion = document.getElementById('cotizacionInput').value.trim();
+
+      const now = new Date();
+
+      const fecha =
+        String(now.getDate()).padStart(2,'0') + '-' +
+        String(now.getMonth()+1).padStart(2,'0') + '-' +
+        now.getFullYear() + ' ' +
+        String(now.getHours()).padStart(2,'0') + ':' +
+        String(now.getMinutes()).padStart(2,'0') + ':' +
+        String(now.getSeconds()).padStart(2,'0');
+
+      const rows = [];
+
+      rows.push([
+        "Referencia de la orden",
+        "Proveedor",
+        "Fecha de confirmación",
+        "Fecha límite de la orden",
+        "Líneas del pedido/Cantidad",
+        "Líneas del pedido/Producto",
+        "Líneas del pedido/Precio unitario",
+        "Referencia de proveedor"
+      ]);
+
+      const lineas = [];
+
+      document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+        const producto = tr.querySelector('.codigo-input')?.value || '';
+        const cantidad = tr.querySelector('.cantidad-input')?.value || '';
+        const precio = tr.querySelector('.precio-odoo')?.textContent || '';
+
+        if(!producto) return;
+
+        lineas.push({cantidad, producto, precio});
+
+      });
+
+      lineas.forEach((l,i)=>{
+
+        rows.push([
+          i === 0 ? refOrden : "",
+          i === 0 ? "Garage Online" : "",
+          i === 0 ? "" : "",
+          i === 0 ? fecha : "",
+          l.cantidad,
+          l.producto,
+          l.precio,
+          i === 0 ? cotizacion : ""
+        ]);
+
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(wb, ws, "Pedido");
+
+      XLSX.writeFile(wb, `pedido_${refOrden}.xlsx`);
+    }
+
     function copiarAlPortapapeles(texto) {
 
       if (!texto) return;
@@ -588,4 +675,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     return redondeado;
   }
+
+  document
+  .getElementById('exportarExcelBtn')
+  .addEventListener('click', exportarPedidoExcel);
 });
