@@ -757,3 +757,8 @@ body.sidebar-collapsed .container {
 .add-row-btn{
   margin-top:12px;
 }
+
+.dragging-row {
+  opacity: 0.5;
+  background: #f0f8ff;
+}

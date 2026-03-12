@@ -677,6 +677,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   document
-  .getElementById('exportarExcelBtn')
-  .addEventListener('click', exportarPedidoExcel);
+    .getElementById('exportarExcelBtn')
+    .addEventListener('click', exportarPedidoExcel);
+
+    new Sortable(body, {
+    animation: 150,
+    ghostClass: 'dragging-row',
+
+    onEnd: () => {
+      recalcularTotales();
+      guardarCotizacion();
+    }
+  });
 });
