@@ -410,19 +410,18 @@ body.sidebar-collapsed .container {
 
 .odoo-suggestions{
   position:absolute;
-  top:100%;
+  top:35px;      /* altura del input */
   left:0;
 
   width:700px;
   max-width:90vw;
 
-  background:#ffffff;     /* 👈 fondo sólido */
+  background:#fff;
   border:1px solid #e2e8f0;
   border-radius:8px;
-
   box-shadow:0 8px 24px rgba(0,0,0,0.12);
 
-  z-index:50;             /* 👈 sobre la tabla */
+  z-index:50;
 }
 
 /* Header */
@@ -500,13 +499,14 @@ body.sidebar-collapsed .container {
 .compras-card .table-wrap {
   overflow-x: auto;
   overflow-y: auto;
+  min-height: 70vh;
   max-height: 70vh;
 }
 
-.producto-comprar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.producto-comprar{
+  position:relative;
+  display:flex;
+  flex-direction:column;
 }
 
 .producto-comprar .codigo-input {
@@ -761,4 +761,14 @@ body.sidebar-collapsed .container {
 .dragging-row {
   opacity: 0.5;
   background: #f0f8ff;
+}
+
+.cantidad-input{
+  width:60px;
+  text-align:center;
+}
+
+.total-input{
+  width:70px;
+  text-align:right;
 }

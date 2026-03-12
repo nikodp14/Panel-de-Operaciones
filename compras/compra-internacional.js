@@ -15,15 +15,80 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const fechaPedidoInput = document.getElementById('fechaPedido');
     const dolarLabel = document.getElementById('dolarCalculado');
+    let modoNumeroCotizacion = false;
+
+    const usarNumeroCotBtn = document.getElementById('usarNumeroCotBtn');
+    const cargarCotBtn = document.getElementById('cargarCotBtn');
+    
+
+    usarNumeroCotBtn.addEventListener('click', async () => {
+
+      // 🔹 Si estamos en modo FECHA → cambiar a modo COTIZACIÓN
+      if (!modoNumeroCotizacion) {
+
+        modoNumeroCotizacion = true;
+
+        usarNumeroCotBtn.textContent = 'Volver a funcionamiento por fecha';
+
+        cotizacionInput.style.display = 'inline-block';
+        cargarCotBtn.style.display = 'inline-block';
+
+        // limpiar tabla
+        body.innerHTML = '';
+
+        cotizacionInput.value = '';
+
+        addRow();
+
+        cotizacionInput.focus();
+
+        return;
+      }
+
+      // 🔹 Si estamos en modo COTIZACIÓN → volver a modo FECHA
+      modoNumeroCotizacion = false;
+
+      usarNumeroCotBtn.textContent = 'Ingresar N° cotización';
+
+      cotizacionInput.style.display = 'none';
+      cargarCotBtn.style.display = 'none';
+
+      cotizacionInput.value = '';
+
+      const fecha = fechaPedidoInput.value;
+
+      if (fecha) {
+        await cargarCotizacion();
+      }
+
+    });
+
+    function obtenerClaveCotizacion(){
+
+      if (modoNumeroCotizacion) {
+        return cotizacionInput.value.trim();
+      }
+
+      return fechaPedidoInput.value;
+
+    }
 
     document.addEventListener('click', e => {
 
       if (e.target.classList.contains('copiar-icon')) {
 
         const cell = e.target.closest('.copiable-cell');
-        const valor = cell.querySelector('.copiable-value').textContent;
+        const elemento = cell.querySelector('.copiable-value');
 
-        copiarAlPortapapeles(valor);
+        let valor = '';
+
+        if (elemento.tagName === 'INPUT') {
+          valor = elemento.value;
+        } else {
+          valor = elemento.textContent;
+        }
+
+        copiarAlPortapapeles(valor.trim());
       }
 
     });
@@ -86,12 +151,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
     }
-
-    fechaPedidoInput.addEventListener('change', e => {
-      const fecha = e.target.value;
-      if (fecha) obtenerDolar(fecha);
-      guardarCotizacion();
-    });
 
     let variantesCache = [];
 
@@ -298,8 +357,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     tr.innerHTML = `
       <td style="position: relative;">
-        <div class="producto-comprar">
-          <input type="text" class="codigo-input" placeholder="Buscar producto..." />
+        <div class="producto-comprar copiable-cell">
+
+          <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
+          <span class="copiar-icon">📋</span>
+
+          <div class="odoo-suggestions hidden"></div>
 
           <div class="producto-info">
             <div class="linea-nombre">
@@ -309,9 +372,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span class="variante-valor"></span>
             </div>
           </div>
-        </div>
 
-        <div class="odoo-suggestions hidden"></div>
+        </div>
       </td>
       <td>
         <input type="number" class="cantidad-input" min="0" value="0" />
@@ -363,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const totalOdooLinea = cantidad * precioOdoo;
 
       tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
-      tr.querySelector('.precio-odoo').textContent = precioOdoo.toFixed(0);
+      tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));      
       tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
       tr.querySelector('.precio-jumpseller').innerHTML = renderCopiable(precioJumpseller.toFixed(0));
 
@@ -540,16 +602,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   addBtn.addEventListener('click', () => {
-    const cot = document.getElementById('cotizacionInput').value.trim();
-    if (!cot) {
-      alert('Debe ingresar N° de cotización');
+
+  const clave = obtenerClaveCotizacion();
+
+    if (!clave) {
+      alert('Seleccione una fecha o ingrese N° de cotización');
       return;
     }
+
     addRow();
+
   });
 
   async function guardarCotizacion() {
-    const cot = cotizacionInput.value.trim();
+    const cot = obtenerClaveCotizacion();
     if (!cot) return; // 🔥 Si no hay número, no guardamos
 
     const lineas = [];
@@ -574,11 +640,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       })
     });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));  
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      fecha: fechaPedidoInput.value || '',
+      lineas
+    }));
   }
 
   async function cargarCotizacion() {
-    const cot = cotizacionInput.value.trim();
+    const cot = obtenerClaveCotizacion();
     if (!cot) return;
 
     const res = await fetch(`/api/cotizaciones-internacional/${cot}`);
@@ -591,14 +660,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     body.innerHTML = '';
 
-    if (!cotData) {
+    if (!cotData || !cotData.lineas || !cotData.lineas.length) {
 
-      // limpiar fecha y dólar
-      fechaPedidoInput.value = '';
-      dolarLabel.textContent = '-';
-
+      body.innerHTML = '';
       addRow();
       return;
+
     }
 
     await loadVariantes();
@@ -634,6 +701,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarCotizacion();
   });
 
+  fechaPedidoInput.addEventListener('change', async e => {
+
+    const fecha = e.target.value;
+
+    if (!fecha) return;
+
+    await obtenerDolar(fecha);
+
+    if (!modoNumeroCotizacion) {
+      await cargarCotizacion();
+    }
+
+  });
+
   function calcularPrecioML(precioOdoo, comisionPercent, envio) {
 
     const comision = comisionPercent / 100;
@@ -650,11 +731,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return redondeado;
   }
 
-  fechaPedidoInput.addEventListener('change', e => {
-    const fecha = e.target.value;
-    if (fecha) obtenerDolar(fecha);
+  const hoy = new Date().toISOString().slice(0,10);
 
-    recalcularTotales();   // ← agregar esto
-    guardarCotizacion();
-  });
+  if (!fechaPedidoInput.value) {
+    fechaPedidoInput.value = hoy;
+    await obtenerDolar(hoy);
+    await cargarCotizacion();
+  }
 });

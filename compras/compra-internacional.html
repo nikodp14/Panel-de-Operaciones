@@ -25,8 +25,9 @@
     <main class="content">
       <div class="container">
         <label>N° Cotización</label>
-        <input type="text" id="cotizacionInput" class="cotizacion-input" placeholder="Ingrese nro. cotización" />
-        <button id="cargarCotBtn">Cargar</button>
+        <input type="text" id="cotizacionInput" class="cotizacion-input" placeholder="Ingrese nro. cotización" style="display:none"/>
+        <button id="cargarCotBtn" style="display:none">Cargar</button>
+        <button id="usarNumeroCotBtn">Ingresar N° cotización</button>
       </div>
       <div class="container">
         <label>Fecha pedido</label>
@@ -45,7 +46,7 @@
               <thead>
                 <tr>
                   <th>Producto Cot.</th>
-                  <th>Cantidad</th>
+                  <th>Cant.</th>
                   <th>Total USD</th>
                   <th>Precio USD</th>
                   <th>Precio Odoo</th>
