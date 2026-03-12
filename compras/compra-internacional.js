@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 🔥 Comparación
     });
 
-    totalConIvaFooter.textContent = (totalOdoo * 1.19).toFixed(0);
+    totalConIvaFooter.textContent = (totalOdoo).toFixed(0);//(totalOdoo * 1.19).toFixed(0);
   }
 
   body.addEventListener('input', async (e) => {
