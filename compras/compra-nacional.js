@@ -369,6 +369,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         <input type="number" class="precio-input" min="0" value="0" />
       </td>
       <td class="total-compra">0</td>
+      <td>
+        <input type="number" class="descuento-input" value="30" min="0" max="100" style="width:60px;">
+      </td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
       <td class="ml-col numero-publicacion"></td>
@@ -400,7 +403,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioJumpseller = precio;
 
-      const precioConDesc = precio * (1 - DESCUENTO);
+      const descInput = tr.querySelector('.descuento-input');
+      const descuento = (Number(descInput?.value) || 0) / 100;
+
+      const precioConDesc = precio * (1 - descuento);
       const precioSinIva = precioConDesc / IVA;
 
       const totalOdooLinea = cantidad * precioSinIva;
@@ -442,6 +448,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   body.addEventListener('input', async (e) => {
+    if (e.target.classList.contains('descuento-input')){
+      recalcularTotales();
+      guardarCotizacion();
+    }
 
     if (e.target.classList.contains('codigo-input')) {
 
@@ -517,6 +527,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.target.classList.contains('costo-envio-input')){
 
       recalcularTotales();
+      guardarCotizacion();
     }
 
     if (e.target.classList.contains('costo-envio-input')) {
@@ -603,6 +614,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         variante: tr.querySelector('.variante-valor')?.textContent || '',
         cantidad: tr.querySelector('.cantidad-input')?.value || 0,
         precio: tr.querySelector('.precio-input')?.value || 0,
+        descuento: tr.querySelector('.descuento-input')?.value || 25,
         costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0
       });
     });
@@ -652,6 +664,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.precio-input').value = l.precio;
+        tr.querySelector('.descuento-input').value = l.descuento ?? 25;
         tr.querySelector('.costo-envio-input').value = l.costoEnvio || 0;
 
       })
@@ -686,13 +699,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     .addEventListener('click', exportarPedidoExcel);
 
     new Sortable(body, {
-    animation: 150,
-    ghostClass: 'dragging-row',
+      animation: 150,
+      ghostClass: 'dragging-row',
 
-    onEnd: () => {
-      recalcularTotales();
-      guardarCotizacion();
-    }
+      filter: "input, textarea, select, button",
+        preventOnFilter: false,
+
+      onEnd: () => {
+        recalcularTotales();
+        guardarCotizacion();
+      }
   });
 
   async function cargarListaCotizaciones(){
@@ -744,6 +760,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     cotizacionesModal.classList.add('hidden');
 
     await cargarCotizacion();
+
+  });
+
+  document.getElementById('descuentoGlobal').addEventListener('input', e => {
+
+    const val = Number(e.target.value) || 0;
+
+    document.querySelectorAll('.descuento-input').forEach(inp=>{
+      inp.value = val;
+    });
+
+    recalcularTotales();
+    guardarCotizacion();
 
   });
 });
