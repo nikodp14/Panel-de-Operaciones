@@ -772,3 +772,57 @@ body.sidebar-collapsed .container {
   width:70px;
   text-align:right;
 }
+
+.cotizaciones-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+.cotizaciones-content{
+  background:white;
+  width:400px;
+  max-height:70vh;
+  overflow:auto;
+  border-radius:8px;
+  padding:15px;
+}
+
+.cotizaciones-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+.cotizaciones-lista{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.cotizacion-item{
+  display:flex;
+  justify-content:space-between;
+  padding:8px;
+  border:1px solid #ddd;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+.cot-lineas{
+  font-weight:600;
+  color:#666;
+}
+
+.cotizacion-item:hover{
+  background:#f5f5f5;
+}
+
+.hidden{
+  display:none;
+}

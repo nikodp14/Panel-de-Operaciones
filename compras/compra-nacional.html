@@ -28,6 +28,7 @@
         <label>N° Cotización</label>
         <input type="text" id="cotizacionInput" class="cotizacion-input" placeholder="Ingrese nro. cotización" />
         <button id="cargarCotBtn">Cargar</button>
+        <button id="verCotizacionesBtn">Cotizaciones ingresadas</button>
       </div>
       <div class="container">
         <label>Para crear producto YAMAHA original duplicar: Base Producto Original</label>
@@ -74,6 +75,19 @@
 
       </div>
     </main>
+  </div>
+
+  <div id="cotizacionesModal" class="cotizaciones-modal hidden">
+    <div class="cotizaciones-content">
+
+      <div class="cotizaciones-header">
+        <h3>Cotizaciones ingresadas</h3>
+        <button id="cerrarCotizaciones">✕</button>
+      </div>
+
+      <div id="cotizacionesLista" class="cotizaciones-lista"></div>
+
+    </div>
   </div>
 
   <script src="/layout.js"></script>

@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addBtn = document.getElementById('addRowBtn');
     const cargarBtn = document.getElementById('cargarCotBtn');
 
+    const verCotizacionesBtn = document.getElementById('verCotizacionesBtn');
+    const cotizacionesModal = document.getElementById('cotizacionesModal');
+    const cotizacionesLista = document.getElementById('cotizacionesLista');
+    const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
+
     const totalCompraFooter = document.getElementById('totalCompraFooter');
     const totalConIvaFooter = document.getElementById('totalConIvaFooter');
 
@@ -688,5 +693,57 @@ document.addEventListener('DOMContentLoaded', async () => {
       recalcularTotales();
       guardarCotizacion();
     }
+  });
+
+  async function cargarListaCotizaciones(){
+
+    const res = await fetch('/api/cotizaciones-nacional');
+    const data = await res.json();
+
+    const cotizaciones = Object.keys(data || {})
+      .sort((a,b)=> Number(b) - Number(a));
+
+    cotizacionesLista.innerHTML = cotizaciones.map(c => {
+
+      const lineas = data[c]?.lineas?.length || 0;
+
+      return `
+        <div class="cotizacion-item" data-cot="${c}">
+          <span class="cot-num">Cotización ${c}</span>
+          <span class="cot-lineas">${lineas} líneas</span>
+        </div>
+      `;
+
+    }).join('');
+
+  }
+
+  verCotizacionesBtn.addEventListener('click', async () => {
+
+    await cargarListaCotizaciones();
+
+    cotizacionesModal.classList.remove('hidden');
+
+  });
+
+  cerrarCotizaciones.addEventListener('click', () => {
+
+    cotizacionesModal.classList.add('hidden');
+
+  });
+
+  cotizacionesLista.addEventListener('click', async (e) => {
+
+    const item = e.target.closest('.cotizacion-item');
+    if(!item) return;
+
+    const cot = item.dataset.cot;
+
+    cotizacionInput.value = cot;
+
+    cotizacionesModal.classList.add('hidden');
+
+    await cargarCotizacion();
+
   });
 });

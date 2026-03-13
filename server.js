@@ -770,6 +770,24 @@ app.get('/api/debug/codigos', (req, res) => {
 
 });
 
+app.get('/api/cotizaciones-nacional', (req, res) => {
+
+  if (!fs.existsSync(cotizacionesNacionalPath)) {
+    return res.json({});
+  }
+
+  let data = {};
+
+  try {
+    data = JSON.parse(fs.readFileSync(cotizacionesNacionalPath, "utf8"));
+  } catch {
+    data = {};
+  }
+
+  res.json(data);
+
+});
+
 /* ============================
    Rutas SPA / Fallback
 ============================ */
