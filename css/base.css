@@ -191,10 +191,10 @@ td {
 }
 
 .producto-info {
+  margin-top: 4px;
   display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;         /* 👈 para títulos largos */
+  flex-direction: column;
+  gap: 2px;
 }
 
 .producto-despachar .codigo-input {
@@ -503,14 +503,8 @@ body.sidebar-collapsed .container {
   max-height: 70vh;
 }
 
-.producto-comprar{
-  position:relative;
-  display:flex;
-  flex-direction:column;
-}
-
 .producto-comprar .codigo-input {
-  margin-top: 4px;
+  margin-top: 2px;
   max-width: 320px;
 }
 
@@ -533,42 +527,15 @@ body.sidebar-collapsed .container {
   display: inline-block;
 }
 
-.producto-comprar {
-  display: flex;
-  flex-direction: column;
-}
-
-.producto-comprar .codigo-input {
-  width: 100%;
-  max-width: 320px;
-}
-
-.producto-info {
-  margin-top: 4px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.producto-comprar {
-  display: flex;
-  flex-direction: column;
-}
-
-.producto-comprar .codigo-input {
-  width: 100%;
-  max-width: 320px;
-}
-
 #comprasResults td {
   vertical-align: top;
 }
 
 #comprasResults .cantidad-input,
-#comprasResults .precio-input,
+#comprasResults .total-input,
 #comprasResults .costo-envio-input{
-  margin-top: 4px;
-  width:60px;
+  width:70px;
+  text-align:center;
 }
 
 .delete-col {
@@ -624,7 +591,7 @@ body.sidebar-collapsed .container {
 }
 
 .copiable-cell {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
 }
@@ -838,4 +805,66 @@ body.sidebar-collapsed .container {
   width:100%;
   max-height:250px;
   overflow:auto;
+}
+
+.sub-publicacion{
+  background:#f5f5f5;
+  font-size:13px;
+}
+
+.sub-publicacion td{
+  color:#555;
+}
+
+.subproducto{
+  padding-left:30px;
+  font-style:italic;
+}
+
+.codigo-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  max-width:320px;
+}
+
+.codigo-row input{
+  flex:1;
+}
+
+/* Columna Producto Cot. más ancha */
+#comprasResults table th:first-child,
+#comprasResults table td:first-child{
+  min-width: 200px;
+  width: 200px;
+}
+
+/* Columna Producto Cot. más ancha */
+#comprasResults table th:first-child,
+#comprasResults table td:first-child{
+  min-width: 200px;
+  width: 200px;
+}
+
+.producto-comprar{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+}
+
+.producto-info{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.sub-publicacion td:first-child{
+  padding-left:18px;
+  color:#666;
+}
+
+.subtitulo{
+  font-size:12px;
+  color:#666;
+  margin-top:2px;
 }

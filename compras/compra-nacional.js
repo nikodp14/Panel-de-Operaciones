@@ -22,13 +22,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     document.addEventListener('click', e => {
 
-      if (e.target.classList.contains('copiar-icon')) {
+      if (!e.target.classList.contains('copiar-icon')) return;
 
-        const cell = e.target.closest('.copiable-cell');
-        const valor = cell.querySelector('.copiable-value').textContent;
+      let valor = '';
 
-        copiarAlPortapapeles(valor);
+      // 🔹 caso input (codigo)
+      const codigoRow = e.target.closest('.codigo-row');
+      if (codigoRow) {
+        const input = codigoRow.querySelector('.codigo-input');
+        valor = input?.value || '';
       }
+
+      // 🔹 caso celdas copiables (precio, ML, etc)
+      const copiableCell = e.target.closest('.copiable-cell');
+      if (copiableCell) {
+        const el = copiableCell.querySelector('.copiable-value');
+
+        if (el) {
+          valor = el.tagName === 'INPUT'
+            ? el.value
+            : el.textContent;
+        }
+      }
+
+      copiarAlPortapapeles(valor.trim());
 
     });
 
@@ -359,7 +376,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     tr.innerHTML = `
       <td style="position: relative;">
         <div class="producto-comprar">
-          <input type="text" class="codigo-input" placeholder="Buscar producto..." />
+          <div class="codigo-row">
+            <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
+            <span class="copiar-icon">📋</span>
+          </div>
 
           <div class="producto-info">
             <div class="linea-nombre">

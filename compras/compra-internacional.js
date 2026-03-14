@@ -186,21 +186,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.addEventListener('click', e => {
 
-      if (e.target.classList.contains('copiar-icon')) {
+      if (!e.target.classList.contains('copiar-icon')) return;
 
-        const cell = e.target.closest('.copiable-cell');
-        const elemento = cell.querySelector('.copiable-value');
+      let valor = '';
 
-        let valor = '';
-
-        if (elemento.tagName === 'INPUT') {
-          valor = elemento.value;
-        } else {
-          valor = elemento.textContent;
-        }
-
-        copiarAlPortapapeles(valor.trim());
+      // 🔹 caso input (codigo)
+      const codigoRow = e.target.closest('.codigo-row');
+      if (codigoRow) {
+        const input = codigoRow.querySelector('.codigo-input');
+        valor = input?.value || '';
       }
+
+      // 🔹 caso celdas copiables (precio, ML, etc)
+      const copiableCell = e.target.closest('.copiable-cell');
+      if (copiableCell) {
+        const el = copiableCell.querySelector('.copiable-value');
+
+        if (el) {
+          valor = el.tagName === 'INPUT'
+            ? el.value
+            : el.textContent;
+        }
+      }
+
+      copiarAlPortapapeles(valor.trim());
 
     });
 
@@ -398,6 +407,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return new Map();
       }
 
+      const indiceTitulo = headerNormalized.findIndex(h =>
+        h.includes('titulo')
+      );
+
       const map = new Map();
 
       // 🔥 Iterar desde fila siguiente al header
@@ -424,7 +437,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           map.set(pub, {
             comision,
             precio: precioMLActual,
-            estado
+            estado,
+            titulo: indiceTitulo >= 0 ? r[indiceTitulo] : ''
           });
         }
       });
@@ -497,13 +511,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     function addRow() {
     const tr = document.createElement('tr');
+    tr.dataset.rowid = crypto.randomUUID();
 
     tr.innerHTML = `
       <td style="position: relative;">
-        <div class="producto-comprar copiable-cell">
-
-          <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
-          <span class="copiar-icon">📋</span>
+        <div class="producto-comprar">
+          <div class="codigo-row">
+            <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
+            <span class="copiar-icon">📋</span>
+          </div>
 
           <div class="odoo-suggestions hidden"></div>
 
@@ -548,7 +564,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let totalCompra = 0;
     let totalOdoo = 0;
 
-    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+    document.querySelectorAll('#comprasBody tr:not(.sub-publicacion)').forEach(tr => {
 
       const cantidad = Number(tr.querySelector('.cantidad-input').value) || 0;
       const totalLinea = Number(tr.querySelector('.total-input').value) || 0;
@@ -578,7 +594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
-      const envio = Number(tr.querySelector('.costo-envio-input').value) || 0;
+      const envio = Number(tr.querySelector('.costo-envio-input')?.value) || 0;
 
       const precioML = calcularPrecioML(precioOdoo, comision, envio);
 
@@ -619,54 +635,182 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 🔥 Comparación
     });
 
+    document.querySelectorAll('#comprasBody tr.sub-publicacion').forEach(tr => {
+
+      const parent = document.querySelector(
+        `tr[data-rowid="${tr.dataset.parent}"]`
+      );
+
+      if (!parent) return;
+
+      const precioOdoo = Number(
+        parent.querySelector('.precio-odoo .copiable-value')?.textContent || 0
+      );
+
+      const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
+      const comision = Number(porcentajeTexto.replace('%','')) || 0;
+
+      const envio = Number(tr.querySelector('.costo-envio-input')?.value) || 0;
+
+      const precioML = calcularPrecioML(precioOdoo, comision, envio);
+
+      const precioMLEl = tr.querySelector('.precio-ml');
+
+      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+
+      const numeroPub =
+        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+        ?.trim()
+        ?.toUpperCase() || '';
+
+      const dataMap = comisionMapCache?.get(numeroPub);
+
+      const precioActualML = dataMap?.precio || 0;
+
+      if (precioActualML) {
+
+        if (precioML > precioActualML) {
+          precioMLEl.style.color = 'red';
+          precioMLEl.style.fontWeight = '700';
+
+        } else if (precioActualML > precioML) {
+          precioMLEl.style.color = '#0a8f2f';
+          precioMLEl.style.fontWeight = '700';
+
+        } else {
+          precioMLEl.style.color = '';
+          precioMLEl.style.fontWeight = '';
+        }
+      }
+
+    });
+
     totalConIvaFooter.textContent = (totalOdoo).toFixed(0);//(totalOdoo * 1.19).toFixed(0);
+  }
+
+  async function procesarPublicaciones(tr, barcodeRaw){
+
+    const resultado = await obtenerComisionDesdeBarcode(barcodeRaw);
+
+    const publicaciones = String(barcodeRaw || '')
+      .split('/')
+      .map(p => p.replace(/^MLC/i,'').split('-')[0].trim().toUpperCase())
+      .filter(Boolean);
+
+    const comisionMap = await loadComisionMap();
+
+    const publicacionesValidas = publicaciones.filter(p => comisionMap.has(p));
+
+    // eliminar sublíneas existentes
+    document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`)
+      .forEach(r => r.remove());
+
+    const filaPrincipal = tr;
+
+    if(publicacionesValidas.length > 1){
+
+      let insertAfter = filaPrincipal;
+
+      publicacionesValidas.slice(1).forEach(pub => {
+
+        const sub = document.createElement('tr');
+        sub.classList.add('sub-publicacion');
+        sub.dataset.parent = filaPrincipal.dataset.rowid;
+
+        const data = comisionMap.get(pub);
+
+        sub.innerHTML = `
+          <td class="subproducto">
+            ↳ publicación adicional
+            <div class="subtitulo">${data?.titulo || ''}</div>
+          </td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+
+          <td class="ml-col numero-publicacion">
+            ${renderCopiable(pub)}
+          </td>
+
+          <td class="ml-col estado-publicacion">
+            ${data?.estado || ''}
+          </td>
+
+          <td class="ml-col precio-jumpseller"></td>
+
+          <td class="ml-col">
+            <input type="number" class="costo-envio-input" min="0" value="0">
+          </td>
+
+          <td class="ml-col porcentaje-comision">
+            ${data?.comision || 0}%
+          </td>
+
+          <td class="ml-col precio-ml"></td>
+
+          <td></td>
+        `;
+
+        insertAfter.parentNode.insertBefore(sub, insertAfter.nextSibling);
+        insertAfter = sub;
+
+      });
+    }
+
+    filaPrincipal.querySelector('.porcentaje-comision').textContent =
+      resultado.comision + '%';
+
+    const pub = (resultado.publicacion || '').toUpperCase().trim();
+
+    filaPrincipal.querySelector('.numero-publicacion').innerHTML =
+      renderCopiable(pub);
   }
 
   body.addEventListener('input', async (e) => {
 
     if (e.target.classList.contains('codigo-input')) {
 
-    const input = e.target;
-    const tr = input.closest('tr');
-    const suggestions = tr.querySelector('.odoo-suggestions');
-    const nombreEl = tr.querySelector('.nombre-valor');
-    const varianteEl = tr.querySelector('.variante-valor');
+      const input = e.target;
+      const tr = input.closest('tr');
+      const suggestions = tr.querySelector('.odoo-suggestions');
+      const nombreEl = tr.querySelector('.nombre-valor');
+      const varianteEl = tr.querySelector('.variante-valor');
 
-    const rawValue = input.value.trim();
-    const normalizedValue = rawValue.toUpperCase();
-    const lowerValue = rawValue.toLowerCase();
+      const rawValue = input.value.trim();
+      const normalizedValue = rawValue.toUpperCase();
+      const lowerValue = rawValue.toLowerCase();
 
-    // 🔥 Obtener comisión ML desde barcode
-    const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
-    tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    const pub = (resultado.publicacion || '').toUpperCase().trim();
-    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(pub);
-    guardarCotizacion();
+      // 🔥 Obtener comisión ML desde barcode
+      await procesarPublicaciones(tr, normalizedValue);
 
-    // 🔥 Limpiar si no coincide con barcode válido
-    if (!variantesCache.some(v => v.barcode === normalizedValue)){
-      nombreEl.textContent = '';
-      varianteEl.textContent = '';
-    }
+      guardarCotizacion();
 
-    if (lowerValue.length < 3) {
-      suggestions.innerHTML = '';
-      suggestions.classList.add('hidden');
-      return;
-    }
+      // 🔥 Limpiar si no coincide con barcode válido
+      if (!variantesCache.some(v => v.barcode === normalizedValue)){
+        nombreEl.textContent = '';
+        varianteEl.textContent = '';
+      }
 
-    await loadVariantes();
+      if (lowerValue.length < 3) {
+        suggestions.innerHTML = '';
+        suggestions.classList.add('hidden');
+        return;
+      }
 
-    // 🔥 Autocompletar automático si coincide exactamente
-    const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
+      await loadVariantes();
 
-    if (exactMatch) {
-      nombreEl.textContent = exactMatch.name || '';
-      varianteEl.textContent = exactMatch.variant || '';
-      suggestions.innerHTML = '';
-      suggestions.classList.add('hidden');
-      return;
-    }
+      // 🔥 Autocompletar automático si coincide exactamente
+      const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
+
+      if (exactMatch) {
+        nombreEl.textContent = exactMatch.name || '';
+        varianteEl.textContent = exactMatch.variant || '';
+        suggestions.innerHTML = '';
+        suggestions.classList.add('hidden');
+        return;
+      }
 
       const matches = variantesCache
         .filter(v =>
@@ -694,10 +838,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       suggestions.classList.remove('hidden');
     }
 
-    if (e.target.classList.contains('cantidad-input') ||
-        e.target.classList.contains('total-input') ||
-        e.target.classList.contains('costo-envio-input')){
-
+    if (
+      e.target.classList.contains('cantidad-input') ||
+      e.target.classList.contains('total-input') ||
+      e.target.classList.contains('costo-envio-input') ||
+      e.target.classList.contains('costo-envio-input-sub')
+    ){
       recalcularTotales();
       guardarCotizacion();
     }
@@ -738,8 +884,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const resultado = await obtenerComisionDesdeBarcode(barcode);
 
-    tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);    nombreEl.textContent = info?.name || '';
+    await procesarPublicaciones(tr, barcode);
+    nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
 
     guardarCotizacion();
@@ -776,20 +922,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   async function guardarCotizacion() {
+
     const cot = obtenerClaveCotizacion();
-    if (!cot) return; // 🔥 Si no hay número, no guardamos
+    if (!cot) return;
 
     const lineas = [];
 
-    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+    document.querySelectorAll('#comprasBody tr:not(.sub-publicacion)').forEach(tr => {
+
+      const rowid = tr.dataset.rowid;
+
+      const subEnvios = [...document.querySelectorAll(`tr[data-parent="${rowid}"]`)]
+        .map(r => r.querySelector('.costo-envio-input')?.value || 0);
+
       lineas.push({
         barcode: tr.querySelector('.codigo-input')?.value || '',
         nombre: tr.querySelector('.nombre-valor')?.textContent || '',
         variante: tr.querySelector('.variante-valor')?.textContent || '',
         cantidad: tr.querySelector('.cantidad-input')?.value || 0,
         total: tr.querySelector('.total-input')?.value || 0,
-        costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0
+        costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0,
+        subEnvios
       });
+
     });
 
     await fetch(`/api/cotizaciones-internacional/${cot}`, {
@@ -801,10 +956,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       })
     });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      fecha: fechaPedidoInput.value || '',
-      lineas
-    }));
   }
 
   async function cargarCotizacion() {
@@ -839,14 +990,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const barcode = l.barcode || '';
 
-        tr.querySelector('.codigo-input').value = barcode;
+        const input = tr.querySelector('.codigo-input');
+        input.value = barcode;
+
+        // 🔥 disparar lógica de sub publicaciones
         tr.querySelector('.nombre-valor').textContent = l.nombre;
         tr.querySelector('.variante-valor').textContent = l.variante;
 
-        const resultado = await obtenerComisionDesdeBarcode(barcode);
+        await procesarPublicaciones(tr, barcode);
 
-        tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-        tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
+        if (l.subEnvios?.length) {
+
+          const subs = document.querySelectorAll(
+            `tr[data-parent="${tr.dataset.rowid}"]`
+          );
+
+          subs.forEach((sub,i)=>{
+            const val = l.subEnvios[i];
+            if (val !== undefined) {
+              sub.querySelector('.costo-envio-input').value = val;
+            }
+          });
+
+        }
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.total-input').value = l.total;
