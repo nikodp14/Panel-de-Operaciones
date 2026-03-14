@@ -24,11 +24,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cotizacionesModal = document.getElementById('cotizacionesModal');
     const cotizacionesLista = document.getElementById('cotizacionesLista');
     const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
+
+    const buscarProductoCot = document.getElementById('buscarProductoCot');
+    const buscarProductoSug = document.getElementById('buscarProductoSug');
+
+    let filtroBarcodeCot = '';
+    let cacheCotizaciones = {};
         
     async function cargarListaCotizaciones(){
 
       const res = await fetch('/api/cotizaciones-internacional');
       const data = await res.json();
+      cacheCotizaciones = data || {};
 
       const cotizaciones = Object.entries(data || {});
 
@@ -37,13 +44,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       cotizaciones.forEach(([c,v]) => {
 
-        if (/^\d{4}-\d{2}-\d{2}$/.test(c)) {
-          porFecha.push([c,v]);
-        } else {
-          porNumero.push([c,v]);
-        }
+      const lineas = v?.lineas?.length || 0;
 
-      });
+      // 🔹 ignorar cotizaciones sin líneas
+      if (lineas === 0) return;
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(c)) {
+        porFecha.push([c,v]);
+      } else {
+        porNumero.push([c,v]);
+      }
+
+    });
 
       porNumero.sort((a,b)=> Number(b) - Number(a));
       porFecha.sort((a,b)=> b[0].localeCompare(a[0]));
@@ -865,5 +877,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     fechaPedidoInput.value = hoy;
     await obtenerDolar(hoy);
     await cargarCotizacion();
+  }
+
+  buscarProductoCot.addEventListener('input', async e => {
+
+    const val = e.target.value.trim().toLowerCase();
+
+    // 🔹 si se borró el texto → restaurar lista completa
+    if(val.length === 0){
+      filtroBarcodeCot = '';
+      buscarProductoSug.classList.add('hidden');
+      await cargarListaCotizaciones();
+      return;
+    }
+
+    if(val.length < 3){
+      buscarProductoSug.classList.add('hidden');
+      return;
+    }
+
+    await loadVariantes();
+
+    const matches = variantesCache
+      .filter(v =>
+        v.barcode.toLowerCase().includes(val) ||
+        v.name.toLowerCase().includes(val)
+      )
+      .slice(0,50);
+
+    buscarProductoSug.innerHTML = matches.map(v=>`
+      <div class="odoo-option" data-barcode="${v.barcode}">
+        <div class="odoo-barcode">${v.barcode}</div>
+        <div class="odoo-name">${v.name}</div>
+        <div class="odoo-variant">${v.variant}</div>
+      </div>
+    `).join('');
+
+    buscarProductoSug.classList.remove('hidden');
+
+  });
+
+  buscarProductoSug.addEventListener('click', e=>{
+
+    const opt = e.target.closest('.odoo-option');
+    if(!opt) return;
+
+    const barcode = opt.dataset.barcode;
+
+    filtroBarcodeCot = barcode;
+
+    buscarProductoCot.value = barcode;
+
+    buscarProductoSug.classList.add('hidden');
+
+    mostrarCotizacionesFiltradas();
+
+  });
+
+  function mostrarCotizacionesFiltradas(){
+
+    const data = cacheCotizaciones;
+
+    const cotizaciones = Object.entries(data || {});
+
+    const filtradas = cotizaciones.filter(([c,v])=>{
+
+      const lineas = v?.lineas || [];
+
+      if(!lineas.length) return false;
+
+      if(!filtroBarcodeCot) return true;
+
+      return lineas.some(l =>
+        String(l.barcode || '').toUpperCase() === filtroBarcodeCot
+      );
+
+    });
+
+    cotizacionesLista.innerHTML = filtradas.map(([c,v])=>{
+
+      const lineas = v?.lineas?.length || 0;
+
+      return `
+        <div class="cotizacion-item" data-cot="${c}">
+          <span class="cot-num">${c}</span>
+          <span class="cot-lineas">(${lineas} líneas)</span>
+        </div>
+      `;
+
+    }).join('');
+
   }
 });

@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
       odooQtyByVentaCodigo.has(`${ventaKey}|${codigoEfectivo}`);
 
     if (!existeProductoEnOdoo) {
-      obsCell.textContent = 'PRODUCTO NO REGISTRADO EN ODOO';
+      obsCell.textContent = 'REGISTRAR VENTA EN ODOO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
       return false;
@@ -1046,7 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
               if (existeVentaEnOdooConOtroCodigo) {
                 obsFinal = 'EXISTE LA VENTA EN ODOO, PERO CON OTRO CÓDIGO';
               } else {
-                obsFinal = 'PRODUCTO NO REGISTRADO EN ODOO';
+                obsFinal = 'REGISTRAR VENTA EN ODOO';
               }
 
             } else {
@@ -1404,7 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
             <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
           </td>
-          <td class="obs-cell ${item.obs === 'INGRESE PRODUCTO A DESPACHAR' || item.obs === 'ESCANEE EL PRODUCTO' || item.obs === 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER' || item.obs === 'PRODUCTO A DESPACHAR INCORRECTO' ? 'error-cell' : ''}">
+          <td class="obs-cell ${item.obs === 'REGISTRAR VENTA EN ODOO' || item.obs === 'INGRESE PRODUCTO A DESPACHAR' || item.obs === 'ESCANEE EL PRODUCTO' || item.obs === 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER' || item.obs === 'PRODUCTO A DESPACHAR INCORRECTO' ? 'error-cell' : ''}">
             ${item.obs}
           </td>
         `;

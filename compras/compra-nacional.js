@@ -757,6 +757,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const data = await res.json();
 
     const cotizaciones = Object.keys(data || {})
+      .filter(c => (data[c]?.lineas?.length || 0) > 0)
       .sort((a,b)=> Number(b) - Number(a));
 
     cotizacionesLista.innerHTML = cotizaciones.map(c => {
