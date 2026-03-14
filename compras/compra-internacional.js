@@ -235,16 +235,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       try {
 
-        const res = await fetch('https://mindicador.cl/api/dolar');
+        const year = new Date(fecha).getFullYear();
+        const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
         const data = await res.json();
 
         const serie = data.serie;
 
-        const fechaBuscada = new Date(fecha).toISOString().slice(0,10);
+        const fechaBuscada = new Date(fecha);
+        const fechaISO = fechaBuscada.toISOString().slice(0,10);
 
-        const registro = serie.find(d =>
-          d.fecha.slice(0,10) === fechaBuscada
+        // buscar valor exacto
+        let registro = serie.find(d =>
+          d.fecha.slice(0,10) === fechaISO
         );
+
+        let esArrastrado = false;
+
+        // si no existe (fin de semana) buscar último anterior
+        if (!registro) {
+
+          registro = serie.find(d =>
+            new Date(d.fecha) <= fechaBuscada
+          );
+
+          esArrastrado = true;
+        }
 
         if (!registro) {
           dolarLabel.textContent = 'No disponible';
@@ -254,11 +269,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dolar = registro.valor;
         const dolarMas30 = dolar + 30;
 
-        dolarLabel.textContent = dolarMas30.toFixed(2);
+        if (esArrastrado) {
+          dolarLabel.textContent = `${dolarMas30.toFixed(2)} (último hábil)`;
+        } else {
+          dolarLabel.textContent = dolarMas30.toFixed(2);
+        }
 
       } catch(err) {
+
         console.error(err);
         dolarLabel.textContent = 'Error';
+
       }
 
     }
