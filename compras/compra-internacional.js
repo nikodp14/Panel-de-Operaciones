@@ -19,7 +19,106 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const usarNumeroCotBtn = document.getElementById('usarNumeroCotBtn');
     const cargarCotBtn = document.getElementById('cargarCotBtn');
-    
+
+    const verCotizacionesBtn = document.getElementById('verCotizacionesBtn');
+    const cotizacionesModal = document.getElementById('cotizacionesModal');
+    const cotizacionesLista = document.getElementById('cotizacionesLista');
+    const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
+        
+    async function cargarListaCotizaciones(){
+
+      const res = await fetch('/api/cotizaciones-internacional');
+      const data = await res.json();
+
+      const cotizaciones = Object.entries(data || {});
+
+      const porNumero = [];
+      const porFecha = [];
+
+      cotizaciones.forEach(([c,v]) => {
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(c)) {
+          porFecha.push([c,v]);
+        } else {
+          porNumero.push([c,v]);
+        }
+
+      });
+
+      porNumero.sort((a,b)=> Number(b) - Number(a));
+      porFecha.sort((a,b)=> b[0].localeCompare(a[0]));
+
+      cotizacionesLista.innerHTML = `
+
+        <div class="cotizacion-grupo">
+          <h4>Por número</h4>
+          ${porNumero.map(([c,v]) => `
+            <div class="cotizacion-item" data-cot="${c}">
+              <span class="cot-num">Cotización ${c}</span>
+              <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="cotizacion-grupo">
+          <h4>Por fecha</h4>
+          ${porFecha.map(([c,v]) => `
+            <div class="cotizacion-item" data-cot="${c}">
+              <span class="cot-num">${c}</span>
+              <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
+            </div>
+          `).join('')}
+        </div>
+
+      `;
+    }
+
+    verCotizacionesBtn.addEventListener('click', async () => {
+
+    await cargarListaCotizaciones();
+
+      cotizacionesModal.classList.remove('hidden');
+
+    });
+
+    cerrarCotizaciones.addEventListener('click', () => {
+
+      cotizacionesModal.classList.add('hidden');
+
+    });
+
+    cotizacionesLista.addEventListener('click', async (e) => {
+
+      const item = e.target.closest('.cotizacion-item');
+      if(!item) return;
+
+      const cot = item.dataset.cot;
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(cot)) {
+
+        modoNumeroCotizacion = false;
+
+        cotizacionInput.style.display = 'none';
+        cargarCotBtn.style.display = 'none';
+
+        fechaPedidoInput.value = cot;
+
+      } else {
+
+        modoNumeroCotizacion = true;
+
+        cotizacionInput.style.display = 'inline-block';
+        cargarCotBtn.style.display = 'inline-block';
+
+        cotizacionInput.value = cot;
+
+      }
+
+      cotizacionesModal.classList.add('hidden');
+
+      await cargarCotizacion();
+
+    });
 
     usarNumeroCotBtn.addEventListener('click', async () => {
 
@@ -211,7 +310,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (comisionMapCache) return comisionMapCache;
 
-      const res = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
+      const res = await fetch('/api/ml/comisiones/ultimo', { cache: 'no-store' });
       const buf = await res.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
 
@@ -257,6 +356,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         h.includes('precio')
       );
 
+      const indiceEstado = headerNormalized.findIndex(h =>
+        h.includes('estado')
+      );
+
       if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
         console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
         return new Map();
@@ -282,10 +385,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             .replace(',','.')
         ) || 0;
 
+        const estado = String(r[indiceEstado] || '').trim();
+
         if (pub) {
           map.set(pub, {
             comision,
-            precio: precioMLActual
+            precio: precioMLActual,
+            estado
           });
         }
       });
@@ -326,6 +432,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const final = individuales.length ? individuales[0] : candidatos[0];
 
       const data = comisionMap.get(final);
+
+      if (data?.comision === 0 && final) {
+        alert(`⚠ La publicación ${final} tiene comisión 0%. Verifique carga del archivo publicaciones.`);
+      }
 
       return {
         comision: data?.comision || 0,
@@ -385,6 +495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
       <td class="ml-col numero-publicacion"></td>
+      <td class="ml-col estado-publicacion"></td>
       <td class="ml-col precio-jumpseller">0</td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
@@ -438,8 +549,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioML = calcularPrecioML(precioOdoo, comision, envio);
 
-      const numeroPub = tr.querySelector('.numero-publicacion').textContent;
+      const numeroPub =
+        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+        ?.trim()
+        ?.toUpperCase() || '';
       const dataMap = comisionMapCache?.get(numeroPub);
+
+      const estado = dataMap?.estado || '';
+      const estadoEl = tr.querySelector('.estado-publicacion');
+
+      estadoEl.textContent = estado;
+
+      if (estado.toLowerCase().includes('inactiva')) {
+        estadoEl.style.color = 'red';
+        estadoEl.style.fontWeight = '700';
+      } else {
+        estadoEl.style.color = '';
+        estadoEl.style.fontWeight = '';
+      }
 
       const precioActualML = dataMap?.precio || 0;
 
@@ -479,7 +606,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 🔥 Obtener comisión ML desde barcode
     const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
+    const pub = (resultado.publicacion || '').toUpperCase().trim();
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(pub);
     guardarCotizacion();
 
     // 🔥 Limpiar si no coincide con barcode válido

@@ -680,6 +680,24 @@ app.post('/api/cotizaciones-internacional/:cot', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/cotizaciones-internacional', (req, res) => {
+
+  if (!fs.existsSync(cotizacionesPath)) {
+    return res.json({});
+  }
+
+  let data = {};
+
+  try {
+    data = JSON.parse(fs.readFileSync(cotizacionesPath, "utf8"));
+  } catch {
+    data = {};
+  }
+
+  res.json(data);
+
+});
+
 const cotizacionesNacionalPath = path.join(UPLOAD_DIR, 'cotizaciones-nacional.json');
 
 app.get('/api/cotizaciones-nacional/:cot', (req, res) => {
@@ -785,6 +803,54 @@ app.get('/api/cotizaciones-nacional', (req, res) => {
   }
 
   res.json(data);
+
+});
+
+app.post("/api/ml/comisiones", upload.single("archivo"), (req, res) => {
+
+  const filePath = path.join(UPLOAD_DIR, "ml_comisiones.xlsx");
+
+  fs.renameSync(req.file.path, filePath);
+
+  const info = {
+    uploadedAt: new Date().toISOString()
+  };
+
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "ml_comisiones_info.json"),
+    JSON.stringify(info, null, 2)
+  );
+
+  res.json({
+    message: "Archivo de comisiones cargado",
+    uploadedAt: info.uploadedAt
+  });
+
+});
+
+app.get("/api/ml/comisiones/ultimo", (req, res) => {
+
+  const filePath = path.join(UPLOAD_DIR, "ml_comisiones.xlsx");
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "No hay archivo de comisiones cargado" });
+  }
+
+  res.sendFile(filePath);
+
+});
+
+app.get("/api/ml/comisiones/info", (req, res) => {
+
+  const infoPath = path.join(UPLOAD_DIR, "ml_comisiones_info.json");
+
+  if (!fs.existsSync(infoPath)) {
+    return res.status(404).json({ error: "No hay archivo de comisiones cargado" });
+  }
+
+  const info = JSON.parse(fs.readFileSync(infoPath,"utf8"));
+
+  res.json(info);
 
 });
 

@@ -55,7 +55,7 @@ async function updateButtonState() {
       return;
     }
 
-    const infoRes = await fetch('/api/ml/publicaciones/info', { cache: 'no-store' });
+    const infoRes = await fetch('/api/ml/comisiones/info', { cache: 'no-store' });
     analyzeBtn.disabled = !infoRes.ok;
 
   } catch {
@@ -66,10 +66,11 @@ async function updateButtonState() {
 mlFileInput.addEventListener('change', updateButtonState);
 
 async function uploadPublicacionesML(fileToUse) {
+
   const fd = new FormData();
   fd.append("archivo", fileToUse);
 
-  const res = await fetch("/api/ml/publicaciones", {
+  const res = await fetch("/api/ml/comisiones", {
     method: "POST",
     body: fd,
   });

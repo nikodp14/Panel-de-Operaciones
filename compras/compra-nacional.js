@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (comisionMapCache) return comisionMapCache;
 
-      const res = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
+      const res = await fetch('/api/ml/comisiones/ultimo', { cache: 'no-store' });
       const buf = await res.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
 
@@ -247,6 +247,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         h.includes('precio')
       );
 
+      const indiceEstado = headerNormalized.findIndex(h =>
+        h.includes('estado')
+      );
+
       if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
         console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
         return new Map();
@@ -272,10 +276,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             .replace(',','.')
         ) || 0;
 
+        const estado = String(r[indiceEstado] || '').trim();
+
         if (pub) {
           map.set(pub, {
             comision,
-            precio: precioMLActual
+            precio: precioMLActual,
+            estado
           });
         }
       });
@@ -316,6 +323,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const final = individuales.length ? individuales[0] : candidatos[0];
 
       const data = comisionMap.get(final);
+
+      if (data?.comision === 0 && final) {
+        alert(`⚠ La publicación ${final} tiene comisión 0%. Verifique carga del archivo publicaciones.`);
+      }
 
       return {
         comision: data?.comision || 0,
@@ -375,6 +386,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
       <td class="ml-col numero-publicacion"></td>
+      <td class="ml-col estado-publicacion"></td>
       <td class="ml-col precio-jumpseller">0</td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
@@ -425,8 +437,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioML = calcularPrecioML(precioSinIva, comision, envio);
 
-      const numeroPub = tr.querySelector('.numero-publicacion').textContent;
+      const numeroPub =
+        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+        ?.trim()
+        ?.toUpperCase() || '';
       const dataMap = comisionMapCache?.get(numeroPub);
+
+      const estado = dataMap?.estado || '';
+      const estadoEl = tr.querySelector('.estado-publicacion');
+
+      estadoEl.textContent = estado;
+
+      if (estado.toLowerCase().includes('inactiva')) {
+        estadoEl.style.color = 'red';
+        estadoEl.style.fontWeight = '700';
+      } else {
+        estadoEl.style.color = '';
+        estadoEl.style.fontWeight = '';
+      }
 
       const precioActualML = dataMap?.precio || 0;
 
@@ -434,13 +462,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
 
-      if (precioActualML && precioML > precioActualML) {
+      if (precioActualML) {
+
+      if (precioML > precioActualML) {
+        // 🔴 estamos más caros que ML
         precioMLEl.style.color = 'red';
         precioMLEl.style.fontWeight = '700';
+
+      } else if (precioActualML > precioML) {
+        // 🟢 ML está más caro que nuestro cálculo
+        precioMLEl.style.color = '#0a8f2f';
+        precioMLEl.style.fontWeight = '700';
+
       } else {
+        // normal
         precioMLEl.style.color = '';
         precioMLEl.style.fontWeight = '';
       }
+
+    }
     });
 
     totalCompraFooter.textContent = totalCompra.toFixed(0);
