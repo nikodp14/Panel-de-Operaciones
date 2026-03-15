@@ -699,6 +699,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
       tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
 
+      const precioJumpsellerBase = precioOdoo * 1.8 * 1.19;
+      const precioJumpseller =
+        Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
+
+      tr.querySelector('.precio-jumpseller').innerHTML =
+        renderCopiable(precioJumpseller.toFixed(0));
+
       const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
 
@@ -734,6 +741,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.querySelector('.precio-usd').textContent = precioUSDPadre.toFixed(2);
         tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
         tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
+
+        const precioJumpsellerBase = precioOdoo * 1.8 * 1.19;
+        const precioJumpseller =
+          Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
+
+        tr.querySelector('.precio-jumpseller').innerHTML =
+          renderCopiable(precioJumpseller.toFixed(0));
 
         const precioMLEl = tr.querySelector('.precio-ml');
 
