@@ -54,75 +54,156 @@ async function loadJumpsellerPriceMap(){
     
 document.addEventListener('DOMContentLoaded', async () => {
 
-    const body = document.getElementById('comprasBody');
-    const cotizacionInput = document.getElementById('cotizacionInput');
-    const addBtn = document.getElementById('addRowBtn');
-    const cargarBtn = document.getElementById('cargarCotBtn');
+  const body = document.getElementById('comprasBody');
+  const cotizacionInput = document.getElementById('cotizacionInput');
+  const addBtn = document.getElementById('addRowBtn');
+  const cargarBtn = document.getElementById('cargarCotBtn');
 
-    const totalCompraFooter = document.getElementById('totalCompraFooter');
-    const totalConIvaFooter = document.getElementById('totalConIvaFooter');
+  const totalCompraFooter = document.getElementById('totalCompraFooter');
+  const totalConIvaFooter = document.getElementById('totalConIvaFooter');
 
-    const STORAGE_KEY = 'comprasCotizacionesInternacional';
+  const STORAGE_KEY = 'comprasCotizacionesInternacional';
 
-    const DESCUENTO = 0.25;
-    const IVA = 1.19;
-    const jumpsellerPriceMap = await loadJumpsellerPriceMap();
+  const DESCUENTO = 0.25;
+  const IVA = 1.19;
+  const jumpsellerPriceMap = await loadJumpsellerPriceMap();
 
-    const fechaPedidoInput = document.getElementById('fechaPedido');
-    const dolarLabel = document.getElementById('dolarCalculado');
-    let modoNumeroCotizacion = false;
+  const fechaPedidoInput = document.getElementById('fechaPedido');
+  const dolarLabel = document.getElementById('dolarCalculado');
+  let dolarActual = null;
+  let modoNumeroCotizacion = false;
 
-    const usarNumeroCotBtn = document.getElementById('usarNumeroCotBtn');
-    const cargarCotBtn = document.getElementById('cargarCotBtn');
+  const usarNumeroCotBtn = document.getElementById('usarNumeroCotBtn');
+  const cargarCotBtn = document.getElementById('cargarCotBtn');
 
-    const verCotizacionesBtn = document.getElementById('verCotizacionesBtn');
-    const cotizacionesModal = document.getElementById('cotizacionesModal');
-    const cotizacionesLista = document.getElementById('cotizacionesLista');
-    const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
+  const verCotizacionesBtn = document.getElementById('verCotizacionesBtn');
+  const cotizacionesModal = document.getElementById('cotizacionesModal');
+  const cotizacionesLista = document.getElementById('cotizacionesLista');
+  const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
 
-    const buscarProductoCot = document.getElementById('buscarProductoCot');
-    const buscarProductoSug = document.getElementById('buscarProductoSug');
+  const buscarProductoCot = document.getElementById('buscarProductoCot');
+  const buscarProductoSug = document.getElementById('buscarProductoSug');
 
-    let filtroBarcodeCot = '';
+  let filtroBarcodeCot = '';
 
-    let cacheCotizaciones = {};
+  let cacheCotizaciones = {};
 
-    function calcularPrecioOdoo(precioUSD){
-      const dolar = Number(dolarLabel.textContent) || 0;
-      return precioUSD * dolar;
+  function calcularPrecioOdoo(precioUSD){
+
+    if(dolarActual === null) return 0;
+
+    const valor = precioUSD * dolarActual;
+
+    return Number(valor.toFixed(6));
+
+  }
+
+  function pintarComparacionPrecio(el, calculado, actual){
+
+    if (!actual) return;
+
+    if (calculado > actual){
+      el.style.color = 'red';
+      el.style.fontWeight = '700';
+    }
+    else if (actual > calculado){
+      el.style.color = '#0a8f2f';
+      el.style.fontWeight = '700';
+    }
+    else{
+      el.style.color = '';
+      el.style.fontWeight = '';
     }
 
-    function pintarComparacionPrecio(el, calculado, actual){
+  }
 
-      if (!actual) return;
+  function pintarAlertaPrecioML(el, precioActual){
 
-      if (calculado > actual){
-        el.style.color = 'red';
-        el.style.fontWeight = '700';
-      }
-      else if (actual > calculado){
-        el.style.color = '#0a8f2f';
-        el.style.fontWeight = '700';
-      }
-      else{
-        el.style.color = '';
-        el.style.fontWeight = '';
+      if(!el) return;
+
+      if(precioActual === 0){
+        el.innerHTML += `
+          <span class="ml-alerta" title="Precio ML no encontrado" style="margin-left:6px;cursor:help;">
+            ⚠️
+          </span>
+        `;
       }
 
+  }
+
+  function pintarAlertaPrecioJumpseller(el, precioActual){
+
+    if(!el) return;
+
+    if(precioActual === 0){
+      el.innerHTML += `
+        <span class="ml-alerta" title="Precio Jumpseller no encontrado" style="margin-left:6px;cursor:help;">
+          ⚠️
+        </span>
+      `;
     }
-        
-    async function cargarListaCotizaciones(){
 
-      const res = await fetch('/api/cotizaciones-internacional');
-      const data = await res.json();
-      cacheCotizaciones = data || {};
+  }
 
-      const cotizaciones = Object.entries(data || {});
+  function pintarEstadoPublicacion(el, estado){
 
-      const porNumero = [];
-      const porFecha = [];
+    if(!el) return;
 
-      cotizaciones.forEach(([c,v]) => {
+    el.textContent = estado || '';
+
+    if ((estado || '').toLowerCase().includes('inactiva')){
+      el.style.color = 'red';
+      el.style.fontWeight = '700';
+    }
+    else{
+      el.style.color = '';
+      el.style.fontWeight = '';
+    }
+
+  }
+
+  function obtenerCostosML(tr){
+
+    const porcentajeTexto = tr.querySelector('.porcentaje-comision')?.textContent || '0';
+
+    const comision = Number(porcentajeTexto.replace('%','')) || 0;
+
+    const envio = Number(
+      (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
+    ) || 0;
+
+    return {comision, envio};
+
+  }
+
+  function actualizarPrecioJumpseller(tr, precioOdoo, numeroPub, esPack){
+
+    const precio = calcularPrecioJumpseller(precioOdoo, esPack);
+
+    const actual = jumpsellerPriceMap?.get(numeroPub) || 0;
+
+    const el = tr.querySelector('.precio-jumpseller');
+
+    el.innerHTML = renderCopiable(precio.toFixed(0));
+
+    pintarComparacionPrecio(el, precio, actual);
+
+    pintarAlertaPrecioJumpseller(el, actual);
+
+  }
+          
+  async function cargarListaCotizaciones(){
+
+    const res = await fetch('/api/cotizaciones-internacional');
+    const data = await res.json();
+    cacheCotizaciones = data || {};
+
+    const cotizaciones = Object.entries(data || {});
+
+    const porNumero = [];
+    const porFecha = [];
+
+    cotizaciones.forEach(([c,v]) => {
 
       const lineas = v?.lineas?.length || 0;
 
@@ -137,472 +218,462 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     });
 
-      porNumero.sort((a,b)=> Number(b) - Number(a));
-      porFecha.sort((a,b)=> b[0].localeCompare(a[0]));
+    porNumero.sort((a,b)=> Number(b) - Number(a));
+    porFecha.sort((a,b)=> b[0].localeCompare(a[0]));
 
-      cotizacionesLista.innerHTML = `
+    cotizacionesLista.innerHTML = `
 
-        <div class="cotizacion-grupo">
-          <h4>Por número</h4>
-          ${porNumero.map(([c,v]) => `
-            <div class="cotizacion-item" data-cot="${c}">
-              <span class="cot-num">Cotización ${c}</span>
-              <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
-            </div>
-          `).join('')}
-        </div>
+      <div class="cotizacion-grupo">
+        <h4>Por número</h4>
+        ${porNumero.map(([c,v]) => `
+          <div class="cotizacion-item" data-cot="${c}">
+            <span class="cot-num">Cotización ${c}</span>
+            <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
+          </div>
+        `).join('')}
+      </div>
 
-        <div class="cotizacion-grupo">
-          <h4>Por fecha</h4>
-          ${porFecha.map(([c,v]) => `
-            <div class="cotizacion-item" data-cot="${c}">
-              <span class="cot-num">${c}</span>
-              <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
-            </div>
-          `).join('')}
-        </div>
+      <div class="cotizacion-grupo">
+        <h4>Por fecha</h4>
+        ${porFecha.map(([c,v]) => `
+          <div class="cotizacion-item" data-cot="${c}">
+            <span class="cot-num">${c}</span>
+            <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
+          </div>
+        `).join('')}
+      </div>
 
-      `;
-    }
+    `;
+  }
 
-    verCotizacionesBtn.addEventListener('click', async () => {
+  verCotizacionesBtn.addEventListener('click', async () => {
 
     await cargarListaCotizaciones();
 
-      cotizacionesModal.classList.remove('hidden');
+    cotizacionesModal.classList.remove('hidden');
 
-    });
+  });
 
-    cerrarCotizaciones.addEventListener('click', () => {
+  cerrarCotizaciones.addEventListener('click', () => {
 
-      cotizacionesModal.classList.add('hidden');
+    cotizacionesModal.classList.add('hidden');
 
-    });
+  });
 
-    cotizacionesLista.addEventListener('click', async (e) => {
+  cotizacionesLista.addEventListener('click', async (e) => {
 
-      const item = e.target.closest('.cotizacion-item');
-      if(!item) return;
+    const item = e.target.closest('.cotizacion-item');
+    if(!item) return;
 
-      const cot = item.dataset.cot;
+    const cot = item.dataset.cot;
 
-      if (/^\d{4}-\d{2}-\d{2}$/.test(cot)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cot)) {
 
-        modoNumeroCotizacion = false;
-
-        cotizacionInput.style.display = 'none';
-        cargarCotBtn.style.display = 'none';
-
-        fechaPedidoInput.value = cot;
-
-      } else {
-
-        modoNumeroCotizacion = true;
-
-        cotizacionInput.style.display = 'inline-block';
-        cargarCotBtn.style.display = 'inline-block';
-
-        cotizacionInput.value = cot;
-
-      }
-
-      cotizacionesModal.classList.add('hidden');
-
-      await cargarCotizacion();
-
-    });
-
-    usarNumeroCotBtn.addEventListener('click', async () => {
-
-      // 🔹 Si estamos en modo FECHA → cambiar a modo COTIZACIÓN
-      if (!modoNumeroCotizacion) {
-
-        modoNumeroCotizacion = true;
-
-        usarNumeroCotBtn.textContent = 'Volver a funcionamiento por fecha';
-
-        cotizacionInput.style.display = 'inline-block';
-        cargarCotBtn.style.display = 'inline-block';
-
-        // limpiar tabla
-        body.innerHTML = '';
-
-        cotizacionInput.value = '';
-
-        addRow();
-
-        cotizacionInput.focus();
-
-        return;
-      }
-
-      // 🔹 Si estamos en modo COTIZACIÓN → volver a modo FECHA
       modoNumeroCotizacion = false;
-
-      usarNumeroCotBtn.textContent = 'Ingresar N° cotización';
 
       cotizacionInput.style.display = 'none';
       cargarCotBtn.style.display = 'none';
 
+      fechaPedidoInput.value = cot;
+
+    } else {
+
+      modoNumeroCotizacion = true;
+
+      cotizacionInput.style.display = 'inline-block';
+      cargarCotBtn.style.display = 'inline-block';
+
+      cotizacionInput.value = cot;
+
+    }
+
+    cotizacionesModal.classList.add('hidden');
+
+    await cargarCotizacion();
+
+  });
+
+  usarNumeroCotBtn.addEventListener('click', async () => {
+
+    // 🔹 Si estamos en modo FECHA → cambiar a modo COTIZACIÓN
+    if (!modoNumeroCotizacion) {
+
+      modoNumeroCotizacion = true;
+
+      usarNumeroCotBtn.textContent = 'Volver a funcionamiento por fecha';
+
+      cotizacionInput.style.display = 'inline-block';
+      cargarCotBtn.style.display = 'inline-block';
+
+      // limpiar tabla
+      body.innerHTML = '';
+
       cotizacionInput.value = '';
 
-      const fecha = fechaPedidoInput.value;
+      addRow();
 
-      if (fecha) {
-        await cargarCotizacion();
-      }
+      cotizacionInput.focus();
 
-    });
-
-    function obtenerClaveCotizacion(){
-
-      if (modoNumeroCotizacion) {
-        return cotizacionInput.value.trim();
-      }
-
-      return fechaPedidoInput.value;
-
+      return;
     }
 
-    document.addEventListener('click', e => {
+    // 🔹 Si estamos en modo COTIZACIÓN → volver a modo FECHA
+    modoNumeroCotizacion = false;
 
-      if (!e.target.classList.contains('copiar-icon')) return;
+    usarNumeroCotBtn.textContent = 'Ingresar N° cotización';
 
-      let valor = '';
+    cotizacionInput.style.display = 'none';
+    cargarCotBtn.style.display = 'none';
 
-      // 🔹 caso input (codigo)
-      const codigoRow = e.target.closest('.codigo-row');
-      if (codigoRow) {
-        const input = codigoRow.querySelector('.codigo-input');
-        valor = input?.value || '';
-      }
+    cotizacionInput.value = '';
 
-      // 🔹 caso celdas copiables (precio, ML, etc)
-      const copiableCell = e.target.closest('.copiable-cell');
-      if (copiableCell) {
-        const el = copiableCell.querySelector('.copiable-value');
+    const fecha = fechaPedidoInput.value;
 
-        if (el) {
-          valor = el.tagName === 'INPUT'
-            ? el.value
-            : el.textContent;
-        }
-      }
+    if (fecha) {
+      await cargarCotizacion();
+    }
 
-      copiarAlPortapapeles(valor.trim());
+  });
 
-    });
+  function obtenerClaveCotizacion(){
 
-    function copiarAlPortapapeles(texto) {
+    if (modoNumeroCotizacion) {
+      return cotizacionInput.value.trim();
+    }
 
-      if (!texto) return;
+    return fechaPedidoInput.value;
 
-      navigator.clipboard.writeText(texto);
+  }
 
-      const toast = document.getElementById('toast');
-      if (toast) {
-        toast.textContent = 'Copiado';
-        toast.classList.remove('hidden');
-        toast.classList.add('show');
+  document.addEventListener('click', e => {
 
-        setTimeout(() => {
-          toast.classList.remove('show');
-        }, 1200);
+    if (!e.target.classList.contains('copiar-icon')) return;
+
+    let valor = '';
+
+    // 🔹 caso input (codigo)
+    const codigoRow = e.target.closest('.codigo-row');
+    if (codigoRow) {
+      const input = codigoRow.querySelector('.codigo-input');
+      valor = input?.value || '';
+    }
+
+    // 🔹 caso celdas copiables (precio, ML, etc)
+    const copiableCell = e.target.closest('.copiable-cell');
+    if (copiableCell) {
+      const el = copiableCell.querySelector('.copiable-value');
+
+      if (el) {
+        valor = el.tagName === 'INPUT'
+          ? el.value
+          : el.textContent;
       }
     }
 
-    function renderCopiable(valor) {
-      return `
-        <div class="copiable-cell">
-          <span class="copiable-value">${valor}</span>
-          <span class="copiar-icon">📋</span>
-        </div>
-      `;
+    copiarAlPortapapeles(valor.trim());
+
+  });
+
+  function copiarAlPortapapeles(texto) {
+
+    if (!texto) return;
+
+    navigator.clipboard.writeText(texto);
+
+    const toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = 'Copiado';
+      toast.classList.remove('hidden');
+      toast.classList.add('show');
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1200);
     }
+  }
 
-    async function obtenerDolar(fecha) {
+  function renderCopiable(valor) {
+    return `
+      <div class="copiable-cell">
+        <span class="copiable-value">${valor}</span>
+        <span class="copiar-icon">📋</span>
+      </div>
+    `;
+  }
 
-      try {
+  async function obtenerDolar(fecha) {
 
-        const year = new Date(fecha).getFullYear();
-        const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
-        const data = await res.json();
+    try {
 
-        const serie = data.serie;
+      const year = new Date(fecha).getFullYear();
+      const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
+      const data = await res.json();
 
-        const fechaBuscada = new Date(fecha);
-        const fechaISO = fechaBuscada.toISOString().slice(0,10);
+      const serie = data.serie;
 
-        // buscar valor exacto
-        let registro = serie.find(d =>
-          d.fecha.slice(0,10) === fechaISO
+      const fechaBuscada = new Date(fecha);
+      const fechaISO = fechaBuscada.toISOString().slice(0,10);
+
+      // buscar valor exacto
+      let registro = serie.find(d =>
+        d.fecha.slice(0,10) === fechaISO
+      );
+
+      let esArrastrado = false;
+
+      // si no existe (fin de semana) buscar último anterior
+      if (!registro) {
+
+        registro = serie.find(d =>
+          new Date(d.fecha) <= fechaBuscada
         );
 
-        let esArrastrado = false;
-
-        // si no existe (fin de semana) buscar último anterior
-        if (!registro) {
-
-          registro = serie.find(d =>
-            new Date(d.fecha) <= fechaBuscada
-          );
-
-          esArrastrado = true;
-        }
-
-        if (!registro) {
-          dolarLabel.textContent = 'No disponible';
-          return;
-        }
-
-        const dolar = registro.valor;
-        const dolarMas30 = dolar + 30;
-
-        if (esArrastrado) {
-          dolarLabel.textContent = `${dolarMas30.toFixed(2)} (último hábil)`;
-        } else {
-          dolarLabel.textContent = dolarMas30.toFixed(2);
-        }
-
-      } catch(err) {
-
-        console.error(err);
-        dolarLabel.textContent = 'Error';
-
+        esArrastrado = true;
       }
+
+      if (!registro) {
+        dolarLabel.textContent = 'No disponible';
+        return;
+      }
+
+      const dolar = registro.valor;
+      const dolarMas30 = dolar + 30;
+      dolarActual = dolarMas30;
+
+      if (esArrastrado) {
+        dolarLabel.textContent = `${dolarMas30.toFixed(2)} (último hábil)`;
+      } else {
+        dolarLabel.textContent = dolarMas30.toFixed(2);
+      }
+
+    } catch(err) {
+
+      console.error(err);
+      dolarLabel.textContent = 'Error';
 
     }
 
-    let variantesCache = [];
+  }
 
-    let packSetCache = null;
+  let variantesCache = [];
 
-    function findIndiceComision(headerRow) {
-      const header = headerRow.map(h => normalizeHeader(h || ''));
+  let packSetCache = null;
 
-      // palabras clave que pueden indicar comisión
-      const keywords = ['cargo por venta'];
+  function findIndiceComision(headerRow) {
+    const header = headerRow.map(h => normalizeHeader(h || ''));
 
-      // recorremos columnas y buscamos la primera que contenga todas las claves
-      for (let i = 0; i < header.length; i++) {
-        const cell = header[i];
+    // palabras clave que pueden indicar comisión
+    const keywords = ['cargo por venta'];
 
-        // si el encabezado contiene todas estas palabras en cualquier parte
-        const contiene = keywords.every(kw => cell.includes(kw));
-        if (contiene) {
-          return i;
-        }
+    // recorremos columnas y buscamos la primera que contenga todas las claves
+    for (let i = 0; i < header.length; i++) {
+      const cell = header[i];
+
+      // si el encabezado contiene todas estas palabras en cualquier parte
+      const contiene = keywords.every(kw => cell.includes(kw));
+      if (contiene) {
+        return i;
       }
-
-      // si no se encontró nada, devolvemos -1
-      return -1;
     }
 
-    async function loadPackSet() {
-      if (packSetCache) return packSetCache;
+    // si no se encontró nada, devolvemos -1
+    return -1;
+  }
 
-      const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
+  async function loadPackSet() {
+    if (packSetCache) return packSetCache;
 
-      const sheetName =
-        wb.SheetNames.find(n => n.toLowerCase().includes('pack'));
+    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
 
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    const sheetName =
+      wb.SheetNames.find(n => n.toLowerCase().includes('pack'));
 
-      const set = new Set();
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-      rows.forEach(r => {
-        const pub = String(r['Nro. Publicación Pack'] || r['nro, publicacion pack'] || '')
-          .replace(/^MLC/i,'')
-          .trim()
-          .toUpperCase();
+    const set = new Set();
 
-        if(pub){
-          set.add(pub);
-        }
+    rows.forEach(r => {
+      const pub = String(r['Nro. Publicación Pack'] || r['nro, publicacion pack'] || '')
+        .replace(/^MLC/i,'')
+        .trim()
+        .toUpperCase();
 
-      });
-
-      packSetCache = set;
-      return set;
-    }
-
-    let comisionMapCache = null;
-
-    async function loadComisionMap() {
-
-      if (comisionMapCache) return comisionMapCache;
-
-      const res = await fetch('/api/ml/comisiones/ultimo', { cache: 'no-store' });
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-
-      const sheetName =
-        wb.SheetNames.find(n => n.toLowerCase().includes('publicaciones')) ||
-        wb.SheetNames[0];
-
-      const ws = wb.Sheets[sheetName];
-
-      // 🔥 Leer como matriz completa
-      const rows = XLSX.utils.sheet_to_json(ws, {
-        header: 1,
-        defval: ''
-      });
-
-      if (!rows.length) return new Map();
-
-      // 🔥 Detectar encabezado (normalmente fila 2 o 3 en ML)
-      const headerRow = rows[2] || rows[1] || rows[0];
-
-      function normalizeHeader(str) {
-        return String(str || '')
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase()
-          .trim();
+      if(pub){
+        set.add(pub);
       }
 
-      const headerNormalized = headerRow.map(h => normalizeHeader(h));
+    });
 
-      // 🔥 Buscar columna de Número de publicación
-      const indicePublicacion = headerNormalized.findIndex(h =>
-        h.includes('numero') && h.includes('publicacion')
-      );
+    packSetCache = set;
+    return set;
+  }
 
-      // 🔥 Buscar columna Cargo por venta dinámicamente
-      const indiceComision = headerNormalized.findIndex(h =>
-        h.includes('cargo') && h.includes('venta')
-      );
+  let comisionMapCache = null;
 
-      // 🔥 Buscar columna Precio dinámicamente
-      const indicePrecio = headerNormalized.findIndex(h =>
-        h.includes('precio')
-      );
+  async function loadComisionMap() {
 
-      const indiceEstado = headerNormalized.findIndex(h =>
-        h.includes('estado')
-      );
+    if (comisionMapCache) return comisionMapCache;
 
-      if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
-        console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
-        return new Map();
-      }
+    const res = await fetch('/api/ml/comisiones/ultimo', { cache: 'no-store' });
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
 
-      const indiceTitulo = headerNormalized.findIndex(h =>
-        h.includes('titulo')
-      );
+    const sheetName =
+      wb.SheetNames.find(n => n.toLowerCase().includes('publicaciones')) ||
+      wb.SheetNames[0];
 
-      const map = new Map();
+    const ws = wb.Sheets[sheetName];
 
-      // 🔥 Iterar desde fila siguiente al header
-      rows.slice(3).forEach(r => {
+    // 🔥 Leer como matriz completa
+    const rows = XLSX.utils.sheet_to_json(ws, {
+      header: 1,
+      defval: ''
+    });
 
-        const pub = String(r[indicePublicacion] || '')
-          .replace(/^MLC/i, '')
-          .trim()
-          .toUpperCase();
+    if (!rows.length) return new Map();
 
-        const comision = parseFloat(
-          String(r[indiceComision] || '').replace('%', '')
-        ) || 0;
+    // 🔥 Detectar encabezado (normalmente fila 2 o 3 en ML)
+    const headerRow = rows[2] || rows[1] || rows[0];
 
-        const precioMLActual = parseFloat(
-          String(r[indicePrecio] || '')
-            .replace(/\./g,'')
-            .replace(',','.')
-        ) || 0;
-
-        const estado = String(r[indiceEstado] || '').trim();
-
-        if (pub) {
-          map.set(pub, {
-            comision,
-            precio: precioMLActual,
-            estado,
-            titulo: indiceTitulo >= 0 ? r[indiceTitulo] : ''
-          });
-        }
-      });
-
-      comisionMapCache = map;
-      return map;
+    function normalizeHeader(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
     }
 
-    async function obtenerComisionDesdeBarcode(barcodeRaw) {
+    const headerNormalized = headerRow.map(h => normalizeHeader(h));
 
-      const packSet = await loadPackSet();
-      const comisionMap = await loadComisionMap();
+    // 🔥 Buscar columna de Número de publicación
+    const indicePublicacion = headerNormalized.findIndex(h =>
+      h.includes('numero') && h.includes('publicacion')
+    );
 
-      const partes = String(barcodeRaw || '')
-      .split('/')
-      .map(p =>
-        p
-          .replace(/^MLC/i,'')
-          .split('-')[0]        // 🔥 elimina -1, -2, etc
-          .trim()
-          .toUpperCase()
-      )
-      .filter(Boolean);
+    // 🔥 Buscar columna Cargo por venta dinámicamente
+    const indiceComision = headerNormalized.findIndex(h =>
+      h.includes('cargo') && h.includes('venta')
+    );
 
-      // Buscar cuál existe en publicaciones ML
-      const candidatos = partes.filter(p => comisionMap.has(p));
+    // 🔥 Buscar columna Precio dinámicamente
+    const indicePrecio = headerNormalized.findIndex(h =>
+      h.includes('precio')
+    );
 
-      /*console.log('barcode partes:', partes);
-      console.log('candidatos ML:', candidatos);
-      console.log('packSet contiene:', candidatos.map(p => ({
-        pub:p,
-        esPack: packSet.has(p)
-      })));*/
+    const indiceEstado = headerNormalized.findIndex(h =>
+      h.includes('estado')
+    );
 
-      //console.log(comisionMap);
-      //console.log(candidatos);
-
-      if (!candidatos.length) {
-        return { comision: 0, publicacion: '' };
-      }
-
-      // Quitar los que son pack
-      const individuales = candidatos.filter(p => !packSet.has(p));
-
-      //console.log('individuales detectados:', individuales);
-
-      const final = individuales.length ? individuales[0] : candidatos[0];
-
-      const data = comisionMap.get(final);
-
-      if (data?.comision === 0 && final) {
-        alert(`⚠ La publicación ${final} tiene comisión 0%. Verifique carga del archivo publicaciones.`);
-      }
-
-      return {
-        comision: data?.comision || 0,
-        publicacion: final || '',
-        precioActual: data?.precio || 0
-      };
+    if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
+      console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
+      return new Map();
     }
 
-    async function loadVariantes() {
-      if (variantesCache.length) return;
+    const indiceTitulo = headerNormalized.findIndex(h =>
+      h.includes('titulo')
+    );
 
-      const res = await fetch('/api/odoo/variantes/ultimo');
-      if (!res.ok) return;
+    const map = new Map();
 
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    // 🔥 Iterar desde fila siguiente al header
+    rows.slice(3).forEach(r => {
 
-      variantesCache = rows.slice(1).map(r => ({
-        barcode: String(r[1] || '').trim().toUpperCase(),
-        name: String(r[2] || '').trim(),
-        variant: String(r[5] || '').trim()
-      })).filter(v => v.barcode);
+      const pub = String(r[indicePublicacion] || '')
+        .replace(/^MLC/i, '')
+        .trim()
+        .toUpperCase();
+
+      const comision = parseFloat(
+        String(r[indiceComision] || '').replace('%', '')
+      ) || 0;
+
+      const precioMLActual = parseFloat(
+        String(r[indicePrecio] || '')
+          .replace(/\./g,'')
+          .replace(',','.')
+      ) || 0;
+
+      const estado = String(r[indiceEstado] || '').trim();
+
+      if (pub) {
+        map.set(pub, {
+          comision,
+          precio: precioMLActual,
+          estado,
+          titulo: indiceTitulo >= 0 ? r[indiceTitulo] : ''
+        });
+      }
+    });
+
+    comisionMapCache = map;
+    return map;
+  }
+
+  async function obtenerComisionDesdeBarcode(barcodeRaw) {
+
+    const packSet = await loadPackSet();
+    const comisionMap = await loadComisionMap();
+
+    const partes = String(barcodeRaw || '')
+    .split('/')
+    .map(p =>
+      p
+        .replace(/^MLC/i,'')
+        .split('-')[0]        // 🔥 elimina -1, -2, etc
+        .trim()
+        .toUpperCase()
+    )
+    .filter(Boolean);
+
+    // Buscar cuál existe en publicaciones ML
+    const candidatos = partes.filter(p => comisionMap.has(p));
+
+    if (!candidatos.length) {
+      return { comision: 0, publicacion: '' };
     }
+
+    // Quitar los que son pack
+    const individuales = candidatos.filter(p => !packSet.has(p));
+
+    const final = individuales.length ? individuales[0] : candidatos[0];
+
+    const data = comisionMap.get(final);
+
+    if (data?.comision === 0 && final) {
+      alert(`⚠ La publicación ${final} tiene comisión 0%. Verifique carga del archivo publicaciones.`);
+    }
+
+    return {
+      comision: data?.comision || 0,
+      publicacion: final || '',
+      precioActual: data?.precio || 0
+    };
+  }
+
+  async function loadVariantes() {
+    if (variantesCache.length) return;
+
+    const res = await fetch('/api/odoo/variantes/ultimo');
+    if (!res.ok) return;
+
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    variantesCache = rows.slice(1).map(r => ({
+      barcode: String(r[1] || '').trim().toUpperCase(),
+      name: String(r[2] || '').trim(),
+      variant: String(r[5] || '').trim()
+    })).filter(v => v.barcode);
+  }
     
-    function addRow() {
+  function addRow() {
     const tr = document.createElement('tr');
+    tr.dataset.precioUsd = '';
     tr.dataset.rowid = crypto.randomUUID();
 
     tr.innerHTML = `
@@ -698,229 +769,145 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   }
 
-  function recalcularTotales() {
+  function calcularFila(tr, parent = null){
+
+    const {numeroPub, esPack, precioActual} = obtenerDatosML(tr);
+
+    const dataMap = comisionMapCache?.get(numeroPub);
+
+    pintarEstadoPublicacion(
+      tr.querySelector('.estado-publicacion'),
+      dataMap?.estado
+    );
+
+    const totalLinea =
+      Number(tr.querySelector('.total-input')?.value || 0);
+
+    let precioUSD;
+
+    if(parent){ // sub-publicación
+
+      if(esPack){
+        precioUSD = totalLinea;
+      }else{
+        precioUSD = Number(parent.dataset.precioUsd || 0);
+      }
+
+    }else{ // línea principal
+
+      const cantidad =
+        Number(tr.querySelector('.cantidad-input')?.value) || 0;
+
+      precioUSD = cantidad ? totalLinea / cantidad : 0;
+
+    }
+
+    const precioOdoo = calcularPrecioOdoo(precioUSD);
+    tr.dataset.precioUsd = precioUSD;
+    const precioUsdEl = tr.querySelector('.precio-usd');
+    const precioOdooEl = tr.querySelector('.precio-odoo');
+    const totalOdooEl = tr.querySelector('.total-odoo');
+
+    // 🔹 sub-publicación NO pack → ocultar todo
+    if(parent && !esPack){
+
+      if(precioUsdEl) precioUsdEl.textContent = '';
+      if(precioOdooEl) precioOdooEl.innerHTML = '';
+      if(totalOdooEl) totalOdooEl.textContent = '';
+
+    }
+
+    // 🔹 sub-publicación pack → mostrar USD pero ocultar Odoo
+    else if(parent && esPack){
+
+      if(precioUsdEl) precioUsdEl.textContent = '';
+      if(precioOdooEl) precioOdooEl.innerHTML = '';
+      if(totalOdooEl) totalOdooEl.textContent = '';
+
+    }
+
+    // 🔹 publicación principal
+    else{
+
+      if(precioUsdEl) precioUsdEl.textContent = precioUSD.toFixed(2);
+      if(precioOdooEl) precioOdooEl.innerHTML = renderCopiable(precioOdoo.toFixed(0));
+      if(totalOdooEl) totalOdooEl.textContent = precioOdoo.toFixed(0);
+    }
+
+    actualizarPrecioJumpseller(tr, precioOdoo, numeroPub, esPack);
+
+    const {comision, envio} = obtenerCostosML(tr);
+
+    const precioMLEl = tr.querySelector('.precio-ml');
+
+    let precioML = 0;
+
+    if (!parent && totalLinea <= 0){
+
+      precioMLEl.innerHTML =
+        '<span style="color:#999;font-style:italic;">Ingrese costo</span>';
+
+    }
+    else if (envio <= 0 || comision <= 0){
+
+      precioMLEl.innerHTML =
+        '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
+
+    }
+    else{
+
+      precioML = calcularPrecioML(precioOdoo, comision, envio);
+
+      precioMLEl.innerHTML =
+        renderCopiable(precioML.toFixed(0));
+
+    }
+
+    pintarComparacionML(precioMLEl, precioML, precioActual);
+
+    pintarAlertaPrecioML(precioMLEl, precioActual);
+
+    return {
+      totalLinea,
+      precioOdoo
+    };
+
+  }
+
+  function recalcularTotales(){
 
     let totalCompra = 0;
     let totalOdoo = 0;
 
-    document.querySelectorAll('#comprasBody tr:not(.sub-publicacion)').forEach(tr => {
+    document
+      .querySelectorAll('#comprasBody tr:not(.sub-publicacion)')
+      .forEach(tr=>{
 
-      const cantidad = Number(tr.querySelector('.cantidad-input').value) || 0;
-      const totalLinea = Number(tr.querySelector('.total-input').value) || 0;
+        const {totalLinea, precioOdoo} = calcularFila(tr);
 
-      let precio = 0;
-      if (cantidad > 0) {
-        precio = totalLinea / cantidad;
-      }
+        const cantidad =
+          Number(tr.querySelector('.cantidad-input')?.value) || 0;
 
-      const precioOdoo = calcularPrecioOdoo(precio);
-
-      const {numeroPub, esPack} = obtenerDatosML(tr);
-
-      const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
-
-      const precioJumpsellerActual = jumpsellerPriceMap?.get(numeroPub) || 0;
-
-      tr.querySelector('.precio-jumpseller').innerHTML =
-        renderCopiable(precioJumpseller.toFixed(0));
-
-      const precioJumpsellerEl = tr.querySelector('.precio-jumpseller');
-
-      pintarComparacionPrecio(precioJumpsellerEl, precioJumpseller, precioJumpsellerActual);
-
-      const totalOdooLinea = cantidad * precioOdoo;
-
-      tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
-      tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));      
-      tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
-
-      totalCompra += totalLinea;
-      totalOdoo += totalOdooLinea;
-
-      const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
-      const comision = Number(porcentajeTexto.replace('%','')) || 0;
-      const envio = Number(
-          (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
-        ) || 0;
-
-      const dataMap = comisionMapCache?.get(numeroPub);
-
-      const estado = dataMap?.estado || '';
-      const precioActualML = dataMap?.precio || 0;
-      const estadoEl = tr.querySelector('.estado-publicacion');
-
-      estadoEl.textContent = estado;
-
-      if (estado.toLowerCase().includes('inactiva')) {
-        estadoEl.style.color = 'red';
-        estadoEl.style.fontWeight = '700';
-      } else {
-        estadoEl.style.color = '';
-        estadoEl.style.fontWeight = '';
-      }
-
-      // 🔹 obtener celda de precio ML
-      const precioMLEl = tr.querySelector('.precio-ml');
-
-      let precioML = 0;
-
-      if (totalLinea <= 0) {
-
-        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Ingrese costo</span>';
-        precioMLEl.style.color = '';
-        precioMLEl.style.fontWeight = '';
-
-      } else if (envio <= 0 || comision <= 0) {
-
-        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
-        precioMLEl.style.color = '';
-        precioMLEl.style.fontWeight = '';
-
-      } else {
-
-        precioML = calcularPrecioML(precioOdoo, comision, envio);
-        precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
-
-      }
-
-      pintarComparacionML(precioMLEl, precioML, precioActualML);
-
-      //console.log(precioActualML, precioML);
-      // 🔥 Comparación
-    });
-
-    document.querySelectorAll('#comprasBody tr.sub-publicacion').forEach(tr => {
-
-      const parent = document.querySelector(
-        `tr[data-rowid="${tr.dataset.parent}"]`
-      );
-
-      if (!parent) return;
-
-      const totalLinea = Number(tr.querySelector('.total-input')?.value) || 0;
-      const cantidad = 1;
-
-      const precio = cantidad > 0 ? totalLinea / cantidad : 0;
-
-      const precioOdoo = calcularPrecioOdoo(precio);
-
-      tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
-      tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
-      tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
-
-      const {numeroPub, esPack} = obtenerDatosML(tr);
-      const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
-
-      tr.querySelector('.precio-jumpseller').innerHTML =
-        renderCopiable(precioJumpseller.toFixed(0));
-
-      const precioJumpsellerActual = jumpsellerPriceMap?.get(numeroPub) || 0;
-
-      const precioJumpsellerEl = tr.querySelector('.precio-jumpseller');
-
-      pintarComparacionPrecio(precioJumpsellerEl, precioJumpseller, precioJumpsellerActual);
-
-      const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
-      const comision = Number(porcentajeTexto.replace('%','')) || 0;
-
-      const envio = Number(
-        (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
-      ) || 0;
-
-      if (!esPack) {
-
-        const numeroPub =
-          tr.querySelector('.numero-publicacion .copiable-value')?.textContent
-          ?.trim()
-          ?.toUpperCase() || '';
-
-        const dataMap = comisionMapCache?.get(numeroPub);
-        const precioActualML = dataMap?.precio || 0;
-
-        // 🔹 tomar precio USD del padre
-        const precioUSDPadre =
-          Number(parent.querySelector('.precio-usd')?.textContent) || 0;
-
-        const precioOdoo = calcularPrecioOdoo(precio);
-
-        tr.querySelector('.precio-usd').textContent = precioUSDPadre.toFixed(2);
-        tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
-        tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
-
-        const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
-
-        tr.querySelector('.precio-jumpseller').innerHTML =
-          renderCopiable(precioJumpseller.toFixed(0));
-
-        const precioJumpsellerEl = tr.querySelector('.precio-jumpseller');
-
-        pintarComparacionPrecio(precioJumpsellerEl, precioJumpseller, precioJumpsellerActual);
-
-        const precioMLEl = tr.querySelector('.precio-ml');
-
-        const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
-        const comision = Number(porcentajeTexto.replace('%','')) || 0;
-
-        const envio = Number(
-          (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
-        ) || 0;
-
-        let precioML = 0;
-
-        if (envio <= 0 || comision <= 0) {
-
-          precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
-          precioMLEl.style.color = '';
-          precioMLEl.style.fontWeight = '';
-
-        } else {
-
-          precioML = calcularPrecioML(precioOdoo, comision, envio);
-          precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
-
-        }
-
-        pintarComparacionML(precioMLEl, precioML, precioActualML);
-
-        return;
-      }
-
-      // 🔹 base de cálculo
-      const precioBase = precioOdoo;
-
-      // 🔹 obtener celda de precio ML
-      const precioMLEl = tr.querySelector('.precio-ml');
-
-      let precioML = 0;
-
-      if (totalLinea <= 0) {
-
-        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Ingrese costo</span>';
-        precioMLEl.style.color = '';
-        precioMLEl.style.fontWeight = '';
-
-      } else if (envio <= 0 || comision <= 0) {
-
-        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
-        precioMLEl.style.color = '';
-        precioMLEl.style.fontWeight = '';
-
-      } else {
-
-        precioML = calcularPrecioML(precioBase, comision, envio);
-        precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
-
-      }
-
-      const dataMap = comisionMapCache?.get(numeroPub);
-
-      const precioActualML = dataMap?.precio || 0;
-
-      pintarComparacionML(precioMLEl, precioML, precioActualML);
+        totalCompra += totalLinea;
+        totalOdoo += cantidad * precioOdoo;
 
     });
 
-    totalConIvaFooter.textContent = (totalOdoo).toFixed(0);//(totalOdoo * 1.19).toFixed(0);
+    document
+      .querySelectorAll('#comprasBody tr.sub-publicacion')
+      .forEach(tr=>{
+
+        const parent =
+          document.querySelector(`tr[data-rowid="${tr.dataset.parent}"]`);
+
+        if(!parent) return;
+
+        calcularFila(tr, parent);
+
+    });
+
+    totalConIvaFooter.textContent = totalOdoo.toFixed(0);
+
   }
 
   async function procesarPublicaciones(tr, barcodeRaw){
@@ -1013,6 +1000,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         insertAfter.parentNode.insertBefore(sub, insertAfter.nextSibling);
         insertAfter = sub;
+
+        pintarEstadoPublicacion(
+          sub.querySelector('.estado-publicacion'),
+          data?.estado
+        );
 
       });
     }
@@ -1255,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (cotData?.fecha) {
       fechaPedidoInput.value = cotData.fecha;
-      obtenerDolar(cotData.fecha);
+      await obtenerDolar(cotData.fecha);
     }
 
     body.innerHTML = '';
@@ -1357,8 +1349,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (comision >= 1) return 0;
 
     const brutoNecesario = (((precioOdoo * 1.8)) * 1.19 + envio) / (1 - comision);
-
-    //console.log(comision);
 
     // 🔵 redondear a 990
     const redondeado = Math.floor(brutoNecesario / 1000) * 1000 + 990;

@@ -868,3 +868,8 @@ body.sidebar-collapsed .container {
   color:#666;
   margin-top:2px;
 }
+
+.ml-alerta{
+  color:#d98c00;
+  font-size:13px;
+}
