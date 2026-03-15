@@ -334,12 +334,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const set = new Set();
 
       rows.forEach(r => {
-        const keys = Object.values(r);
-        keys.forEach(v => {
-          if (v) {
-            set.add(String(v).replace(/^MLC/i, '').trim());
-          }
-        });
+        const pub = String(r['Nro. Publicación Pack'] || r['nro, publicacion pack'] || '')
+          .replace(/^MLC/i,'')
+          .trim()
+          .toUpperCase();
+
+        if(pub){
+          set.add(pub);
+        }
+
       });
 
       packSetCache = set;
@@ -466,6 +469,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Buscar cuál existe en publicaciones ML
       const candidatos = partes.filter(p => comisionMap.has(p));
 
+      /*console.log('barcode partes:', partes);
+      console.log('candidatos ML:', candidatos);
+      console.log('packSet contiene:', candidatos.map(p => ({
+        pub:p,
+        esPack: packSet.has(p)
+      })));*/
+
       //console.log(comisionMap);
       //console.log(candidatos);
 
@@ -475,6 +485,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Quitar los que son pack
       const individuales = candidatos.filter(p => !packSet.has(p));
+
+      //console.log('individuales detectados:', individuales);
 
       const final = individuales.length ? individuales[0] : candidatos[0];
 
@@ -594,9 +606,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
-      const envio = Number(tr.querySelector('.costo-envio-input')?.value) || 0;
-
-      const precioML = calcularPrecioML(precioOdoo, comision, envio);
+      const envio = Number(
+          (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
+        ) || 0;
 
       const numeroPub =
         tr.querySelector('.numero-publicacion .copiable-value')?.textContent
@@ -605,6 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dataMap = comisionMapCache?.get(numeroPub);
 
       const estado = dataMap?.estado || '';
+      const precioActualML = dataMap?.precio || 0;
       const estadoEl = tr.querySelector('.estado-publicacion');
 
       estadoEl.textContent = estado;
@@ -617,18 +630,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         estadoEl.style.fontWeight = '';
       }
 
-      const precioActualML = dataMap?.precio || 0;
-
+      // 🔹 obtener celda de precio ML
       const precioMLEl = tr.querySelector('.precio-ml');
 
-      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+      let precioML = 0;
 
-      if (precioActualML && precioML > precioActualML) {
-        precioMLEl.style.color = 'red';
-        precioMLEl.style.fontWeight = '700';
-      } else {
+      if (totalLinea <= 0) {
+
+        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Ingrese costo</span>';
         precioMLEl.style.color = '';
         precioMLEl.style.fontWeight = '';
+
+      } else if (envio <= 0 || comision <= 0) {
+
+        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
+        precioMLEl.style.color = '';
+        precioMLEl.style.fontWeight = '';
+
+      } else {
+
+        precioML = calcularPrecioML(precioOdoo, comision, envio);
+        precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+
+      }
+
+      if (precioActualML) {
+
+        if (precioML > precioActualML) {
+
+          precioMLEl.style.color = 'red';
+          precioMLEl.style.fontWeight = '700';
+
+        } else if (precioActualML > precioML) {
+
+          precioMLEl.style.color = '#0a8f2f';
+          precioMLEl.style.fontWeight = '700';
+
+        } else {
+
+          precioMLEl.style.color = '';
+          precioMLEl.style.fontWeight = '';
+
+        }
+
       }
 
       //console.log(precioActualML, precioML);
@@ -643,25 +687,129 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (!parent) return;
 
-      const precioOdoo = Number(
-        parent.querySelector('.precio-odoo .copiable-value')?.textContent || 0
-      );
+      const totalLinea = Number(tr.querySelector('.total-input')?.value) || 0;
+      const cantidad = 1;
+
+      const precio = cantidad > 0 ? totalLinea / cantidad : 0;
+
+      const dolarCompra = Number(dolarLabel.textContent) || 0;
+      const precioOdoo = precio * dolarCompra;
+
+      tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
+      tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
+      tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
 
       const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
 
-      const envio = Number(tr.querySelector('.costo-envio-input')?.value) || 0;
+      const envio = Number(
+        (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
+      ) || 0;
 
-      const precioML = calcularPrecioML(precioOdoo, comision, envio);
-
-      const precioMLEl = tr.querySelector('.precio-ml');
-
-      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
-
+      // 🔹 detectar si esta publicación es pack
       const numeroPub =
         tr.querySelector('.numero-publicacion .copiable-value')?.textContent
         ?.trim()
         ?.toUpperCase() || '';
+
+      const esPack = packSetCache?.has(numeroPub);
+
+      if (!esPack) {
+
+        const numeroPub =
+          tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+          ?.trim()
+          ?.toUpperCase() || '';
+
+        const dataMap = comisionMapCache?.get(numeroPub);
+        const precioActualML = dataMap?.precio || 0;
+
+        // 🔹 tomar precio USD del padre
+        const precioUSDPadre =
+          Number(parent.querySelector('.precio-usd')?.textContent) || 0;
+
+        const dolarCompra = Number(dolarLabel.textContent) || 0;
+        const precioOdoo = precioUSDPadre * dolarCompra;
+
+        tr.querySelector('.precio-usd').textContent = precioUSDPadre.toFixed(2);
+        tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
+        tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
+
+        const precioMLEl = tr.querySelector('.precio-ml');
+
+        const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
+        const comision = Number(porcentajeTexto.replace('%','')) || 0;
+
+        const envio = Number(
+          (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
+        ) || 0;
+
+        let precioML = 0;
+
+        if (envio <= 0 || comision <= 0) {
+
+          precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
+          precioMLEl.style.color = '';
+          precioMLEl.style.fontWeight = '';
+
+        } else {
+
+          precioML = calcularPrecioML(precioOdoo, comision, envio);
+          precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+
+        }
+
+        // 🔴🟢 comparación con precio actual ML
+        if (precioActualML) {
+
+          if (precioML > precioActualML) {
+
+            precioMLEl.style.color = 'red';
+            precioMLEl.style.fontWeight = '700';
+
+          } else if (precioActualML > precioML) {
+
+            precioMLEl.style.color = '#0a8f2f';
+            precioMLEl.style.fontWeight = '700';
+
+          } else {
+
+            precioMLEl.style.color = '';
+            precioMLEl.style.fontWeight = '';
+
+          }
+
+        }
+
+        return;
+      }
+
+      // 🔹 base de cálculo
+      const precioBase = precioOdoo;
+
+      // 🔹 obtener celda de precio ML
+      const precioMLEl = tr.querySelector('.precio-ml');
+
+      let precioML = 0;
+
+      if (totalLinea <= 0) {
+
+        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Ingrese costo</span>';
+        precioMLEl.style.color = '';
+        precioMLEl.style.fontWeight = '';
+
+      } else if (envio <= 0 || comision <= 0) {
+
+        precioMLEl.innerHTML = '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
+        precioMLEl.style.color = '';
+        precioMLEl.style.fontWeight = '';
+
+      } else {
+
+        precioML = calcularPrecioML(precioBase, comision, envio);
+        precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+
+      }
 
       const dataMap = comisionMapCache?.get(numeroPub);
 
@@ -699,7 +847,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const comisionMap = await loadComisionMap();
 
+    const packSet = await loadPackSet();
+
     const publicacionesValidas = publicaciones.filter(p => comisionMap.has(p));
+
+    // separar individuales y packs
+    const individuales = publicacionesValidas.filter(p => !packSet.has(p));
+    const packs = publicacionesValidas.filter(p => packSet.has(p));
+
+    // ordenar correctamente
+    let ordenadas = [];
+
+    if (individuales.length) {
+      ordenadas = [...individuales, ...packs];
+    } else {
+      ordenadas = [...packs];
+    }
 
     // eliminar sublíneas existentes
     document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`)
@@ -707,12 +870,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const filaPrincipal = tr;
 
-    if(publicacionesValidas.length > 1){
+    if(ordenadas.length > 1){
 
       let insertAfter = filaPrincipal;
 
-      publicacionesValidas.slice(1).forEach(pub => {
+      ordenadas.slice(1).forEach(pub => {
 
+        const esPack = packSet.has(pub);
         const sub = document.createElement('tr');
         sub.classList.add('sub-publicacion');
         sub.dataset.parent = filaPrincipal.dataset.rowid;
@@ -724,11 +888,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             ↳ publicación adicional
             <div class="subtitulo">${data?.titulo || ''}</div>
           </td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
+          <td class="pack-cantidad">${esPack ? 1 : ''}</td>
+
+          <td>
+            ${esPack
+              ? '<input type="number" class="total-input" value="0">'
+              : ''
+            }
+          </td>
+
+          <td class="precio-usd">${esPack ? '0' : ''}</td>
+          <td class="precio-odoo">${esPack ? '0' : ''}</td>
+          <td class="total-odoo">${esPack ? '0' : ''}</td>
 
           <td class="ml-col numero-publicacion">
             ${renderCopiable(pub)}
@@ -741,7 +912,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="ml-col precio-jumpseller"></td>
 
           <td class="ml-col">
-            <input type="number" class="costo-envio-input" min="0" value="0">
+            <input type="text" class="costo-envio-input" value="0">
           </td>
 
           <td class="ml-col porcentaje-comision">
@@ -762,7 +933,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     filaPrincipal.querySelector('.porcentaje-comision').textContent =
       resultado.comision + '%';
 
-    const pub = (resultado.publicacion || '').toUpperCase().trim();
+    const pub = ordenadas[0] || (resultado.publicacion || '').toUpperCase().trim();
 
     filaPrincipal.querySelector('.numero-publicacion').innerHTML =
       renderCopiable(pub);
@@ -954,8 +1125,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const rowid = tr.dataset.rowid;
 
-      const subEnvios = [...document.querySelectorAll(`tr[data-parent="${rowid}"]`)]
-        .map(r => r.querySelector('.costo-envio-input')?.value || 0);
+      const subs = [...document.querySelectorAll(`tr[data-parent="${rowid}"]`)];
+
+      const subEnvios = subs.map(r =>
+        r.querySelector('.costo-envio-input')?.value || 0
+      );
+
+      const subTotales = subs.map(r =>
+        r.querySelector('.total-input')?.value || 0
+      );
 
       lineas.push({
         barcode: tr.querySelector('.codigo-input')?.value || '',
@@ -964,7 +1142,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         cantidad: tr.querySelector('.cantidad-input')?.value || 0,
         total: tr.querySelector('.total-input')?.value || 0,
         costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0,
-        subEnvios
+        subEnvios,
+        subTotales
       });
 
     });
@@ -1029,8 +1208,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           subs.forEach((sub,i)=>{
             const val = l.subEnvios[i];
-            if (val !== undefined) {
-              sub.querySelector('.costo-envio-input').value = val;
+
+            const inputEnvio = sub.querySelector('.costo-envio-input');
+
+            if (val !== undefined && inputEnvio) {
+              inputEnvio.value = val;
+            }
+          });
+        }
+
+        if (l.subTotales?.length) {
+
+          const subs = document.querySelectorAll(
+            `tr[data-parent="${tr.dataset.rowid}"]`
+          );
+
+          subs.forEach((sub,i)=>{
+            const val = l.subTotales[i];
+
+            const inputTotal = sub.querySelector('.total-input');
+
+            if (val !== undefined && inputTotal) {
+              inputTotal.value = val;
             }
           });
 

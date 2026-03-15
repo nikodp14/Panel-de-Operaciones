@@ -453,7 +453,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
-      const envio = Number(tr.querySelector('.costo-envio-input').value) || 0;
+      const envio = Number(
+          (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
+        ) || 0;
 
       const precioML = calcularPrecioML(precioSinIva, comision, envio);
 
