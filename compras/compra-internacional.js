@@ -591,7 +591,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       // convertir USD → CLP
       const precioOdoo = precio * dolarCompra;
       // redondear al 990 hacia arriba
-      const precioJumpsellerBase = precioOdoo * 1.8 * 1.19;
+
+      const numeroPub =
+        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+        ?.trim()
+        ?.toUpperCase() || '';
+
+      const esPack = packSetCache?.has(numeroPub);
+
+      const margen = esPack ? 1.7 : 1.8;
+
+      const precioJumpsellerBase = precioOdoo * margen * 1.19;
       const precioJumpseller =
         Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
       const totalOdooLinea = cantidad * precioOdoo;
@@ -610,10 +620,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
         ) || 0;
 
-      const numeroPub =
-        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
-        ?.trim()
-        ?.toUpperCase() || '';
       const dataMap = comisionMapCache?.get(numeroPub);
 
       const estado = dataMap?.estado || '';
@@ -699,7 +705,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
       tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
 
-      const precioJumpsellerBase = precioOdoo * 1.8 * 1.19;
+      // 🔹 detectar si esta publicación es pack
+      const numeroPub =
+        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+        ?.trim()
+        ?.toUpperCase() || '';
+      const esPack = packSetCache?.has(numeroPub);
+      const margen = esPack ? 1.7 : 1.8;
+
+      const precioJumpsellerBase = precioOdoo * margen * 1.19;
       const precioJumpseller =
         Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
 
@@ -712,14 +726,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const envio = Number(
         (tr.querySelector('.costo-envio-input')?.value || '').replace(/\./g,'')
       ) || 0;
-
-      // 🔹 detectar si esta publicación es pack
-      const numeroPub =
-        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
-        ?.trim()
-        ?.toUpperCase() || '';
-
-      const esPack = packSetCache?.has(numeroPub);
 
       if (!esPack) {
 
@@ -742,7 +748,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
         tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
 
-        const precioJumpsellerBase = precioOdoo * 1.8 * 1.19;
+        const margen = esPack ? 1.7 : 1.8;
+
+        const precioJumpsellerBase = precioOdoo * margen * 1.19;
         const precioJumpseller =
           Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
 
