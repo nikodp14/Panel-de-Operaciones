@@ -571,6 +571,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     body.appendChild(tr);
   }
 
+  function calcularPrecioJumpseller(precioOdoo, esPack){
+
+    const margen = esPack ? 1.7 : 1.8;
+
+    const base = precioOdoo * margen * 1.19;
+
+    return Math.ceil((base - 990) / 1000) * 1000 + 990;
+
+  }
+
+  function pintarComparacionML(el, calculado, actual){
+
+    if (!actual) return;
+
+    if (calculado > actual){
+      el.style.color = 'red';
+      el.style.fontWeight = '700';
+    }
+    else if (actual > calculado){
+      el.style.color = '#0a8f2f';
+      el.style.fontWeight = '700';
+    }
+    else{
+      el.style.color = '';
+      el.style.fontWeight = '';
+    }
+
+  }
+
+  function obtenerDatosML(tr){
+
+    const numeroPub =
+      tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+      ?.trim()
+      ?.toUpperCase() || '';
+
+    const data = comisionMapCache?.get(numeroPub) || {};
+
+    return {
+      numeroPub,
+      esPack: packSetCache?.has(numeroPub),
+      precioActual: data?.precio || 0,
+      estado: data?.estado || ''
+    };
+
+  }
+
   function recalcularTotales() {
 
     let totalCompra = 0;
@@ -599,11 +646,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const esPack = packSetCache?.has(numeroPub);
 
-      const margen = esPack ? 1.7 : 1.8;
+      const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
 
-      const precioJumpsellerBase = precioOdoo * margen * 1.19;
-      const precioJumpseller =
-        Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
       const totalOdooLinea = cantidad * precioOdoo;
 
       tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
@@ -660,26 +704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       }
 
-      if (precioActualML) {
-
-        if (precioML > precioActualML) {
-
-          precioMLEl.style.color = 'red';
-          precioMLEl.style.fontWeight = '700';
-
-        } else if (precioActualML > precioML) {
-
-          precioMLEl.style.color = '#0a8f2f';
-          precioMLEl.style.fontWeight = '700';
-
-        } else {
-
-          precioMLEl.style.color = '';
-          precioMLEl.style.fontWeight = '';
-
-        }
-
-      }
+      pintarComparacionML(precioMLEl, precioML, precioActualML);
 
       //console.log(precioActualML, precioML);
       // 🔥 Comparación
@@ -711,11 +736,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ?.trim()
         ?.toUpperCase() || '';
       const esPack = packSetCache?.has(numeroPub);
-      const margen = esPack ? 1.7 : 1.8;
-
-      const precioJumpsellerBase = precioOdoo * margen * 1.19;
-      const precioJumpseller =
-        Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
+      const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
 
       tr.querySelector('.precio-jumpseller').innerHTML =
         renderCopiable(precioJumpseller.toFixed(0));
@@ -748,11 +769,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
         tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
 
-        const margen = esPack ? 1.7 : 1.8;
-
-        const precioJumpsellerBase = precioOdoo * margen * 1.19;
-        const precioJumpseller =
-          Math.ceil((precioJumpsellerBase - 990) / 1000) * 1000 + 990;
+        const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
 
         tr.querySelector('.precio-jumpseller').innerHTML =
           renderCopiable(precioJumpseller.toFixed(0));
@@ -781,27 +798,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         }
 
-        // 🔴🟢 comparación con precio actual ML
-        if (precioActualML) {
-
-          if (precioML > precioActualML) {
-
-            precioMLEl.style.color = 'red';
-            precioMLEl.style.fontWeight = '700';
-
-          } else if (precioActualML > precioML) {
-
-            precioMLEl.style.color = '#0a8f2f';
-            precioMLEl.style.fontWeight = '700';
-
-          } else {
-
-            precioMLEl.style.color = '';
-            precioMLEl.style.fontWeight = '';
-
-          }
-
-        }
+        pintarComparacionML(precioMLEl, precioML, precioActualML);
 
         return;
       }
@@ -837,21 +834,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioActualML = dataMap?.precio || 0;
 
-      if (precioActualML) {
-
-        if (precioML > precioActualML) {
-          precioMLEl.style.color = 'red';
-          precioMLEl.style.fontWeight = '700';
-
-        } else if (precioActualML > precioML) {
-          precioMLEl.style.color = '#0a8f2f';
-          precioMLEl.style.fontWeight = '700';
-
-        } else {
-          precioMLEl.style.color = '';
-          precioMLEl.style.fontWeight = '';
-        }
-      }
+      pintarComparacionML(precioMLEl, precioML, precioActualML);
 
     });
 
