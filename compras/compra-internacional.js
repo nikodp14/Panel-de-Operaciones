@@ -766,6 +766,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     filaPrincipal.querySelector('.numero-publicacion').innerHTML =
       renderCopiable(pub);
+
+    const data = comisionMap.get(pub);
+
+    if (data?.titulo) {
+
+      const nombreEl = filaPrincipal.querySelector('.nombre-valor');
+      const varianteEl = filaPrincipal.querySelector('.variante-valor');
+
+      const tituloML = String(data.titulo || '').trim();
+      const varianteOdoo = String(varianteEl.textContent || '').trim();
+
+      // 🔹 mostrar título ML como nombre principal
+      nombreEl.textContent = tituloML;
+
+      // 🔹 mostrar variante solo si es distinta del título
+      if (varianteOdoo && !tituloML.toLowerCase().includes(varianteOdoo.toLowerCase())) {
+        varianteEl.style.display = '';
+      } else {
+        varianteEl.style.display = 'none';
+      }
+
+    }
   }
 
   body.addEventListener('input', async (e) => {

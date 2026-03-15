@@ -1392,7 +1392,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="qty-despachar ${highlightDespacho ? 'qty-alert' : ''}"
               title="${highlightDespacho ? 'Kit detectado: se despachan más unidades que las vendidas en ML' : ''}">
             ${unidadesDespachar}
-          ${highlightDespacho ? '<span class="kit-badge">(KIT)</span>' : ''}
+          ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
           </td>
           <td class="${
             qtyRegistradaOdoo < unidadesDespachar ? 'qty-alert' :
