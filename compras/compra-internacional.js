@@ -1,3 +1,57 @@
+let jumpsellerPriceMapCache = null;
+
+async function loadJumpsellerPriceMap(){
+
+  if (jumpsellerPriceMapCache) return jumpsellerPriceMapCache;
+
+  const res = await fetch('/api/jumpseller/productos/ultimo', { cache:'no-store' });
+
+  if(!res.ok){
+    return new Map();
+  }
+
+  const buf = await res.arrayBuffer();
+
+  const wb = XLSX.read(buf,{ type:'array' });
+
+  const ws = wb.Sheets[wb.SheetNames[0]];
+
+  const rows = XLSX.utils.sheet_to_json(ws,{
+    header:1,
+    defval:'',
+    raw:false
+  });
+
+  const map = new Map();
+
+  const header = rows[0].map(h =>
+    String(h || '').trim().toLowerCase()
+  );
+
+  const indiceSku = header.findIndex(h => h === 'sku');
+  const indicePrice = header.findIndex(h => h === 'price');
+
+  rows.slice(1).forEach(r => {
+
+    const sku = String(r[indiceSku] || '')
+      .replace(/^MLC/i,'')
+      .trim()
+      .toUpperCase();
+
+    const price = Math.round(Number(r[indicePrice] || 0));
+
+    if(sku){
+      map.set(sku, price);
+    }
+
+  });
+
+  jumpsellerPriceMapCache = map;
+
+  return map;
+
+}
+    
 document.addEventListener('DOMContentLoaded', async () => {
 
     const body = document.getElementById('comprasBody');
@@ -12,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const DESCUENTO = 0.25;
     const IVA = 1.19;
+    const jumpsellerPriceMap = await loadJumpsellerPriceMap();
 
     const fechaPedidoInput = document.getElementById('fechaPedido');
     const dolarLabel = document.getElementById('dolarCalculado');
@@ -29,7 +84,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const buscarProductoSug = document.getElementById('buscarProductoSug');
 
     let filtroBarcodeCot = '';
+
     let cacheCotizaciones = {};
+
+    function calcularPrecioOdoo(precioUSD){
+      const dolar = Number(dolarLabel.textContent) || 0;
+      return precioUSD * dolar;
+    }
+
+    function pintarComparacionPrecio(el, calculado, actual){
+
+      if (!actual) return;
+
+      if (calculado > actual){
+        el.style.color = 'red';
+        el.style.fontWeight = '700';
+      }
+      else if (actual > calculado){
+        el.style.color = '#0a8f2f';
+        el.style.fontWeight = '700';
+      }
+      else{
+        el.style.color = '';
+        el.style.fontWeight = '';
+      }
+
+    }
         
     async function cargarListaCotizaciones(){
 
@@ -633,27 +713,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         precio = totalLinea / cantidad;
       }
 
-      const dolarCompra = Number(dolarLabel.textContent) || 0;
+      const precioOdoo = calcularPrecioOdoo(precio);
 
-      // convertir USD → CLP
-      const precioOdoo = precio * dolarCompra;
-      // redondear al 990 hacia arriba
-
-      const numeroPub =
-        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
-        ?.trim()
-        ?.toUpperCase() || '';
-
-      const esPack = packSetCache?.has(numeroPub);
+      const {numeroPub, esPack} = obtenerDatosML(tr);
 
       const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
+
+      const precioJumpsellerActual = jumpsellerPriceMap?.get(numeroPub) || 0;
+
+      tr.querySelector('.precio-jumpseller').innerHTML =
+        renderCopiable(precioJumpseller.toFixed(0));
+
+      const precioJumpsellerEl = tr.querySelector('.precio-jumpseller');
+
+      pintarComparacionPrecio(precioJumpsellerEl, precioJumpseller, precioJumpsellerActual);
 
       const totalOdooLinea = cantidad * precioOdoo;
 
       tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
       tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));      
       tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
-      tr.querySelector('.precio-jumpseller').innerHTML = renderCopiable(precioJumpseller.toFixed(0));
 
       totalCompra += totalLinea;
       totalOdoo += totalOdooLinea;
@@ -723,23 +802,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precio = cantidad > 0 ? totalLinea / cantidad : 0;
 
-      const dolarCompra = Number(dolarLabel.textContent) || 0;
-      const precioOdoo = precio * dolarCompra;
+      const precioOdoo = calcularPrecioOdoo(precio);
 
       tr.querySelector('.precio-usd').textContent = precio.toFixed(2);
       tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
       tr.querySelector('.total-odoo').textContent = precioOdoo.toFixed(0);
 
-      // 🔹 detectar si esta publicación es pack
-      const numeroPub =
-        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
-        ?.trim()
-        ?.toUpperCase() || '';
-      const esPack = packSetCache?.has(numeroPub);
+      const {numeroPub, esPack} = obtenerDatosML(tr);
       const precioJumpseller = calcularPrecioJumpseller(precioOdoo, esPack);
 
       tr.querySelector('.precio-jumpseller').innerHTML =
         renderCopiable(precioJumpseller.toFixed(0));
+
+      const precioJumpsellerActual = jumpsellerPriceMap?.get(numeroPub) || 0;
+
+      const precioJumpsellerEl = tr.querySelector('.precio-jumpseller');
+
+      pintarComparacionPrecio(precioJumpsellerEl, precioJumpseller, precioJumpsellerActual);
 
       const porcentajeTexto = tr.querySelector('.porcentaje-comision').textContent;
       const comision = Number(porcentajeTexto.replace('%','')) || 0;
@@ -762,8 +841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const precioUSDPadre =
           Number(parent.querySelector('.precio-usd')?.textContent) || 0;
 
-        const dolarCompra = Number(dolarLabel.textContent) || 0;
-        const precioOdoo = precioUSDPadre * dolarCompra;
+        const precioOdoo = calcularPrecioOdoo(precio);
 
         tr.querySelector('.precio-usd').textContent = precioUSDPadre.toFixed(2);
         tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioOdoo.toFixed(0));
@@ -773,6 +851,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         tr.querySelector('.precio-jumpseller').innerHTML =
           renderCopiable(precioJumpseller.toFixed(0));
+
+        const precioJumpsellerEl = tr.querySelector('.precio-jumpseller');
+
+        pintarComparacionPrecio(precioJumpsellerEl, precioJumpseller, precioJumpsellerActual);
 
         const precioMLEl = tr.querySelector('.precio-ml');
 
