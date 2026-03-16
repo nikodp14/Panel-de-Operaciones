@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Validar Ventas Particulares</title>
+
+  <!-- MISMO ORDEN que el resto del sistema -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+   <div id="__SIDEBAR__"></div>
+
+    <main class="content">
+      <div class="container">
+       <h2>Descargar Variantes Odoo (Sólo si se crearon o modificaron productos)</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Descargar Ventas Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Ventas</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Plantilla Ventas</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Descargar Stock Ubicaciones Odoo</h2>
+          <ol>
+            <li>Ingrese a <strong>Inventario</strong>.</li>
+            <li>Ingrese a <strong>Reportes->Ubicaciones</strong>.</li>
+            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
+            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → STOCK UBICACIONES ODOO</strong>.</li>
+            <li>Haga clic en <strong>Exportar</strong>.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <p class="muted">
+            Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
+          </p>
+          <p class="muted">- Variantes de producto (product.product)</p>
+          <p class="muted">- Quants (stock.quant)</p>
+          <p class="muted">- Orden de venta (sale.order)</p>
+           <button id="autoUpdateBtn" class="primary-btn">
+            Actualizar todo desde Carpeta
+          </button>
+          <p id="statusVentas" class="status"></p>
+        </div>
+
+        <div id="actionCounters" class="action-counters hidden"></div>
+
+        <div class="container">
+
+          <section id="ventasResults" class="card ventas-particulares-card hidden">
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th># Venta</th>
+                    <th>Fecha venta</th>
+                    <th>Producto</th>
+                    <th>Ubicaciones</th>
+                    <th>Unid. vendidas</th>
+                    <th>Unid. Odoo</th>
+                    <th>Total venta</th>
+                    <th>Descontar flex</th>
+                    <th>Descontar courier</th>
+                    <th>Precio</th>
+                    <th>Observación</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="ventasResultsBody"></tbody>
+              </table>
+            </div>
+            <button id="addVentaBtn" class="primary-btn">
+              Agregar venta
+            </button>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/layout.js"></script>
+  <script src="/js/config-helpers.js"></script>
+  <script src="/js/ml-variant-resolver.js"></script>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="/ventas/validar-ventas-particulares.js"></script>
+
+  <div id="toast" class="toast hidden"></div>
+</body>
+</html>

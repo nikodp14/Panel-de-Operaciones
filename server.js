@@ -382,6 +382,10 @@ app.get("/ventas/validar-ventas-jumpseller.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas-jumpseller.html"));
 });
 
+app.get("/ventas/validar-ventas-particulares.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas-particulares.html"));
+});
+
 app.get("/odoo/variantes.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "odoo", "variantes.html"));
 });
@@ -731,6 +735,45 @@ app.post('/api/cotizaciones-nacional/:cot', (req, res) => {
   fs.writeFileSync(cotizacionesNacionalPath, JSON.stringify(data, null, 2));
 
   res.json({ ok: true });
+});
+
+/* ============================
+   Ventas particulares
+============================ */
+
+const ventasParticularesPath =
+  path.join(UPLOAD_DIR, 'ventas_particulares.json');
+
+
+app.get('/api/ventas-particulares', (req,res)=>{
+
+  if(!fs.existsSync(ventasParticularesPath)){
+    return res.json([]);
+  }
+
+  try{
+    const data = JSON.parse(
+      fs.readFileSync(ventasParticularesPath,'utf8')
+    );
+    res.json(data);
+  }catch{
+    res.json([]);
+  }
+
+});
+
+
+app.post('/api/ventas-particulares', (req,res)=>{
+
+  const body = req.body || [];
+
+  fs.writeFileSync(
+    ventasParticularesPath,
+    JSON.stringify(body,null,2)
+  );
+
+  res.json({ok:true});
+
 });
 
 app.get('/api/debug/data-files', (req, res) => {

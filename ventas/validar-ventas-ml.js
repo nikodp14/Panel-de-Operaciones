@@ -1391,8 +1391,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${unidadesML}</td>
           <td class="qty-despachar ${highlightDespacho ? 'qty-alert' : ''}"
               title="${highlightDespacho ? 'Kit detectado: se despachan más unidades que las vendidas en ML' : ''}">
-            ${unidadesDespachar}
-          ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
+            <div class="qty-wrapper">
+              <span class="qty-valor">${unidadesDespachar}</span>
+              <span class="copy-qty" data-qty="${unidadesDespachar}" title="Copiar unidades">📋</span>
+              ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
+              </div>
           </td>
           <td class="${
             qtyRegistradaOdoo < unidadesDespachar ? 'qty-alert' :
@@ -1401,8 +1404,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ${qtyRegistradaOdoo}
           </td>
           <td>
-            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
-            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            <div class="precio-copy">
+              <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+              <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            </div>
           </td>
           <td class="obs-cell ${item.obs === 'REGISTRAR VENTA EN ODOO' || item.obs === 'INGRESE PRODUCTO A DESPACHAR' || item.obs === 'ESCANEE EL PRODUCTO' || item.obs === 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER' || item.obs === 'PRODUCTO A DESPACHAR INCORRECTO' ? 'error-cell' : ''}">
             ${item.obs}
@@ -1548,8 +1553,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <!-- Precio -->
           <td>
-            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
-            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            <div class="precio-copy">
+              <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+              <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            </div>
           </td>
 
           <td class="obs-cell ok-cell">OK</td>
@@ -1792,6 +1799,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   resultsBody.addEventListener('click', async (e) => {
+
+    const copyQty = e.target.closest('.copy-qty');
+    if (copyQty) {
+      const qty = copyQty.dataset.qty;
+      navigator.clipboard.writeText(qty);
+      showToast("Unidades copiadas 📋");
+      return;
+    }
 
     const ventaBtn = e.target.closest('.copy-venta');
     if (ventaBtn) {

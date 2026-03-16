@@ -1664,8 +1664,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${unidadesML}</td>
           <td class="qty-despachar ${highlightDespacho ? 'qty-alert' : ''}"
               title="${highlightDespacho ? 'Kit detectado: se despachan más unidades que las vendidas en ML' : ''}">
-            ${unidadesDespachar}
-          ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
+            <div class="qty-wrapper">
+              <span class="qty-valor">${unidadesDespachar}</span>
+              <span class="copy-qty" data-qty="${unidadesDespachar}" title="Copiar unidades">📋</span>
+              ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
+            </div>
           </td>
           <td class="${
             qtyRegistradaOdoo < unidadesDespachar ? 'qty-alert' :
@@ -2113,6 +2116,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   resultsBody.addEventListener('click', async (e) => {
+
+    const copyQty = e.target.closest('.copy-qty');
+    if (copyQty) {
+      const qty = copyQty.dataset.qty;
+      navigator.clipboard.writeText(qty);
+      showToast("Unidades copiadas 📋");
+      return;
+    }
 
     const ventaBtn = e.target.closest('.copy-venta');
     if (ventaBtn) {

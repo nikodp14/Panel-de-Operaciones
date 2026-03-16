@@ -364,27 +364,31 @@ body.sidebar-collapsed .container {
 }
 
 .odoo-option {
-  padding: 8px 12px;
-  cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(180px,260px) 1fr 160px;
+  gap: 12px;
 }
 
 .odoo-option:hover {
   background: #eef2ff;
 }
 
-.odoo-barcode {
-  font-weight: 700;
-  color: #2563eb;
+.odoo-barcode{
+  font-weight:700;
+  color:#2563eb;
+
+  word-break: break-all;     /* 👈 rompe códigos largos */
+  line-height:1.2;
 }
 
-.odoo-name {
-  font-size: 13px;
-  color: #334155;
+.odoo-name{
+  font-size:13px;
+  color:#334155;
 }
 
-.odoo-variant {
-  font-size: 12px;
-  color: #0f766e;
+.odoo-variant{
+  font-size:12px;
+  color:#0f766e;
 }
 
 .producto-despachar {
@@ -497,6 +501,17 @@ body.sidebar-collapsed .container {
 }
 
 .compras-card .table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  min-height: 70vh;
+  max-height: 70vh;
+}
+
+.ventas-particulares-card {
+  overflow: hidden;
+}
+
+.ventas-particulares-card .table-wrap {
   overflow-x: auto;
   overflow-y: auto;
   min-height: 70vh;
@@ -872,4 +887,251 @@ body.sidebar-collapsed .container {
 .ml-alerta{
   color:#d98c00;
   font-size:13px;
+}
+
+#ventasResults td{
+  vertical-align:top;
+}
+
+#ventasResults table th:first-child,
+#ventasResults table td:first-child{
+  min-width:80px;
+}
+
+#ventasResults table{
+  min-width:1200px;
+}
+
+.pack-row{
+  background:#fff6e8;
+}
+
+.pack-parent{
+  background:#ffe7c2;
+}
+
+.pack-row{
+  background:#fff3df;
+}
+
+#ventasResults td:last-child{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+
+#ventasResults .pack-btn,
+#ventasResults .delete-btn{
+  width:34px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  font-size:16px;
+}
+
+#ventasResults .unidades-vendidas{
+  width:55px;
+  text-align:center;
+}
+
+#ventasResults .precio-total{
+  width:80px;
+  text-align:right;
+}
+
+#ventasResults .courier-valor{
+  width:85px;
+  margin-top:4px;
+  text-align:right;
+}
+
+#ventasResults td:nth-child(5),
+#ventasResults td:nth-child(6){
+  text-align:center;
+}
+
+/* =========================
+   Sugerencias variantes Odoo
+========================= */
+
+.odoo-suggestions .item {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.odoo-suggestions .codigo{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.odoo-suggestions .nombre {
+  color: #374151;
+  font-size: 13px;
+}
+
+.codigo-wrapper{
+  width:100%;
+}
+
+.codigo-input{
+  width:100%;
+  min-width:320px;
+  padding:6px 8px;
+  font-size: 14px;
+}
+
+/* columna número de venta */
+#ventasResults table th:first-child,
+#ventasResults table td:first-child{
+  width:20px;
+  text-align:center;
+}
+
+#ventasResults table th,
+#ventasResults table td{
+  padding:10px 12px;
+}
+
+#ventasResults table th,
+#ventasResults table td{
+  padding:10px 12px;
+}
+
+/* permitir copiar texto en tabla de ventas */
+#ventasResults td{
+  user-select:text;
+}
+
+.copy-btn{
+  cursor:pointer;
+  margin-left:4px;
+  font-size:12px;
+  opacity:.6;
+}
+
+.copy-btn:hover{
+  opacity:1;
+}
+
+/* precio odoo con botón copiar */
+.valor-odoo{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+
+.valor-odoo .valor-text{
+  flex:1;
+}
+
+.valor-odoo .copy-precio{
+  cursor:pointer;
+  font-size:12px;
+  opacity:.6;
+}
+
+.valor-odoo .copy-precio:hover{
+  opacity:1;
+}
+
+/* input producto + copiar */
+.codigo-wrapper{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.codigo-wrapper .codigo-input{
+  flex:1;
+}
+
+.codigo-wrapper .copy-codigo{
+  cursor:pointer;
+  font-size:12px;
+  opacity:.6;
+}
+
+.codigo-wrapper .copy-codigo:hover{
+  opacity:1;
+}
+
+/* unidades vendidas */
+td:has(.unidades-vendidas){
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.unidades-vendidas{
+  width:60px;
+}
+
+.copy-unidades{
+  cursor:pointer;
+  font-size:12px;
+  opacity:.6;
+}
+
+.copy-unidades:hover{
+  opacity:1;
+}
+
+/* ===== COPIAR VALORES EN TABLA ===== */
+
+.venta-copy{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+
+.copy-venta,
+.copy-precio,
+.copy-codigo,
+.copy-ubicacion,
+.copy-scan{
+  cursor:pointer;
+  opacity:.7;
+}
+
+.copy-venta:hover,
+.copy-precio:hover,
+.copy-codigo:hover,
+.copy-ubicacion:hover,
+.copy-scan:hover{
+  opacity:1;
+}
+
+/* precio */
+.precio-copy{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+
+.envio-input {
+  width: 90px;
+  padding: 2px 4px;
+}
+
+.qty-wrapper{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.copy-qty{
+  cursor:pointer;
+}
+
+.kit-badge{
+  font-weight:bold;
 }
