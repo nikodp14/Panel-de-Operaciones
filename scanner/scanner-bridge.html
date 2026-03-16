@@ -6,8 +6,10 @@
 <style>
 body{
   font-family: Arial;
-  padding:40px;
+  padding:10px;
+  margin:0;
   text-align:center;
+  overflow:hidden;
 }
 
 input{
@@ -37,32 +39,49 @@ input{
 const input = document.getElementById("barcodeInput");
 const status = document.getElementById("status");
 
-input.addEventListener("input", async () => {
+let scanBuffer = "";
+let scanTimer = null;
 
-  const code = input.value.trim();
+input.addEventListener("input", () => {
 
-  if(!code) return;
+  scanBuffer = input.value;
 
-  try{
+  clearTimeout(scanTimer);
 
-    await fetch("/api/scanner",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({ code })
-    });
+  scanTimer = setTimeout(async () => {
 
-    status.textContent = "Código enviado: " + code;
+    const code = scanBuffer.trim();
 
-  }catch(err){
+    if(!code) return;
 
-    status.textContent = "Error enviando código";
+    try{
 
-  }
+      await fetch("/api/scanner",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({ code })
+      });
 
-  input.value = "";
-  input.focus();
+      status.textContent = "Código enviado: " + code;
+
+      window.parent.postMessage({
+        type: "scanner-done",
+        code
+      }, "*");
+
+    }catch(err){
+
+      status.textContent = "Error enviando código";
+
+    }
+
+    input.value = "";
+    scanBuffer = "";
+    input.focus();
+
+  }, 100); // 🔥 espera 100ms sin escribir
 
 });
 

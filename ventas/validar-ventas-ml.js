@@ -28,6 +28,46 @@ document.addEventListener('DOMContentLoaded', () => {
   let scannerLock = false;
   let variantesValidarSet = new Set();
 
+  const gunModal = document.getElementById("gunScannerModal");
+  const closeGun = document.getElementById("closeGunScanner");
+
+  resultsBody.addEventListener("click", e => {
+
+    const gunBtn = e.target.closest(".scan-gun-btn");
+    if(!gunBtn) return;
+
+    const tr = gunBtn.closest("tr");
+
+    scanResultEl = tr.querySelector(".scan-result");
+
+    lastScannedCode = null;
+    lastScanTs = Date.now() + 300;
+
+    gunModal.classList.remove("hidden");
+
+    clearTimeout(scanInterval);
+    pollScanner();
+
+    // 🔥 foco al input del iframe
+    setTimeout(() => {
+
+      const frame = document.getElementById("gunScannerFrame");
+      const input = frame?.contentWindow?.document?.getElementById("barcodeInput");
+
+      if(input){
+        input.focus();
+      }
+
+    },200);
+
+    showToast("Esperando escaneo con pistola 📦");
+
+  });
+
+  closeGun.onclick = () => {
+    gunModal.classList.add("hidden");
+  };
+
   async function pollScanner() {
 
     try {
@@ -1372,7 +1412,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                   })()}
                   <div class="scan-area">
-                    <button class="scan-btn">📷 Escanear</button>
+                    <button class="scan-btn">Escanear celular</button>
+                    <button class="scan-gun-btn">Escanear pistola</button>
 
                     <div class="scan-result-wrapper">
                       <span class="scan-result">
@@ -2108,4 +2149,32 @@ document.addEventListener('DOMContentLoaded', () => {
     //console.log("Subido:", file.name);
 
   }
+
+  window.addEventListener("message", (event) => {
+
+    if(event.data?.type === "scanner-done"){
+
+      const gunModal = document.getElementById("gunScannerModal");
+
+      if(gunModal){
+        gunModal.classList.add("hidden");
+      }
+
+    }
+
+  });
+
+  document.addEventListener("keydown", (e) => {
+
+    if(e.key === "Escape"){
+
+      const gunModal = document.getElementById("gunScannerModal");
+
+      if(gunModal && !gunModal.classList.contains("hidden")){
+        gunModal.classList.add("hidden");
+      }
+
+    }
+
+  });
 });
