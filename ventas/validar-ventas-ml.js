@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 🔴 Escaneo distinto
-    if (normCodigo(valor) !== normCodigo(escaneado)) {
+    if (!codigoCoincideConEscaneo(valor, escaneado)) {
       obsCell.textContent = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
@@ -421,6 +421,32 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/\s+/g, '')     // quita espacios
       .replace(/[-–—]/g, '')  // quita guiones
       .replace(/\.0$/, '');   // quita .0 típico de Excel
+  }
+
+  function codigoCoincideConEscaneo(codigoEsperado, escaneado) {
+
+    const esperado = normCodigo(codigoEsperado);
+    const scan = normCodigo(escaneado);
+
+    if (!esperado || !scan) return false;
+
+    // coincidencia directa
+    if (esperado === scan) return true;
+
+    // si el escaneado tiene letras intentamos lógica especial
+    if (/[A-Z]/.test(scan) && esperado.includes('/')) {
+
+      const partes = esperado.split('/').map(p => normCodigo(p));
+
+      const coincidencias = partes.filter(p => p === scan);
+
+      // solo aceptar si coincide exactamente una parte
+      if (coincidencias.length === 1) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function normVentaKey(v) {
@@ -1128,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const escaneoValido =
           codigoEfectivo &&
           escaneado &&
-          normCodigo(escaneado) === normCodigo(codigoEfectivo);
+          codigoCoincideConEscaneo(codigoEfectivo, escaneado);
 
           // 🔴 Primero validar producto correcto
           if (
@@ -1146,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
           else if (
           codigoEfectivo &&
           escaneado &&
-          normCodigo(codigoEfectivo) !== normCodigo(escaneado)
+          !codigoCoincideConEscaneo(codigoEfectivo, escaneado)
           ) {
           obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
           }
