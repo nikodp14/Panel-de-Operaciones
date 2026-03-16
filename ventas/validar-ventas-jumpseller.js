@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pubML = input.dataset.pubml;
 
     const key = `${ventaML}|${pubML}`;
-    const valor = Number(input.value) || 0;
+    const valor = toNumberCLP(input.value);
 
     clearTimeout(envioTimeout);
 
@@ -1056,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const odooData = odooRows.slice(0);
       const cutoff = location.hostname === 'localhost'
         ? new Date('2026-01-01')   // entorno local
-        : new Date('2026-03-06');  // producción
+        : new Date('2026-03-13');  // producción
       const observaciones = [];
       const observacionesOK = [];
       const odooQtyByVenta = new Map();
@@ -1067,6 +1067,8 @@ document.addEventListener('DOMContentLoaded', () => {
           .map(r => normVenta(r[6]))  // Col G
           .filter(Boolean)
       );
+
+      let ultimaVenta = 0;
 
       odooQtyByVentaCodigo = buildOdooQtyIndex(odooRows);
 
@@ -1519,6 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       let ultimaFilaRenderizada = null;
+      let pintarPrimeraLineaPack = true;
 
       for (const item of observaciones) {
         const obs = item.obs;
@@ -1552,12 +1555,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(item.pubProcesar);
           }*/
 
+        if (item.ventaMLFinal != ultimaVenta)
+          pintarPrimeraLineaPack = true;
+          
+        ultimaVenta = item.ventaMLFinal;
+
         if (item.esLineaHijaPaquete) {
           tr.classList.add('paquete-hija-row');
           // 🔹 marcar cabecera retroactivamente
-          if (ultimaFilaRenderizada) {
+          if (ultimaFilaRenderizada && pintarPrimeraLineaPack) {
             ultimaFilaRenderizada.classList.remove('pack-row');
-            ultimaFilaRenderizada.classList.add('paquete-hija-row');
+            ultimaFilaRenderizada.classList.add('pack-parent');
+            pintarPrimeraLineaPack = false;
           }
         }
         else if (item.esPack) {
@@ -1792,8 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.esLineaHijaPaquete) {
           tr.classList.add('paquete-hija-row');
         }
-
-        if (item.esPack) {
+        else if (item.esPack) {
           tr.classList.add('pack-row');
         }
         else if (highlightDespacho) {

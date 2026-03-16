@@ -903,16 +903,8 @@ body.sidebar-collapsed .container {
   min-width:1200px;
 }
 
-.pack-row{
-  background:#fff6e8;
-}
-
 .pack-parent{
-  background:#ffe7c2;
-}
-
-.pack-row{
-  background:#fff3df;
+  background:#f9dbaf;
 }
 
 #ventasResults td:last-child{

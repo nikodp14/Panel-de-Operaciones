@@ -1258,6 +1258,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      let pintarPrimeraLineaPaquete = true;
+      let ultimaVenta = 0;
+
       for (const item of observaciones) {
         const obs = item.obs;
         const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
@@ -1282,9 +1285,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const highlightDespacho = unidadesDespachar > unidadesML;
+        
+        if (ultimaVenta != item.ventaMLFinal)
+          pintarPrimeraLineaPaquete = true;
 
-        if (item.esLineaHijaPaquete) {
+        console.log(ultimaVenta, item.ventaMLFinal);
+
+        ultimaVenta = item.ventaMLFinal;
+
+        if (item.esLineaHijaPaquete && !pintarPrimeraLineaPaquete) {
           tr.classList.add('paquete-hija-row');
+        }
+        else if (item.esLineaHijaPaquete){
+          tr.classList.add('pack-parent');
+          pintarPrimeraLineaPaquete = false;
         }
 
         if (item.esPack) {

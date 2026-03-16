@@ -286,9 +286,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const tr = e.target.closest("tr");
     const venta = tr.dataset.venta;
-
     const nueva = tr.cloneNode(true);
-    nueva.classList.add("pack-row");
+
+    nueva.classList.remove("pack-parent");
+    nueva.classList.add("paquete-hija-row");
     nueva.dataset.venta = venta;
 
     /* limpiar campos */
@@ -336,6 +337,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   CALCULAR VALOR ODOO
   ================================ */
 
+  function parseCLP(value){
+
+    if(!value) return 0;
+
+    return Number(
+      String(value)
+        .replace(/\./g,"")   // quitar separador miles
+        .replace(/,/g,"")    // quitar comas
+        .replace(/[^\d]/g,"")
+    );
+
+  }
+
   function calcularValorOdoo(tr){
 
     if(tr.classList.contains("pack-row")) return;
@@ -345,7 +359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if(!totalInput || !unidadesInput) return;   // 👈 evita error en pack-row
 
-    const total = Number(totalInput.value || 0);
+    const total = parseCLP(totalInput.value);
     const unidades = Number(unidadesInput.value || 1);
 
     let totalBase = total;
@@ -359,7 +373,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if(courier?.checked){
-      const envio = Number(courierValor?.value || 0);
+      const envio = parseCLP(courierValor?.value);
       totalBase -= envio;
     }
 
@@ -653,7 +667,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       flex: tr.querySelector(".flex-check")?.checked || false,
       courier: tr.querySelector(".courier-check")?.checked || false,
       courierValor: tr.querySelector(".courier-valor")?.value || "",
-      pack: tr.classList.contains("pack-row")
+      pack: tr.classList.contains("pack-parent"),
+      paquetehijarow: tr.classList.contains("paquete-hija-row")
 
     }));
 
@@ -682,6 +697,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       agregarLineaVenta(v.venta);
 
       const tr = resultsBody.lastElementChild;
+
+      if(v.pack)
+        tr.classList.add("pack-parent");
 
       tr.querySelector(".fecha-input").value = v.fecha || "";
       tr.querySelector(".codigo-input").value = v.codigo || "";
@@ -718,7 +736,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       
       tr.querySelector(".unidades-vendidas").value = v.unidades || 1;
-      tr.querySelector(".precio-total").value = v.total || "";
+      tr.querySelector(".precio-total").value = parseCLP(v.total || "");
 
       tr.querySelector(".flex-check").checked = v.flex || false;
       tr.querySelector(".courier-check").checked = v.courier || false;
@@ -726,12 +744,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if(v.courier){
         const c = tr.querySelector(".courier-valor");
         c.classList.remove("hidden");
-        c.value = v.courierValor || "";
+        c.value = parseCLP(v.courierValor || "");
       }
 
-      if(v.pack){
+      if(v.paquetehijarow){
 
-        tr.classList.add("pack-row");
+        tr.classList.add("paquete-hija-row");
 
         const packBtn = tr.querySelector(".pack-btn");
         if(packBtn) packBtn.remove();
