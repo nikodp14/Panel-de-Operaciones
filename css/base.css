@@ -974,9 +974,7 @@ body.sidebar-collapsed .container {
 
 .codigo-input{
   width:100%;
-  min-width:320px;
-  padding:6px 8px;
-  font-size: 14px;
+  min-width:0;
 }
 
 /* columna número de venta */
@@ -1165,4 +1163,16 @@ td:has(.unidades-vendidas){
   flex:1;
   border:0;
   overflow:hidden;
+}
+
+.codigo-wrapper{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  max-width:100%;
+}
+
+.codigo-wrapper .codigo-input{
+  flex:1;
+  min-width:0;
 }
