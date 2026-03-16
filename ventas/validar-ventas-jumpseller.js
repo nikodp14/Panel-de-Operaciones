@@ -1138,14 +1138,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!esLineaHijaPaquete) {
           // Cabecera nueva
           ventaContexto = ventaML;
-          fechaContexto = fechaMostrada;
+          fechaContexto = fecha;;
           pagoContexto = nombrePago;
           estadoContexto = estadoML;
         } else {
           // Heredar contexto
           ventaML = ventaContexto;
           fecha = fechaContexto;
-          fechaMostrada = fechaContexto;
+          fechaMostrada = fechaContexto.toLocaleDateString("es-CL");
           nombrePago = pagoContexto;
           estadoML = estadoContexto;
         }
@@ -1333,8 +1333,6 @@ document.addEventListener('DOMContentLoaded', () => {
               obsFinal = 'INGRESE COSTO DE ENVÍO';
             }
 
-            console.log(obsFinal);
-
             baseTotal = precioMostrado - (envioInput / 1.19);
 
           }
@@ -1445,11 +1443,11 @@ document.addEventListener('DOMContentLoaded', () => {
           !cambioProducto &&
           !contienePubML(codigoEfectivo, pubProcesar)
           ) {
-          obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+            obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
           else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
-          obsFinal = 'ESCANEE EL PRODUCTO';
+            obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
           else if (
@@ -1457,35 +1455,34 @@ document.addEventListener('DOMContentLoaded', () => {
           escaneado &&
           !codigoCoincideConEscaneo(codigoEfectivo, escaneado)
           ) {
-          obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+            obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
           }
 
           let obsRender = obsFinal;
 
-          // 🔒 Nunca permitir OK sin escaneo válido
+            // 🔒 Nunca permitir OK sin escaneo válido
           if (!obsRender) {
 
-          const requiereEnvio =
-            esLineaHijaPaquete &&
-            !(metodoEnvio || '').toLowerCase().includes('demoto') &&
-            !((metodoEnvio || '').toLowerCase().includes('santiago') &&
-              (metodoEnvio || '').toLowerCase().includes('colina') &&
-              (metodoEnvio || '').toLowerCase().includes('padre'));
+            const requiereEnvio =
+              esLineaHijaPaquete &&
+              !(metodoEnvio || '').toLowerCase().includes('demoto') &&
+              !((metodoEnvio || '').toLowerCase().includes('santiago') &&
+                (metodoEnvio || '').toLowerCase().includes('colina') &&
+                (metodoEnvio || '').toLowerCase().includes('padre'));
 
-          const envioGuardado =
-            codigosPorVenta[keyPersistencia]?.envioManual || 0;
+            const envioGuardado =
+              codigosPorVenta[keyPersistencia]?.envioManual || 0;
 
-          if (requiereEnvio && (!envioGuardado || envioGuardado == 0)) {
-            obsRender = 'INGRESE COSTO DE ENVÍO';
+            if (requiereEnvio && (!envioGuardado || envioGuardado == 0)) {
+              obsRender = 'INGRESE COSTO DE ENVÍO';
+            }
+            else if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
+              obsRender = 'ESCANEE EL PRODUCTO';
+            }
+            else {
+              obsRender = 'OK';
+            }
           }
-          else if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
-            obsRender = 'ESCANEE EL PRODUCTO';
-          }
-          else {
-            obsRender = 'OK';
-          }
-
-        }
 
           const itemBase = {
             r: [...r],
