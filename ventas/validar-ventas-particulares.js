@@ -486,7 +486,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     obs = "REGISTRAR VENTA EN ODOO";
 
     else if(qtyOdoo < unidades)
-    obs = "FALTAN UNIDADES";
+    obs = "FALTAN UNIDADES POR ENTREGAR";
 
     else if(qtyOdoo > unidades)
     obs = "EXCESO UNIDADES";
