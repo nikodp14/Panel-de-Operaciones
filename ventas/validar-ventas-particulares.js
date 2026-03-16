@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const resultsBody = document.getElementById("ventasResultsBody");
   const addVentaBtn = document.getElementById("addVentaBtn");
   const resultsSection = document.getElementById("ventasResults");
+  const countersEl = document.getElementById("actionCounters");
 
   let ventaCounter = 1;
 
@@ -11,6 +12,76 @@ document.addEventListener("DOMContentLoaded", async () => {
   let odooQtyByVentaCodigo = new Map();
 
   resultsSection.classList.remove("hidden");
+
+  function aplicarFiltro(tipo){
+
+    const rows = resultsBody.querySelectorAll("tr");
+
+    rows.forEach(tr => {
+
+      const obs = tr.querySelector(".obs-cell")?.textContent || "";
+
+      if(tipo === "TODOS"){
+        tr.style.display = "";
+      }
+      else if(tipo === "OK"){
+        tr.style.display = obs === "OK" ? "" : "none";
+      }
+      else if(tipo === "OBS"){
+        tr.style.display = obs !== "OK" ? "" : "none";
+      }
+
+    });
+
+  }
+
+  function construirCapsulas(){
+
+    const rows = [...resultsBody.querySelectorAll("tr")];
+
+    const total = rows.length;
+
+    const ok = rows.filter(r =>
+      r.querySelector(".obs-cell")?.textContent === "OK"
+    ).length;
+
+    const obs = total - ok;
+
+    countersEl.innerHTML = "";
+
+    const items = [
+      {key:"TODOS", label:`TODOS (${total})`},
+      {key:"OBS", label:`OBSERVACIONES (${obs})`},
+      {key:"OK", label:`OK (${ok})`}
+    ];
+
+    items.forEach(i => {
+
+      const pill = document.createElement("span");
+
+      pill.className = "pill" + (i.key === "OBS" ? " active" : "");
+      pill.dataset.filter = i.key;
+      pill.textContent = i.label;
+
+      pill.onclick = () => {
+
+        document.querySelectorAll(".pill")
+          .forEach(p => p.classList.remove("active"));
+
+        pill.classList.add("active");
+
+        aplicarFiltro(i.key);
+
+      };
+
+      countersEl.appendChild(pill);
+
+    });
+
+    countersEl.classList.remove("hidden");
+
+    aplicarFiltro("OBS");   // 🔥 activar observaciones por defecto
+  }
 
   /* ================================
   CARGAR VARIANTES ODOO
@@ -430,6 +501,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     cell.classList.toggle("ok-cell",obs==="OK");
     cell.classList.toggle("error-cell",obs!=="OK");
 
+    construirCapsulas();
   }
 
   /* ================================
