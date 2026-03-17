@@ -60,13 +60,13 @@ async function precargarDolar(){
       const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
 
       if(!res.ok){
-        console.warn("No se pudo obtener dolar año", year);
+        console.warn("No se pudo obtener dolar año",year);
         continue;
       }
 
       const data = await res.json();
 
-      data.serie.forEach(d=>{
+      data.serie.forEach(d => {
 
         const fecha = d.fecha.slice(0,10);
         dolarData[fecha] = d.valor;
@@ -120,6 +120,17 @@ app.get("/api/dolar", (req,res)=>{
   const encontrada = fechas.find(f => f <= fecha);
 
   if(encontrada){
+
+    const diff =
+      (new Date(fecha) - new Date(encontrada)) /
+      (1000 * 60 * 60 * 24);
+
+    if(diff > 3){
+      return res.status(500).json({
+        error: "dolar desactualizado"
+      });
+    }
+
     return res.json({
       valor: cache[encontrada],
       fechaUsada: encontrada
