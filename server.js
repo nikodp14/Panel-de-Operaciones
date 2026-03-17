@@ -31,6 +31,12 @@ setTimeout(async () => {
 
 },1000);
 
+setInterval(async () => {
+
+  await actualizarDolar();
+
+}, 6 * 60 * 60 * 1000);
+
 function dolarCacheVacio(){
   try{
     const data = JSON.parse(fs.readFileSync(DOLAR_FILE,"utf8"));
@@ -134,26 +140,35 @@ async function actualizarDolar(){
       fs.readFileSync(DOLAR_FILE,"utf8")
     );
 
-    const res = await fetch("https://mindicador.cl/api/dolar");
+    const year = new Date().getFullYear();
+
+    const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
 
     if(!res.ok) return;
 
     const data = await res.json();
 
-    const ultimo = data.serie[0];
+    let actualizado = false;
 
-    const fecha = ultimo.fecha.slice(0,10);
+    data.serie.forEach(d => {
 
-    if(!cache[fecha]){
+      const fecha = d.fecha.slice(0,10);
 
-      cache[fecha] = ultimo.valor;
+      if(!cache[fecha]){
+        cache[fecha] = d.valor;
+        actualizado = true;
+      }
+
+    });
+
+    if(actualizado){
 
       fs.writeFileSync(
         DOLAR_FILE,
         JSON.stringify(cache,null,2)
       );
 
-      console.log("Nuevo dólar agregado:",fecha);
+      console.log("Histórico de dólar actualizado");
 
     }
 
