@@ -401,59 +401,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  async function obtenerDolar(fecha) {
+  async function obtenerDolar(fecha){
 
-    try {
+    try{
 
-      const year = new Date(fecha).getFullYear();
-      const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
+      const res = await fetch(`/api/dolar?fecha=${fecha}`);
+
+      if(!res.ok) throw new Error("No disponible");
+
       const data = await res.json();
 
-      const serie = data.serie;
+      aplicarValorDolar(data.valor);
 
-      const fechaBuscada = new Date(fecha);
-      const fechaISO = fechaBuscada.toISOString().slice(0,10);
-
-      // buscar valor exacto
-      let registro = serie.find(d =>
-        d.fecha.slice(0,10) === fechaISO
-      );
-
-      let esArrastrado = false;
-
-      // si no existe (fin de semana) buscar último anterior
-      if (!registro) {
-
-        registro = serie.find(d =>
-          new Date(d.fecha) <= fechaBuscada
-        );
-
-        esArrastrado = true;
+      if (data.fechaUsada && data.fechaUsada !== fecha) {
+        dolarLabel.innerHTML =
+          `${dolarActual.toFixed(2)} <span style="color:#888;">(Último día hábil ${data.fechaUsada})</span>`;
       }
 
-      if (!registro) {
-        dolarLabel.textContent = 'No disponible';
-        return;
-      }
+    }catch(err){
 
-      const dolar = registro.valor;
-      const dolarMas30 = dolar + 30;
-      dolarActual = dolarMas30;
+      console.error("No se pudo obtener dólar", err);
 
-      if (esArrastrado) {
-        dolarLabel.textContent = `${dolarMas30.toFixed(2)} (último hábil)`;
-      } else {
-        dolarLabel.textContent = dolarMas30.toFixed(2);
-      }
-
-    } catch(err) {
-
-      console.error(err);
-      dolarLabel.textContent = 'Error';
+      dolarActual = null;
+      dolarLabel.textContent = "Error";
 
     }
 
   }
+
+  function aplicarValorDolar(dolar){
+
+  const dolarMas30 = dolar + 30;
+
+  dolarActual = dolarMas30;
+
+  dolarLabel.textContent = dolarMas30.toFixed(2);
+
+}
 
   let variantesCache = [];
 

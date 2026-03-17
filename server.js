@@ -4,8 +4,166 @@ import multer from "multer";
 import fs from "fs";
 import { fileURLToPath } from "url";
 const app = express();
-
 app.use(express.json());
+const DOLAR_FILE = "./data/dolar.json";
+
+// asegurar carpeta data
+const DATA_DIR = "./data";
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// asegurar archivo dolar.json
+if (!fs.existsSync(DOLAR_FILE)) {
+  fs.writeFileSync(DOLAR_FILE, "{}");
+  await precargarDolar();
+}
+
+setTimeout(async () => {
+
+  if (dolarCacheVacio()) {
+    console.log("Cache de dólar vacío, intentando precargar histórico...");
+    await precargarDolar();
+  }
+
+  await actualizarDolar();
+
+},1000);
+
+function dolarCacheVacio(){
+  try{
+    const data = JSON.parse(fs.readFileSync(DOLAR_FILE,"utf8"));
+    return Object.keys(data).length === 0;
+  }catch{
+    return true;
+  }
+}
+
+async function precargarDolar(){
+
+  try{
+
+    const yearActual = new Date().getFullYear();
+    const yearAnterior = yearActual - 1;
+
+    const dolarData = {};
+
+    for(const year of [yearAnterior, yearActual]){
+
+      const res = await fetch(`https://mindicador.cl/api/dolar/${year}`);
+
+      if(!res.ok){
+        console.warn("No se pudo obtener dolar año", year);
+        continue;
+      }
+
+      const data = await res.json();
+
+      data.serie.forEach(d=>{
+
+        const fecha = d.fecha.slice(0,10);
+        dolarData[fecha] = d.valor;
+
+      });
+
+    }
+
+    if(Object.keys(dolarData).length === 0){
+      console.warn("No se pudo precargar dólar");
+      return;
+    }
+
+    fs.writeFileSync(
+      DOLAR_FILE,
+      JSON.stringify(dolarData,null,2)
+    );
+
+    console.log("Histórico de dólar guardado");
+
+  }catch(err){
+
+    console.warn("Error precargando dólar:",err.message);
+
+  }
+
+}
+
+app.get("/api/dolar", (req,res)=>{
+
+  const fecha = req.query.fecha;
+
+  if(!fecha){
+    return res.status(400).json({
+      error:"Debe enviar ?fecha=YYYY-MM-DD"
+    });
+  }
+
+  const cache = JSON.parse(
+    fs.readFileSync(DOLAR_FILE,"utf8")
+  );
+
+  // 🔹 si existe exacta
+  if(cache[fecha]){
+    return res.json({valor:cache[fecha]});
+  }
+
+  // 🔹 buscar último día anterior disponible
+  const fechas = Object.keys(cache).sort().reverse();
+
+  const encontrada = fechas.find(f => f <= fecha);
+
+  if(encontrada){
+    return res.json({
+      valor: cache[encontrada],
+      fechaUsada: encontrada
+    });
+  }
+
+  res.status(404).json({
+    error:"No hay dólar disponible"
+  });
+
+});
+
+async function actualizarDolar(){
+
+  try{
+
+    const cache = JSON.parse(
+      fs.readFileSync(DOLAR_FILE,"utf8")
+    );
+
+    const res = await fetch("https://mindicador.cl/api/dolar");
+
+    if(!res.ok) return;
+
+    const data = await res.json();
+
+    const ultimo = data.serie[0];
+
+    const fecha = ultimo.fecha.slice(0,10);
+
+    if(!cache[fecha]){
+
+      cache[fecha] = ultimo.valor;
+
+      fs.writeFileSync(
+        DOLAR_FILE,
+        JSON.stringify(cache,null,2)
+      );
+
+      console.log("Nuevo dólar agregado:",fecha);
+
+    }
+
+  }catch(err){
+
+    console.warn("No se pudo actualizar dólar:",err.message);
+
+  }
+
+}
 
 // __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
