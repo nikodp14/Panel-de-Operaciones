@@ -1192,9 +1192,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // 🔥 si hay SOLO UNA coincidencia → autocompletar
-      if(normalizedValue.length >= 3 && matchesBarcode.length === 1){
+      if(normalizedValue.length >= 3 && matches.length === 1){
 
-        const unico = matchesBarcode[0];
+        const unico = matches[0];
 
         input.value = unico.barcode; // 🔥 reemplaza por código real
 
