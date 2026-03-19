@@ -626,15 +626,16 @@ body.sidebar-collapsed .container {
 }
 
 .ubicacion-tag{
-  display:inline-flex;
+  display:flex;
   align-items:center;
+  justify-content:space-between;
   background:#eef2ff;
   border:1px solid #c7d2fe;
   border-radius:6px;
   padding:3px 6px;
   font-size:12px;
-  margin:2px;
-  gap:6px;
+  margin:2px 0;
+  width:100%;
 }
 
 .copy-ubicacion{
@@ -688,7 +689,6 @@ body.sidebar-collapsed .container {
 
 .copy-precio {
   cursor: pointer;
-  margin-left: 6px;
   opacity: 0.7;
 }
 
@@ -849,17 +849,17 @@ body.sidebar-collapsed .container {
 }
 
 /* Columna Producto Cot. más ancha */
-#comprasResults table th:first-child,
-#comprasResults table td:first-child{
-  min-width: 200px;
-  width: 200px;
+#comprasResults table th:nth-child(3),
+#comprasResults table td:nth-child(3){
+  min-width: 350px;
+  width: 350px;
 }
 
-/* Columna Producto Cot. más ancha */
-#comprasResults table th:first-child,
-#comprasResults table td:first-child{
-  min-width: 200px;
-  width: 200px;
+#comprasResults table th:nth-child(2),
+#comprasResults table th:nth-child(2){
+  width: 28px;
+  min-width: 28px;
+  text-align: center;
 }
 
 .producto-comprar{
@@ -1105,7 +1105,7 @@ td:has(.unidades-vendidas){
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:6px;
+  gap:1px;
 }
 
 .envio-input {
@@ -1175,4 +1175,72 @@ td:has(.unidades-vendidas){
 .codigo-wrapper .codigo-input{
   flex:1;
   min-width:0;
+}
+
+/* columna unidades vendidas */
+.ventas-particulares-card table th:nth-child(5),
+.ventas-particulares-card table td:nth-child(5){
+  width: 90px;
+  max-width: 90px;
+  text-align: center;
+}
+
+.ventas-particulares-card .unidades-vendidas{
+  width: 40px;
+  text-align: center;
+}
+
+.ventas-particulares-card table th:nth-child(3),
+.ventas-particulares-card table td:nth-child(3){
+  width: 30%;
+}
+
+.fila-ingresada{
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.parametros-compra{
+  display:flex;
+  gap:20px;
+  align-items:flex-end;
+}
+
+.parametros-compra .campo{
+  display:flex;
+  flex-direction:column;
+}
+
+#gananciaIndividual,
+#gananciaPack{
+  width:70px;
+}
+
+.total-odoo{
+  display:flex;
+  justify-content:flex-end;
+  width:90px; /* ajusta según tu layout */
+}
+
+#totalConIvaFooter{
+  display:flex;
+  justify-content:flex-end;
+  width:90px; /* ajusta según tu layout */
+}
+
+.total-compra
+{
+  display:flex;
+  justify-content:flex-end;
+  width:90px; /* ajusta según tu layout */
+}
+
+#totalCompraFooter{
+  display:flex;
+  justify-content:flex-end;
+  width:90px; /* ajusta según tu layout */
+}
+
+.fila-error{
+  background:#fee2e2;
 }

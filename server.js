@@ -95,6 +95,28 @@ async function precargarDolar(){
 
 }
 
+app.post('/api/contador-internacional', (req, res) => {
+
+  const filePath = './data/contador-internacional.json';
+
+  let data = { ultimo: 0 };
+
+  try {
+    if (fs.existsSync(filePath)) {
+      data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Error leyendo contador:', err);
+  }
+
+  data.ultimo = (data.ultimo || 0) + 1;
+
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+  res.json({ numero: data.ultimo });
+
+});
+
 app.get("/api/dolar", (req,res)=>{
 
   const fecha = req.query.fecha;

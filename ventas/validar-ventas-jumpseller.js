@@ -524,13 +524,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const code = String(barcode).trim().toLowerCase();
 
     return stockOdooCache
-      .filter(r => r.barcode.toLowerCase() === code)
-      .map(r => ({
-        ubicacion: r.ubicacion,
-        cantidad: r.cantidad
-      }))
-      .filter(r => r.ubicacion);
-
+    .filter(r => r.barcode.toLowerCase() === code)
+    .map(r => ({
+      ubicacion: r.ubicacion,
+      cantidad: r.cantidad
+    }))
+    .filter(r => r.ubicacion)
+    .sort((a,b)=>b.cantidad-a.cantidad);
   }
 
   function getVarianteOdooPorCodigo(barcode) {
@@ -601,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .trim()
       .toUpperCase()
       .replace(/\s+/g, '')     // quita espacios
-      .replace(/[-–—]/g, '')  // quita guiones
+      //.replace(/[-–—]/g, '')  // quita guiones, se modifica para corregir - para ubicaciones
       .replace(/\.0$/, '');   // quita .0 típico de Excel
   }
 
@@ -1353,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', () => {
               if (existeVentaEnOdooConOtroCodigo) {
                 obsFinal = 'EXISTE LA VENTA EN ODOO, PERO CON OTRO CÓDIGO';
               } else {
-                obsFinal = 'PRODUCTO NO REGISTRADO EN ODOO';
+                obsFinal = 'REGISTRAR VENTA EN ODOO';
               }
 
             } else {
@@ -1504,7 +1504,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
-          if (!obsFinal && escaneoValido) {
+          if (!obsFinal) {
             observacionesOK.push(itemBase);
           } else {
             observaciones.push(itemBase);
@@ -1769,7 +1769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
             <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
           </td>
-          <td class="obs-cell ${item.obs === 'INGRESE PRODUCTO A DESPACHAR' || item.obs === 'ESCANEE EL PRODUCTO' || item.obs === 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER' || item.obs === 'PRODUCTO A DESPACHAR INCORRECTO' ? 'error-cell' : ''}">
+          <td class="obs-cell error-cell">
             ${item.obs}
           </td>
         `;

@@ -30,12 +30,27 @@
         <button id="usarNumeroCotBtn">Ingresar N° cotización</button>
         <button id="verCotizacionesBtn">Cotizaciones ingresadas</button>
       </div>
-      <div class="container">
-        <label>Fecha pedido</label>
-        <input type="date" id="fechaPedido">
+      <div class="container parametros-compra">
+        <div class="campo">
+          <label>Fecha pedido</label>
+          <input type="date" id="fechaPedido">
+        </div>
 
-        <!--<label style="margin-left:20px;">USD + $30</label>-->
-        <label>Precio Dólar Compra: <span id="dolarCalculado">-</span></label>
+        <div class="campo">
+          <label>Precio Dólar Compra</label>
+          <div id="dolarCalculado">-</div>
+        </div>
+
+        <div class="campo">
+          <label>% Gan.</label>
+          <input type="number" id="gananciaIndividual" value="80" step="1">
+        </div>
+
+        <div class="campo">
+          <label>% Gan. Pack</label>
+          <input type="number" id="gananciaPack" value="70" step="1">
+        </div>
+
       </div>
       <!--<div class="container">
         <label>Para crear producto YAMAHA original duplicar: Base Producto Original</label>
@@ -46,6 +61,15 @@
             <table>
               <thead>
                 <tr>
+                  <th>
+                    Sel.
+                    <input type="checkbox" id="checkAllExport">
+                  </th>
+
+                  <th>
+                    Ingr
+                    <input type="checkbox" id="checkAllIngresado">
+                  </th>
                   <th>Producto Cot.</th>
                   <th>Cant.</th>
                   <th>Total USD</th>
@@ -54,6 +78,8 @@
                   <th>Total línea Odoo</th>
                   <th>N° Publicación</th>
                   <th>Estado Publicación</th>
+                  <th>% Gan.</th>
+                  <th>Precio Caja</th>
                   <th class="precio-jumpseller-header">Precio Jumpseller / Marketplace</th>
                   <th>Costo Envío ML</th>
                   <th>% Comis.</th>
@@ -64,7 +90,7 @@
               <tbody id="comprasBody"></tbody>
               <tfoot>
                 <tr>
-                  <td colspan="5" style="text-align:right;"><strong>Total Odoo:</strong></td>
+                  <td colspan="7" style="text-align:right;"><strong>Total Odoo:</strong></td>
                   <td id="totalConIvaFooter">0</td>
                 </tr>
               </tfoot>
@@ -72,6 +98,7 @@
           </div>
 
           <button id="addRowBtn" class="primary-btn">+ Agregar línea</button>
+          <button id="exportarExcelBtn" disabled>Exportar cotización</button>
         </section>
 
       </div>

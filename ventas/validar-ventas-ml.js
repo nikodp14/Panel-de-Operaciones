@@ -382,13 +382,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const code = String(barcode).trim().toLowerCase();
 
     return stockOdooCache
-      .filter(r => r.barcode.toLowerCase() === code)
-      .map(r => ({
-        ubicacion: r.ubicacion,
-        cantidad: r.cantidad
-      }))
-      .filter(r => r.ubicacion);
-
+    .filter(r => r.barcode.toLowerCase() === code)
+    .map(r => ({
+      ubicacion: r.ubicacion,
+      cantidad: r.cantidad
+    }))
+    .filter(r => r.ubicacion)
+    .sort((a,b)=>b.cantidad-a.cantidad);
   }
 
   function getVarianteOdooPorCodigo(barcode) {
@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .trim()
       .toUpperCase()
       .replace(/\s+/g, '')     // quita espacios
-      .replace(/[-–—]/g, '')  // quita guiones
+      //.replace(/[-–—]/g, '')  // quita guiones, se modifica para corregir - para ubicaciones
       .replace(/\.0$/, '');   // quita .0 típico de Excel
   }
 
@@ -1245,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
-          if (!obsFinal && escaneoValido) {
+          if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
           } else {
             observaciones.push(itemBase);
@@ -1289,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ultimaVenta != item.ventaMLFinal)
           pintarPrimeraLineaPaquete = true;
 
-        console.log(ultimaVenta, item.ventaMLFinal);
+        //console.log(ultimaVenta, item.ventaMLFinal);
 
         ultimaVenta = item.ventaMLFinal;
 
@@ -1300,8 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.classList.add('pack-parent');
           pintarPrimeraLineaPaquete = false;
         }
-
-        if (item.esPack) {
+		    else if (item.esPack) {
           tr.classList.add('pack-row');
         }
         else if (highlightDespacho) {
@@ -1490,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
             </div>
           </td>
-          <td class="obs-cell ${item.obs === 'REGISTRAR VENTA EN ODOO' || item.obs === 'INGRESE PRODUCTO A DESPACHAR' || item.obs === 'ESCANEE EL PRODUCTO' || item.obs === 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER' || item.obs === 'PRODUCTO A DESPACHAR INCORRECTO' ? 'error-cell' : ''}">
+          <td class="obs-cell error-cell">
             ${item.obs}
           </td>
         `;
@@ -1518,8 +1517,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.esLineaHijaPaquete) {
           tr.classList.add('paquete-hija-row');
         }
-
-        if (item.esPack) {
+		    else if (item.esPack) {
           tr.classList.add('pack-row');
         }
         else if (highlightDespacho) {
@@ -1702,7 +1700,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const nombreEl = tr.querySelector('.nombre-valor');
     const varianteEl = tr.querySelector('.variante-valor');
 
-    const info = getVarianteOdooPorCodigo(input.value);
+    const ubicacionesCell = tr.querySelector('.ubicaciones-col');
+
+    if (ubicacionesCell) {
+
+      const codigo = normCodigo(input.value);
+      const ubicaciones = getUbicacionesPorCodigo(codigo);
+
+      if (!ubicaciones.length) {
+        ubicacionesCell.innerHTML = '—';
+      } else {
+
+        ubicacionesCell.innerHTML = ubicaciones.map(u => `
+          <div class="ubicacion-tag">
+            <span class="ubicacion-text">
+              ${u.ubicacion} <b>(${u.cantidad})</b>
+            </span>
+            <span class="copy-ubicacion"
+                  data-ubicacion="${u.ubicacion}"
+                  title="Copiar ubicación">📋</span>
+          </div>
+        `).join('');
+
+      }
+
+    }
+
+    const info = getVarianteOdooPorCodigo(normCodigo(input.value)) || {};
+
+    nombreEl.textContent = info.name || '—';
+    varianteEl.textContent = info.variant || '—';
 
     if (info) {
       if (nombreEl) nombreEl.textContent = info.name || '—';

@@ -372,8 +372,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     function addRow() {
     const tr = document.createElement('tr');
+    const descuentoGlobal = document.getElementById('descuentoGlobal').value || 30;
 
     tr.innerHTML = `
+        <td style="display:none;">
+          <input type="checkbox" class="export-check">
+        </td>
+
+        <td style="display:none;">
+          <input type="checkbox" class="ingresado-check">
+        </td>
       <td style="position: relative;">
         <div class="producto-comprar">
           <div class="codigo-row">
@@ -401,7 +409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </td>
       <td class="total-compra">0</td>
       <td>
-        <input type="number" class="descuento-input" value="30" min="0" max="100" style="width:60px;">
+        <input type="number" class="descuento-input" value="${descuentoGlobal}" min="0" max="100" style="width:60px;">
       </td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
@@ -443,7 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const totalOdooLinea = cantidad * precioSinIva;
 
-      tr.querySelector('.total-compra').textContent = totalLinea.toFixed(0);
+      tr.querySelector('.total-compra').textContent = '$ ' + Math.round(totalLinea.toFixed(0)).toLocaleString('es-CL');
       tr.querySelector('.precio-odoo').textContent = precioSinIva.toFixed(0);
       tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
       tr.querySelector('.precio-jumpseller').innerHTML = renderCopiable(precioJumpseller.toFixed(0));
@@ -505,7 +513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     });
 
-    totalCompraFooter.textContent = totalCompra.toFixed(0);
+    totalCompraFooter.textContent = '$ ' + Math.round(totalCompra.toFixed(0)).toLocaleString('es-CL');
     totalConIvaFooter.textContent = (totalOdoo * 1.19).toFixed(0);
   }
 
@@ -681,12 +689,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
+    const descuentoGlobal =
+      document.getElementById('descuentoGlobal')?.value || 30;
+
     await fetch(`/api/cotizaciones-nacional/${cot}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ lineas })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        descuentoGlobal,
+        lineas
+      })
     });
   }
 
@@ -699,6 +711,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cotData = await res.json();
 
     body.innerHTML = '';
+
+    if(cotData.descuentoGlobal !== undefined){
+      document.getElementById('descuentoGlobal').value =
+        cotData.descuentoGlobal;
+    }
 
     if (!cotData) {
       addRow();
@@ -838,4 +855,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     guardarCotizacion();
 
   });
+
+  function actualizarEstadoIngresado(tr){
+
+    const ingresado = tr.querySelector('.ingresado-check').checked;
+    const exportCheck = tr.querySelector('.export-check');
+
+    if(ingresado){
+
+      tr.classList.add('fila-ingresada');
+
+      if(exportCheck){
+        exportCheck.checked = false;
+        exportCheck.style.display = 'none';
+      }
+
+    }else{
+
+      tr.classList.remove('fila-ingresada');
+
+      if(exportCheck){
+        exportCheck.style.display = '';
+      }
+
+    }
+
+    actualizarEstadoExportacion();
+  }
+
+  if(e.target.classList.contains('ingresado-check')){
+
+    const tr = e.target.closest('tr');
+
+    actualizarEstadoIngresado(tr);
+
+  }
 });

@@ -185,9 +185,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!code) return [];
 
     return stockOdooCache
-    .filter(r=>r.barcode===code)
-    .map(r=>`${r.ubicacion} (${r.cantidad})`);
-
+    .filter(r => r.barcode === code)
+    .map(r => ({
+      ubicacion: r.ubicacion,
+      cantidad: r.cantidad
+    }))
+    .sort((a,b)=>b.cantidad-a.cantidad);;
   }
 
   function renderUbicaciones(tr, code){
@@ -198,11 +201,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       ubic.length
       ? ubic.map(u => {
 
-          const ubicacionLimpia = u.replace(/\s*\(\d+\)$/, "");
+          const ubicacionLimpia = u.ubicacion;
 
           return `
             <div class="ubicacion-tag">
-              <span class="ubicacion-text">${u}</span>
+              <span class="ubicacion-text">
+                ${u.ubicacion} <b>(${u.cantidad})</b>
+              </span>
               <span class="copy-btn" data-copy="${ubicacionLimpia}">📋</span>
             </div>
           `;
@@ -220,6 +225,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     return variantesOdooCache.find(v=>v.barcode===code) || null;
 
+  }
+
+  function getFechaHoy(){
+
+    const hoy = new Date();
+
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth()+1).padStart(2,"0");
+    const dd = String(hoy.getDate()).padStart(2,"0");
+
+    return `${yyyy}-${mm}-${dd}`;
   }
 
   /* ================================
@@ -265,7 +281,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     </td>
 
     <td class="ubicaciones-col"></td>
-
     <td>
       <input type="number" class="unidades-vendidas" value="1">
       <span class="copy-btn copy-unidades">📋</span>
@@ -305,6 +320,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
 
     resultsBody.appendChild(tr);
+    
+    const fechaInput = tr.querySelector(".fecha-input");
+    if(fechaInput) fechaInput.value = getFechaHoy();
   }
 
   /* ================================
@@ -763,6 +781,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!data.length) return;
 
     resultsBody.innerHTML="";
+
+    data.sort((a,b)=>Number(b.venta) - Number(a.venta));
 
     data.forEach(v=>{
 

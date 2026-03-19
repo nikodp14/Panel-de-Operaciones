@@ -41,6 +41,15 @@
             <table>
               <thead>
                 <tr>
+                  <th style="display:none;">
+                    Sel.
+                    <input type="checkbox" id="checkAllExport">
+                  </th>
+
+                  <th style="display:none;">
+                    Ing.
+                    <input type="checkbox" id="checkAllIngresado">
+                  </th>
                   <th>Producto Cot.</th>
                   <th>Cant.</th>
                   <th>Precio</th>
@@ -60,13 +69,13 @@
               <tbody id="comprasBody"></tbody>
               <tfoot>
                 <tr>
-                  <td colspan="3" style="text-align:right;"><strong>Total cot.:</strong></td>
+                  <td colspan="5" style="text-align:right;"><strong>Total cot.:</strong></td>
                   <td id="totalCompraFooter">0</td>
                   <td></td>
                   <td></td>
                 </tr>
                 <tr>
-                  <td colspan="5" style="text-align:right;"><strong>Total Odoo c/iva:</strong></td>
+                  <td colspan="7" style="text-align:right;"><strong>Total Odoo c/iva:</strong></td>
                   <td id="totalConIvaFooter">0</td>
                 </tr>
               </tfoot>

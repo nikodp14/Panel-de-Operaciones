@@ -1,4 +1,44 @@
 let jumpsellerPriceMapCache = null;
+const gananciaIndividualInput = document.getElementById('gananciaIndividual');
+const gananciaPackInput = document.getElementById('gananciaPack');
+
+function actualizarChecksHeader(){
+
+  const filas = document.querySelectorAll('#comprasBody tr');
+
+  const checksIngresado = [...filas]
+    .map(tr => tr.querySelector('.ingresado-check'))
+    .filter(Boolean);
+
+  const checksExport = [...filas]
+    .map(tr => tr.querySelector('.export-check'))
+    .filter(Boolean);
+
+  const allIngresado = checksIngresado.length &&
+    checksIngresado.every(c => c.checked);
+
+  const allExport = checksExport.length &&
+    checksExport.every(c => c.checked);
+
+  document.getElementById('checkAllIngresado').checked = allIngresado;
+  document.getElementById('checkAllExport').checked = allExport;
+}
+
+function actualizarEstadoExportacion(){
+
+  const checks = document.querySelectorAll('.export-check');
+  const algunoMarcado = [...checks].some(c => c.checked);
+
+  document.getElementById('exportarExcelBtn').disabled = !algunoMarcado;
+}
+
+function getGananciaIndividual(){
+  return Number(gananciaIndividualInput.value || 80) / 100;
+}
+
+function getGananciaPack(){
+  return Number(gananciaPackInput.value || 70) / 100;
+}
 
 async function loadJumpsellerPriceMap(){
 
@@ -178,7 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function actualizarPrecioJumpseller(tr, precioOdoo, numeroPub, esPack){
 
-    const precio = calcularPrecioJumpseller(precioOdoo, esPack);
+    const precio = calcularPrecioJumpseller(precioOdoo, esPack, tr);
 
     const actual = jumpsellerPriceMap?.get(numeroPub) || 0;
 
@@ -661,6 +701,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     tr.dataset.rowid = crypto.randomUUID();
 
     tr.innerHTML = `
+      <td>
+        <input type="checkbox" class="export-check">
+      </td>
+
+      <td>
+        <input type="checkbox" class="ingresado-check">
+      </td>
       <td style="position: relative;">
         <div class="producto-comprar">
           <div class="codigo-row">
@@ -692,6 +739,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="total-odoo">0</td>
       <td class="ml-col numero-publicacion"></td>
       <td class="ml-col estado-publicacion"></td>
+      <td class="porcentaje-ganancia">0</td>
+      <td>
+        <input type="number" class="precio-caja-input" min="0" value="0">
+      </td>
       <td class="ml-col precio-jumpseller">0</td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
@@ -704,13 +755,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     body.appendChild(tr);
+
+    actualizarChecksHeader();
   }
 
-  function calcularPrecioJumpseller(precioOdoo, esPack){
+  function calcularPrecioJumpseller(precioOdoo, esPack, tr){
 
-    const margen = esPack ? 1.7 : 1.8;
+    const margen = esPack
+      ? 1 + getGananciaPack()
+      : 1 + getGananciaIndividual();
 
-    const base = precioOdoo * margen * 1.19;
+    const precioCaja = Number(
+      tr.querySelector('.precio-caja-input')?.value || 0
+    );
+
+    const base = (precioOdoo * margen * 1.19) + precioCaja;
 
     return Math.ceil((base - 990) / 1000) * 1000 + 990;
 
@@ -759,6 +818,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const dataMap = comisionMapCache?.get(numeroPub);
 
+    const gananciaEl = tr.querySelector('.porcentaje-ganancia');
+
+    if(gananciaEl){
+      const porcentaje = esPack
+        ? gananciaPackInput.value
+        : gananciaIndividualInput.value;
+
+      gananciaEl.textContent = porcentaje + '%';
+    }
+
     pintarEstadoPublicacion(
       tr.querySelector('.estado-publicacion'),
       dataMap?.estado
@@ -768,6 +837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Number(tr.querySelector('.total-input')?.value || 0);
 
     let precioUSD;
+    let cantidad;
 
     if(parent){ // sub-publicación
 
@@ -779,7 +849,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     }else{ // línea principal
 
-      const cantidad =
+      cantidad =
         Number(tr.querySelector('.cantidad-input')?.value) || 0;
 
       precioUSD = cantidad ? totalLinea / cantidad : 0;
@@ -815,7 +885,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if(precioUsdEl) precioUsdEl.textContent = precioUSD.toFixed(2);
       if(precioOdooEl) precioOdooEl.innerHTML = renderCopiable(precioOdoo.toFixed(0));
-      if(totalOdooEl) totalOdooEl.textContent = precioOdoo.toFixed(0);
+      if(totalOdooEl) totalOdooEl.textContent = '$ ' + Math.round(precioOdoo.toFixed(0) * cantidad).toLocaleString('es-CL');
     }
 
     actualizarPrecioJumpseller(tr, precioOdoo, numeroPub, esPack);
@@ -840,7 +910,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     else{
 
-      precioML = calcularPrecioML(precioOdoo, comision, envio);
+      precioML = calcularPrecioML(
+        precioOdoo,
+        comision,
+        envio,
+        esPack,
+        tr
+      );
 
       precioMLEl.innerHTML =
         renderCopiable(precioML.toFixed(0));
@@ -864,18 +940,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     let totalOdoo = 0;
 
     document
-      .querySelectorAll('#comprasBody tr:not(.sub-publicacion)')
-      .forEach(tr=>{
+    .querySelectorAll('#comprasBody tr:not(.sub-publicacion)')
+    .forEach(tr=>{
 
-        const {totalLinea, precioOdoo} = calcularFila(tr);
+      const exportCheck = tr.querySelector('.export-check');
+      const ingresadoCheck = tr.querySelector('.ingresado-check');
 
-        const cantidad =
-          Number(tr.querySelector('.cantidad-input')?.value) || 0;
+      // 🔥 solo considerar seleccionados y NO ingresados
+      if(!exportCheck?.checked) return;
+      if(ingresadoCheck?.checked) return;
 
-        totalCompra += totalLinea;
-        totalOdoo += cantidad * precioOdoo;
+      calcularFila(tr); // 🔥 siempre recalcula UI
 
-    });
+      const precioOdoo = Number(
+        tr.querySelector('.precio-odoo .copiable-value')?.textContent || 0
+      );
+
+      const cantidad =
+        Number(tr.querySelector('.cantidad-input')?.value) || 0;
+
+      totalOdoo += cantidad * precioOdoo;
+
+  });
 
     document
       .querySelectorAll('#comprasBody tr.sub-publicacion')
@@ -890,7 +976,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     });
 
-    totalConIvaFooter.textContent = totalOdoo.toFixed(0);
+    totalConIvaFooter.textContent =
+    '$ ' + Math.round(totalOdoo).toLocaleString('es-CL');
 
   }
 
@@ -942,6 +1029,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = comisionMap.get(pub);
 
         sub.innerHTML = `
+          <td></td>
+          <td></td>
           <td class="subproducto">
             ↳ publicación adicional
             <div class="subtitulo">${data?.titulo || ''}</div>
@@ -966,7 +1055,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="ml-col estado-publicacion">
             ${data?.estado || ''}
           </td>
-
+          <td></td>
+          <td></td>
           <td class="ml-col precio-jumpseller"></td>
 
           <td class="ml-col">
@@ -1024,6 +1114,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  let exactMatch = null;
+
   body.addEventListener('input', async (e) => {
 
     if (e.target.classList.contains('codigo-input')) {
@@ -1039,14 +1131,58 @@ document.addEventListener('DOMContentLoaded', async () => {
       const lowerValue = rawValue.toLowerCase();
 
       // 🔥 Obtener comisión ML desde barcode
-      await procesarPublicaciones(tr, normalizedValue);
-
-      guardarCotizacion();
+      let codigoFinal = normalizedValue;
 
       // 🔥 Limpiar si no coincide con barcode válido
-      if (!variantesCache.some(v => v.barcode === normalizedValue)){
+      await loadVariantes();
+
+      // 🔥 matches SOLO por barcode (para autocompletar seguro)
+      const matchesBarcode = variantesCache.filter(v =>
+        v.barcode.includes(normalizedValue)
+      );
+
+      // 🔥 matches generales (para sugerencias)
+      const matches = variantesCache.filter(v =>
+        v.barcode.includes(normalizedValue) ||
+        v.name.toLowerCase().includes(lowerValue)
+      );
+
+      const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
+
+      // 🔥 CASO 1: input vacío → limpiar TODO
+      if(!normalizedValue){
         nombreEl.textContent = '';
         varianteEl.textContent = '';
+        tr.classList.remove('fila-error');
+
+        suggestions.innerHTML = '';
+        suggestions.classList.add('hidden');
+
+        return;
+      }
+
+      // 🔥 CASO 2: match exacto → llenar
+      if (exactMatch) {
+
+        nombreEl.textContent = exactMatch.name || '';
+        varianteEl.textContent = exactMatch.variant || '';
+
+        tr.classList.remove('fila-error');
+
+      } else {
+
+        // 🔥 CASO 3: NO match → limpiar SIEMPRE
+        nombreEl.textContent = '';
+        varianteEl.textContent = '';
+
+        tr.classList.add('fila-error');
+      }
+
+      // 🔥 CASO NORMAL (solo si hay match válido)
+      if (exactMatch) {
+        await procesarPublicaciones(tr, codigoFinal);
+        calcularFila(tr);
+        guardarCotizacion();
       }
 
       if (lowerValue.length < 3) {
@@ -1055,25 +1191,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      await loadVariantes();
+      // 🔥 si hay SOLO UNA coincidencia → autocompletar
+      if(normalizedValue.length >= 3 && matchesBarcode.length === 1){
 
-      // 🔥 Autocompletar automático si coincide exactamente
-      const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
+        const unico = matchesBarcode[0];
 
-      if (exactMatch) {
-        nombreEl.textContent = exactMatch.name || '';
-        varianteEl.textContent = exactMatch.variant || '';
+        input.value = unico.barcode; // 🔥 reemplaza por código real
+
+        nombreEl.textContent = unico.name || '';
+        varianteEl.textContent = unico.variant || '';
+
+        tr.classList.remove('fila-error');
+
         suggestions.innerHTML = '';
         suggestions.classList.add('hidden');
+
+        await procesarPublicaciones(tr, unico.barcode);
+        calcularFila(tr);
+        guardarCotizacion();
+
         return;
       }
-
-      const matches = variantesCache
-        .filter(v =>
-          v.barcode.includes(normalizedValue) ||
-          v.name.toLowerCase().includes(lowerValue)
-        )
-        .slice(0, 500);
 
       suggestions.innerHTML = `
         <div class="odoo-header">
@@ -1092,14 +1230,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
 
       suggestions.classList.remove('hidden');
+
+      guardarCotizacion();
     }
 
     if (
       e.target.classList.contains('cantidad-input') ||
       e.target.classList.contains('total-input') ||
       e.target.classList.contains('costo-envio-input') ||
-      e.target.classList.contains('costo-envio-input-sub')
+      e.target.classList.contains('precio-caja-input')
     ){
+      const tr = e.target.closest('tr');
+      if(tr) calcularFila(tr);
       recalcularTotales();
       guardarCotizacion();
     }
@@ -1143,6 +1285,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await procesarPublicaciones(tr, barcode);
     nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
+    tr.classList.remove('fila-error');
 
     guardarCotizacion();
 
@@ -1198,13 +1341,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         r.querySelector('.total-input')?.value || 0
       );
 
+      const barcode = tr.querySelector('.codigo-input')?.value || '';
+
+      const esValido = variantesCache.some(v => v.barcode === barcode);
+
       lineas.push({
-        barcode: tr.querySelector('.codigo-input')?.value || '',
-        nombre: tr.querySelector('.nombre-valor')?.textContent || '',
-        variante: tr.querySelector('.variante-valor')?.textContent || '',
+        barcode,
+        nombre: esValido ? (tr.querySelector('.nombre-valor')?.textContent || '') : '',
+        variante: esValido ? (tr.querySelector('.variante-valor')?.textContent || '') : '',
         cantidad: tr.querySelector('.cantidad-input')?.value || 0,
         total: tr.querySelector('.total-input')?.value || 0,
         costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0,
+        precioCaja: tr.querySelector('.precio-caja-input')?.value || 0,
+        ingresado: tr.querySelector('.ingresado-check')?.checked || false,
+        seleccionado: tr.querySelector('.export-check')?.checked || false,
         subEnvios,
         subTotales
       });
@@ -1216,6 +1366,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fecha: fechaPedidoInput.value || '',
+        gananciaIndividual: gananciaIndividualInput.value,
+        gananciaPack: gananciaPackInput.value,
         lineas
       })
     });
@@ -1228,6 +1380,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const res = await fetch(`/api/cotizaciones-internacional/${cot}`);
     const cotData = await res.json();
+
+    if(cotData?.gananciaIndividual){
+      gananciaIndividualInput.value = cotData.gananciaIndividual;
+    }
+
+    if(cotData?.gananciaPack){
+      gananciaPackInput.value = cotData.gananciaPack;
+    }
 
     if (cotData?.fecha) {
       fechaPedidoInput.value = cotData.fecha;
@@ -1258,8 +1418,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = barcode;
 
         // 🔥 disparar lógica de sub publicaciones
-        tr.querySelector('.nombre-valor').textContent = l.nombre;
-        tr.querySelector('.variante-valor').textContent = l.variante;
+        const esValido = variantesCache.some(v => v.barcode === barcode);
+
+        if(esValido){
+          tr.querySelector('.nombre-valor').textContent = l.nombre;
+          tr.querySelector('.variante-valor').textContent = l.variante;
+        }else{
+          tr.querySelector('.nombre-valor').textContent = '';
+          tr.querySelector('.variante-valor').textContent = '';
+        }
 
         await procesarPublicaciones(tr, barcode);
 
@@ -1301,11 +1468,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.total-input').value = l.total;
         tr.querySelector('.costo-envio-input').value = l.costoEnvio || 0;
+        tr.querySelector('.precio-caja-input').value = l.precioCaja || 0;
+
+        calcularFila(tr);
+        
+        if(l.seleccionado){
+          const checkSel = tr.querySelector('.export-check');
+          if(checkSel) checkSel.checked = true;
+        }
+
+        if(l.ingresado){
+          const check = tr.querySelector('.ingresado-check');
+          check.checked = true;
+          actualizarEstadoIngresado(tr);
+        }
       })
     );
 
     recalcularTotales();
     guardarCotizacion();
+    actualizarChecksHeader();
+    actualizarEstadoExportacion();
   }
 
   cargarBtn.addEventListener('click', async () => {
@@ -1326,16 +1509,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   });
 
-  function calcularPrecioML(precioOdoo, comisionPercent, envio) {
+  function calcularPrecioML(precioOdoo, comisionPercent, envio, esPack, tr) {
 
     const comision = comisionPercent / 100;
 
     if (comision >= 1) return 0;
 
-    const brutoNecesario = (((precioOdoo * 1.8)) * 1.19 + envio) / (1 - comision);
+    const margen = esPack
+      ? 1 + getGananciaPack()
+      : 1 + getGananciaIndividual();
 
-    // 🔵 redondear a 990
-    const redondeado = Math.floor(brutoNecesario / 1000) * 1000 + 990;
+    const precioCaja = Number(
+      tr.querySelector('.precio-caja-input')?.value || 0
+    );
+
+    const brutoNecesario =
+      ((precioOdoo * margen * 1.19) + precioCaja + envio) / (1 - comision);
+
+    const redondeado =
+      Math.floor(brutoNecesario / 1000) * 1000 + 990;
 
     return redondeado;
   }
@@ -1435,6 +1627,234 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
 
     }).join('');
+  }
+
+  gananciaIndividualInput.addEventListener('input', ()=>{
+    recalcularTotales();
+    guardarCotizacion();
+  });
+
+  gananciaPackInput.addEventListener('input', ()=>{
+    recalcularTotales();
+    guardarCotizacion();
+  });
+
+  body.addEventListener('change', e=>{
+
+    if(e.target.classList.contains('export-check')){
+      actualizarEstadoExportacion();
+      guardarCotizacion();
+    }
+
+    if(e.target.classList.contains('ingresado-check')){
+      const tr = e.target.closest('tr');
+
+      actualizarEstadoIngresado(tr);
+      guardarCotizacion();
+    }
+
+    actualizarChecksHeader();
+    recalcularTotales();
+
+  });
+
+  document
+  .getElementById('checkAllExport')
+  .addEventListener('change', e=>{
+
+    const checked = e.target.checked;
+
+    document.querySelectorAll('.export-check')
+    .forEach(c => c.checked = checked);
+
+    actualizarEstadoExportacion();
+    recalcularTotales(); // 🔥 clave
+    guardarCotizacion();
+
+  });
+
+  async function exportarPedidoExcelInternacional(){
+
+    const filasInvalidas = [];
+
+    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+      const check = tr.querySelector('.export-check');
+      const ingresado = tr.querySelector('.ingresado-check');
+
+      if(!check || !check.checked) return;
+      if(ingresado && ingresado.checked) return;
+
+      const nombre = tr.querySelector('.nombre-valor')?.textContent?.trim();
+
+      if(!nombre){
+        filasInvalidas.push(tr);
+      }
+
+    });
+
+    filasInvalidas.forEach(tr=>{
+      tr.style.background = '#fee2e2';
+    });
+
+    if(filasInvalidas.length){
+      alert(`⚠️ ${filasInvalidas.length} producto(s) no coinciden con una variante`);
+
+      return; // 🔥 bloquea exportación
+    }
+
+    const resContador = await fetch('/api/contador-internacional', {
+      method: 'POST'
+    });
+
+    const dataContador = await resContador.json();
+
+    const refOrden = 'I' + String(dataContador.numero).padStart(5,'0');
+
+    const now = new Date();
+
+    const fecha =
+      String(now.getDate()).padStart(2,'0') + '-' +
+      String(now.getMonth()+1).padStart(2,'0') + '-' +
+      now.getFullYear() + ' ' +
+      String(now.getHours()).padStart(2,'0') + ':' +
+      String(now.getMinutes()).padStart(2,'0') + ':' +
+      String(now.getSeconds()).padStart(2,'0');
+
+    const rows = [];
+
+    rows.push([
+      "Referencia de la orden",
+      "Proveedor",
+      "Fecha de confirmación",
+      "Fecha límite de la orden",
+      "Líneas del pedido/Cantidad",
+      "Líneas del pedido/Producto",
+      "Líneas del pedido/Precio unitario"
+    ]);
+
+    const lineas = [];
+
+    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+      const check = tr.querySelector('.export-check');
+      const ingresado = tr.querySelector('.ingresado-check');
+
+      if(!check || !check.checked) return;
+      if(ingresado && ingresado.checked) return;
+
+      const producto = tr.querySelector('.codigo-input')?.value || '';
+      const cantidad = tr.querySelector('.cantidad-input')?.value || '';
+      const precio = Number(
+        tr.querySelector('.precio-odoo .copiable-value')?.textContent || 0
+      );
+
+      if(!producto) return;
+
+      lineas.push({cantidad, producto, precio});
+
+    });
+
+    lineas.forEach((l,i)=>{
+
+      rows.push([
+        i === 0 ? refOrden : "",
+        i === 0 ? "AliExpress" : "",
+        i === 0 ? "" : "",
+        i === 0 ? fecha : "",
+        l.cantidad,
+        l.producto,
+        l.precio
+      ]);
+
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Pedido");
+
+    XLSX.writeFile(wb, `pedido_${refOrden}.xlsx`);
+
+    const confirmar = confirm('¿Marcar líneas exportadas como ingresadas?');
+
+    if(confirmar){
+
+      document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+        const checkExport = tr.querySelector('.export-check');
+        const checkIngresado = tr.querySelector('.ingresado-check');
+
+        if(!checkExport || !checkIngresado) return;
+
+        if(checkExport.checked){
+
+          checkIngresado.checked = true;
+
+          actualizarEstadoIngresado(tr);
+        }
+
+      });
+
+      actualizarEstadoExportacion();
+      recalcularTotales();
+      guardarCotizacion();
+    }
 
   }
+
+  document
+  .getElementById('exportarExcelBtn')
+  .addEventListener('click', exportarPedidoExcelInternacional);
+
+  function actualizarEstadoIngresado(tr){
+
+    const ingresado = tr.querySelector('.ingresado-check').checked;
+    const exportCheck = tr.querySelector('.export-check');
+
+    if(ingresado){
+
+      tr.classList.add('fila-ingresada');
+      
+      if(exportCheck){
+        exportCheck.checked = false;
+        exportCheck.style.display = 'none';
+      }
+
+    }else{
+
+      tr.classList.remove('fila-ingresada');
+      calcularFila(tr);
+
+      if(exportCheck){
+        exportCheck.style.display = '';
+      }
+
+    }
+
+    actualizarEstadoExportacion();
+  }
+
+  document
+  .getElementById('checkAllIngresado')
+  .addEventListener('change', e=>{
+
+    const checked = e.target.checked;
+
+    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+      const check = tr.querySelector('.ingresado-check');
+
+      if(!check) return;
+
+      check.checked = checked;
+
+      actualizarEstadoIngresado(tr);
+
+    });
+
+    actualizarEstadoExportacion();
+    recalcularTotales();
+    guardarCotizacion();
+  });
 });
