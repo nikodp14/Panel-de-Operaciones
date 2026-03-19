@@ -1244,3 +1244,8 @@ td:has(.unidades-vendidas){
 .fila-error{
   background:#fee2e2;
 }
+
+.col-producto,
+td:nth-child(3) {
+  min-width: 300px;
+}

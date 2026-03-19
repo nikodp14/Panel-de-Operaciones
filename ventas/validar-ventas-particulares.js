@@ -335,6 +335,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     ventaCounter++;
 
+    ordenarTablaDesc();
   });
 
   resultsBody.addEventListener("click",e=>{
@@ -696,8 +697,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       tr.querySelector(".ubicaciones-col").innerHTML =
         ubic.map(u => `
           <div class="ubicacion-tag">
-            <span class="ubicacion-text">${u}</span>
-            <span class="copy-btn" data-copy="${u}">📋</span>
+            <span class="ubicacion-text">
+              ${u.ubicacion} <b>(${u.cantidad})</b>
+            </span>
+            <span class="copy-btn" data-copy="${u.ubicacion}">📋</span>
           </div>
         `).join("");
 
@@ -770,6 +773,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   }
 
+  function ordenarTablaDesc() {
+    const rows = [...resultsBody.querySelectorAll("tr")];
+
+    rows.sort((a, b) => {
+      const va = Number(a.dataset.venta) || 0;
+      const vb = Number(b.dataset.venta) || 0;
+      return vb - va;
+    });
+
+    rows.forEach(r => resultsBody.appendChild(r));
+  }
+
   async function cargarVentasServer(){
 
     const res = await fetch('/api/ventas-particulares');
@@ -788,7 +803,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       agregarLineaVenta(v.venta);
 
-      const tr = resultsBody.lastElementChild;
+      const tr = resultsBody.querySelector(`tr[data-venta="${v.venta}"]:last-child`);
 
       if(v.pack)
         tr.classList.add("pack-parent");
@@ -864,8 +879,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       calcularValorOdoo(tr);
       validarLinea(tr);
-
     });
+    
+    ordenarTablaDesc();
 
     /* ======================
       MARCAR PADRES DE PACK
