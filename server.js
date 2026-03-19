@@ -3,6 +3,9 @@ import path from "path";
 import multer from "multer";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import archiverPkg from "archiver";
+const archiver = archiverPkg.default || archiverPkg;
+
 const app = express();
 app.use(express.json());
 const DOLAR_FILE = "./data/dolar.json";
@@ -263,16 +266,38 @@ app.get('/api/scanner/last', (req, res) => {
 
 });
 
-app.get("/api/debug-storage", (req, res) => {
-  const dataPath = path.join(__dirname, "data");
+app.get('/api/data/download', (req, res) => {
 
-  res.json({
-    uploadDir: dataPath,
-    exists: fs.existsSync(dataPath),
-    files: fs.existsSync(dataPath)
-      ? fs.readdirSync(dataPath)
-      : []
+  console.log("🔥 Descargando data.zip...");
+
+  const dirPath = path.join(__dirname, 'data');
+
+  if (!fs.existsSync(dirPath)) {
+    console.log("❌ Carpeta data no existe");
+    return res.status(404).json({ error: 'Carpeta data no existe' });
+  }
+
+  const zipPath = path.join(__dirname, 'data.zip');
+
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  const output = fs.createWriteStream(zipPath);
+
+  output.on('close', () => {
+    console.log("✅ ZIP creado, enviando...");
+    res.download(zipPath, 'data.zip', () => {
+      fs.unlinkSync(zipPath); // 🔥 borra el zip después
+    });
   });
+
+  archive.on('error', err => {
+    console.error("❌ Error ZIP:", err);
+    res.status(500).send('Error creando ZIP');
+  });
+
+  archive.pipe(output);
+  archive.directory(dirPath, false);
+  archive.finalize();
+
 });
 
 app.get("/api/ml/ventas/codigos", (req, res) => {

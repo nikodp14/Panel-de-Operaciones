@@ -943,4 +943,145 @@ document.addEventListener("DOMContentLoaded", async () => {
   resultsBody.addEventListener("input", guardarVentasDebounced);
   resultsBody.addEventListener("change", guardarVentasDebounced);
   resultsBody.addEventListener("click", guardarVentasDebounced);
+
+  /* ================================
+  AUTO UPDATE DESDE CARPETA
+  ================================ */
+
+  const autoBtn = document.getElementById("autoUpdateBtn");
+  const statusEl = document.getElementById("statusVentas");
+
+  autoBtn?.addEventListener("click", () => {
+    document.getElementById("fileInputOdoo").click();
+  });
+
+  const fileInput = document.getElementById("fileInputOdoo");
+
+  fileInput.addEventListener("change", async (e) => {
+
+    const files = Array.from(e.target.files);
+
+    if(!files.length) return;
+
+    try{
+
+      autoBtn.disabled = true;
+      autoBtn.textContent = "Actualizando...";
+      statusEl.textContent = "📂 Leyendo archivos...";
+
+      // 🔹 limpiar caches
+      variantesOdooCache = [];
+      stockOdooCache = [];
+      odooQtyByVentaCodigo.clear();
+
+      for(const file of files){
+
+        const path = file.webkitRelativePath.toLowerCase();
+
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer,{type:"array"});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+
+        /* ======================
+          VARIANTES
+        ====================== */
+        if(path.includes("product.product")){
+
+          variantesOdooCache = rows.slice(1)
+            .map(r=>({
+              barcode:String(r[1]||"").trim(),
+              name:String(r[2]||"").trim(),
+              variant:String(r[5]||"").trim()
+            }))
+            .filter(v=>v.barcode);
+
+        }
+
+        /* ======================
+          STOCK
+        ====================== */
+        else if(path.includes("stock.quant")){
+
+          const header = rows[0].map(h=>String(h).toLowerCase());
+
+          const COL_BARCODE = header.findIndex(h=>h.includes("código"));
+          const COL_UBICACION = header.findIndex(h=>h.includes("ubicación"));
+          const COL_CANTIDAD = header.findIndex(h=>h.includes("cantidad"));
+
+          stockOdooCache = rows.slice(1)
+            .map(r=>({
+              barcode:String(r[COL_BARCODE]||"").trim(),
+              ubicacion:String(r[COL_UBICACION]||"").trim(),
+              cantidad:Number(r[COL_CANTIDAD]||0)
+            }))
+            .filter(r=>r.barcode);
+
+        }
+
+        /* ======================
+          VENTAS
+        ====================== */
+        else if(path.includes("sale.order")){
+
+          rows.forEach(r=>{
+
+            const venta = String(r[6]||"").trim();
+            const codigo = String(r[8]||"").trim();
+            const qty = Number(r[7]||0);
+
+            if(!venta || !codigo) return;
+
+            const key = `${venta}|${codigo}`;
+
+            odooQtyByVentaCodigo.set(
+              key,
+              (odooQtyByVentaCodigo.get(key)||0)+qty
+            );
+
+          });
+
+        }
+
+      }
+
+      // 🔁 recalcular tabla
+      const rowsUI = resultsBody.querySelectorAll("tr");
+
+      rowsUI.forEach(tr => {
+
+        const code = tr.querySelector(".codigo-input")?.value || "";
+
+        if(code){
+          const info = getVarianteOdooPorCodigo(code);
+
+          if(info){
+            tr.querySelector(".nombre-valor").textContent = info.name;
+            tr.querySelector(".variante-valor").textContent = info.variant;
+            renderUbicaciones(tr, code);
+          }
+        }
+
+        calcularValorOdoo(tr);
+        validarLinea(tr);
+
+      });
+
+      statusEl.textContent = "✅ Archivos cargados correctamente";
+
+    }catch(err){
+
+      console.error(err);
+      statusEl.textContent = "❌ Error leyendo archivos";
+
+    }finally{
+
+      autoBtn.disabled = false;
+      autoBtn.textContent = "Actualizar todo desde Carpeta";
+
+      fileInput.value = ""; // reset
+
+    }
+
+  });
 });
