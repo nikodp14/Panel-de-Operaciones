@@ -617,6 +617,11 @@ app.get("/ventas/validar-ventas-particulares.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "ventas", "validar-ventas-particulares.html"));
 });
 
+app.get("/ventas/analisis-ventas.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "ventas", "analisis-ventas.html"));
+});
+
+
 app.get("/odoo/variantes.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "odoo", "variantes.html"));
 });

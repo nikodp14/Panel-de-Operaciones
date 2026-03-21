@@ -87,3 +87,23 @@
 .layout.sidebar-open .sidebar {
   transform: translateX(0);
 }
+
+.copiable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy-icon {
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+.copiable:hover .copy-icon {
+  opacity: 1;
+}
+
+.copiable.copied {
+  color: green;
+}

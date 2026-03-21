@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Análisis Ventas</title>
+
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+   <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+  <h1>Análisis de Ventas</h1>
+</header>
+
+<div class="layout">
+  <div id="__SIDEBAR__"></div>
+
+  <main class="content">
+    <div class="container">
+
+      <section class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Ventas</th>
+                <th>Código Odoo</th>
+                <th>Nro. Publicación</th>
+              </tr>
+            </thead>
+            <tbody id="analisisBody"></tbody>
+          </table>
+        </div>
+
+        <button id="exportarBtn">Exportar</button>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="/layout.js"></script>
+<script src="/ventas/analisis-ventas.js"></script>
+
+</body>
+</html>
