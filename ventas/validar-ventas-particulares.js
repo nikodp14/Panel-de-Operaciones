@@ -249,7 +249,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     tr.dataset.venta = venta;
 
     tr.innerHTML = `
-
+    <td style="display: none;"></td>
     <td>
       ${venta}
       <span class="copy-btn" data-copy="${venta}">📋</span>
@@ -258,7 +258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     <td>
     <input type="date" class="fecha-input">
     </td>
-
+    <td style="display: none;"></td>
     <td>
 
     <div class="codigo-wrapper">
@@ -313,6 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     <td class="obs-cell"></td>
 
     <td>
+      <button class="lock-btn" title="Bloquear venta">🔒</button>
       <button class="pack-btn">📦</button>
       <button class="delete-btn">🗑</button>
     </td>
@@ -505,7 +506,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     obs = "REGISTRAR VENTA EN ODOO";
 
     else if(qtyOdoo < unidades)
-    obs = "FALTAN UNIDADES POR ENTREGAR";
+    obs = "FALTAN UNIDADES POR ENTREGAR EN ODOO";
 
     else if(qtyOdoo > unidades)
     obs = "EXCESO UNIDADES";
@@ -523,6 +524,65 @@ document.addEventListener("DOMContentLoaded", async () => {
     construirCapsulas();
   }
 
+  function toggleLockVenta(tr){
+
+    const venta = tr.dataset.venta;
+
+    // 🔥 todas las filas del mismo paquete
+    const rows = document.querySelectorAll(`tr[data-venta="${venta}"]`);
+
+    const isLocked = tr.classList.contains("locked");
+
+    if(!isLocked){
+
+      // 🔒 BLOQUEAR TODAS
+      rows.forEach(r => {
+
+        r.classList.add("locked");
+
+        r.querySelectorAll("input, button").forEach(el => {
+          if(!el.classList.contains("lock-btn")){
+            el.disabled = true;
+          }
+        });
+
+        const btn = r.querySelector(".lock-btn");
+        if(btn){
+          btn.textContent = "🔓";
+          btn.title = "Desbloquear venta";
+        }
+
+      });
+
+    }else{
+
+      // 🔓 DESBLOQUEAR TODAS
+      const pass = prompt("Ingrese clave para desbloquear:");
+
+      if(pass !== "4744"){
+        alert("Clave incorrecta");
+        return;
+      }
+
+      rows.forEach(r => {
+
+        r.classList.remove("locked");
+
+        r.querySelectorAll("input, button").forEach(el => {
+          el.disabled = false;
+        });
+
+        const btn = r.querySelector(".lock-btn");
+        if(btn){
+          btn.textContent = "🔒";
+          btn.title = "Bloquear venta";
+        }
+
+      });
+
+    }
+  }
+
   /* ================================
   EVENTOS INPUT
   ================================ */
@@ -531,6 +591,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const tr = e.target.closest("tr");
     if(!tr) return;
+
+    if(tr.classList.contains("locked")) return;
 
     if(
       e.target.classList.contains("unidades-vendidas") ||
@@ -569,8 +631,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       ====================== */
 
       if(value.length < 3){
-        suggestionsEl.classList.add("hidden");
-        suggestionsEl.innerHTML = "";
+          suggestionsEl.classList.add("hidden");
+          suggestionsEl.innerHTML = "";
+
+          // 🔥 limpiar UI
+          tr.querySelector(".nombre-valor").textContent = "";
+          tr.querySelector(".variante-valor").textContent = "";
+          tr.querySelector(".ubicaciones-col").innerHTML = "";
+
+          const copyBtn = tr.querySelector(".copy-codigo");
+          if(copyBtn) copyBtn.remove();
       }else{
 
         const matches = variantesOdooCache
@@ -620,6 +690,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         tr.querySelector(".nombre-valor").textContent = info.name;
         tr.querySelector(".variante-valor").textContent = info.variant;
         renderUbicaciones(tr, code);
+
+        // 🔥 COPY BTN
+        let copyBtn = tr.querySelector(".copy-codigo");
+
+        if(!copyBtn){
+          copyBtn = document.createElement("span");
+          copyBtn.className = "copy-btn copy-codigo";
+          copyBtn.textContent = "📋";
+
+          tr.querySelector(".codigo-wrapper").appendChild(copyBtn);
+        }
+
+        copyBtn.dataset.copy = code;
+
+      }else{
+
+        // 🔥 LIMPIAR CUANDO NO HAY MATCH
+        tr.querySelector(".nombre-valor").textContent = "";
+        tr.querySelector(".variante-valor").textContent = "";
+        tr.querySelector(".ubicaciones-col").innerHTML = "";
+
+        const copyBtn = tr.querySelector(".copy-codigo");
+        if(copyBtn) copyBtn.remove();
 
       }
 
@@ -674,6 +767,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resultsBody.addEventListener("click", (e) => {
 
+    if(e.target.classList.contains("lock-btn")){
+      const tr = e.target.closest("tr");
+      toggleLockVenta(tr);
+      return;
+    }
+
     const option = e.target.closest(".odoo-option");
     if (!option) return;
 
@@ -693,6 +792,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       tr.querySelector(".variante-valor").textContent = info.variant;
 
       const ubic = getUbicacionesPorCodigo(barcode);
+
+      // 🔥 AGREGAR COPY BTN
+      let copyBtn = tr.querySelector(".copy-codigo");
+
+      if(!copyBtn){
+        copyBtn = document.createElement("span");
+        copyBtn.className = "copy-btn copy-codigo";
+        copyBtn.textContent = "📋";
+
+        tr.querySelector(".codigo-wrapper").appendChild(copyBtn);
+      }
+
+      copyBtn.dataset.copy = barcode;
 
       tr.querySelector(".ubicaciones-col").innerHTML =
         ubic.map(u => `
@@ -761,6 +873,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       courier: tr.querySelector(".courier-check")?.checked || false,
       courierValor: tr.querySelector(".courier-valor")?.value || "",
       pack: tr.classList.contains("pack-parent"),
+      locked: tr.classList.contains("locked"),
       paquetehijarow: tr.classList.contains("paquete-hija-row")
 
     }));
@@ -879,6 +992,32 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       calcularValorOdoo(tr);
       validarLinea(tr);
+    });
+    
+    const ventasBloqueadas = new Set(
+      data.filter(v => v.locked).map(v => v.venta)
+    );
+
+    ventasBloqueadas.forEach(venta => {
+
+      const rows = resultsBody.querySelectorAll(`tr[data-venta="${venta}"]`);
+
+      rows.forEach(r => {
+        r.classList.add("locked");
+
+        r.querySelectorAll("input, button").forEach(el => {
+          if(!el.classList.contains("lock-btn")){
+            el.disabled = true;
+          }
+        });
+
+        const btn = r.querySelector(".lock-btn");
+        if(btn){
+          btn.textContent = "🔓";
+          btn.title = "Desbloquear venta";
+        }
+      });
+
     });
     
     ordenarTablaDesc();

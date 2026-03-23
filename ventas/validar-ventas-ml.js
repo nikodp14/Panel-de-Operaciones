@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const ODOO_COL_VENTA = 6;    // Col G: Número de venta (ML)
   const ODOO_COL_CODIGO = 8;   // Col C: Código de producto
   const ODOO_COL_QTY = 7;      // Col H: Cantidad
+  const filesInput = document.getElementById("filesInput");
+  const formatCLP = (n) => new Intl.NumberFormat("es-CL").format(n);
   // === ÍNDICES ML (Ventas ML) ===
   // Ajusta aquí si cambia el formato del Excel de ML
   const ML_COL_VENTA = 0;      // Col A: Número de venta ML
@@ -30,6 +32,274 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const gunModal = document.getElementById("gunScannerModal");
   const closeGun = document.getElementById("closeGunScanner");
+  const exportBtn = document.getElementById("exportVentasBtn");
+
+  const autoUpdateBtn = document.getElementById("autoUpdateBtn");
+  const tituloVentas = document.getElementById("verVentasOdoo");
+  const modal = document.getElementById("modalImagen");
+  const cerrarModal = document.getElementById("cerrarModal");
+  const selectAll = document.getElementById("selectAll");
+
+  selectAll.addEventListener("change", () => {
+    const checks = document.querySelectorAll(".row-check");
+
+    checks.forEach(ch => {
+        ch.checked = selectAll.checked;
+    });
+  });
+
+  tituloVentas.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+  });
+
+  cerrarModal.addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
+
+  // cerrar haciendo click fuera
+  modal.addEventListener("click", (e) => {
+    if(e.target === modal){
+      modal.classList.add("hidden");
+    }
+  });
+
+  const modalContainer = document.getElementById("modalImagesContainer");
+
+  // 🔥 CONFIGURACIÓN DE IMÁGENES POR LINK
+  const ayudas = {
+    verVariantesOdoo: [
+      "/imagenes/variantes-odoo0.jpg",
+      "/imagenes/variantes-odoo1.jpg",
+      "/imagenes/variantes-odoo2.jpg"
+    ],
+     verStockUbicacionesOdoo: [
+      "/imagenes/stock-ubicaciones-odoo0.jpg",
+      "/imagenes/stock-ubicaciones-odoo1.jpg",
+      "/imagenes/stock-ubicaciones-odoo2.jpg"
+    ],
+     verVentasOdoo: [
+      "/imagenes/ventas-odoo0.jpg",
+      "/imagenes/ventas-odoo1.jpg",
+      "/imagenes/ventas-odoo2.jpg"
+    ],
+    verExcelVentasML: [
+      "/imagenes/ventas-ml1.jpg",
+      "/imagenes/ventas-ml2.jpg"
+    ]
+  };
+
+  // 🔥 ACTIVAR TODOS LOS LINKS AUTOMÁTICAMENTE
+  Object.keys(ayudas).forEach(id => {
+
+    const el = document.getElementById(id);
+    if(!el) return;
+
+    el.addEventListener("click", () => {
+
+      const images = ayudas[id];
+
+      modalContainer.innerHTML = images.map(src => `
+        <img src="${src}" class="modal-img" />
+      `).join("");
+
+      modal.classList.remove("hidden");
+
+    });
+
+  });
+
+  function actualizarSelectAll() {
+
+    const checks = document.querySelectorAll(".row-check");
+    const total = checks.length;
+    const activos = Array.from(checks).filter(c => c.checked).length;
+
+    const selectAll = document.getElementById("selectAll");
+
+    selectAll.checked = total > 0 && total === activos;
+    selectAll.indeterminate = activos > 0 && activos < total;
+  }
+
+  function mostrarResumenExportacion(resumen) {
+
+    return new Promise(resolve => {
+
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      let html = `
+        <div class="confirm-box" style="min-width:400px;">
+          <h3>Verifique la carga en Odoo</h3>
+          <table style="width:100%; margin-top:10px; color:white;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Número</th>
+                <th style="text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      Object.entries(resumen).forEach(([orden, total]) => {
+        html += `
+          <tr>
+            <td>${orden}</td>
+            <td style="text-align:right;">${formatCLP(total)}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+
+          <div style="margin-top:15px;">
+            <button id="confirmExport">Confirmar</button>
+            <button id="cancelExport">Cancelar</button>
+          </div>
+        </div>
+      `;
+
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+
+      modal.querySelector("#confirmExport").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancelExport").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+
+  filesInput.addEventListener("change", async () => {
+
+    const files = Array.from(filesInput.files);
+
+    if (!files.length) return;
+
+    showToast("Subiendo archivos...", 1500);
+
+    for (const file of files) {
+
+      try {
+
+        const formData = new FormData();
+        formData.append("archivo", file);
+        formData.append("lastModified", file.lastModified);
+
+        // 🔥 detectar tipo automáticamente
+        const name = file.name.toLowerCase();
+
+        let endpoint = "";
+
+        if (name.includes("_ventas_cl_mercado_libre_")) {
+          endpoint = "/api/ml/ventas";
+        } 
+        else if (name.includes("sale.order")) {
+          endpoint = "/api/odoo/ventas";
+        }
+        else if (name.includes("product.product")) {
+          endpoint = "/api/odoo/variantes";
+        }
+        else if (name.includes("stock.quant")) {
+          endpoint = "/api/odoo/stock";
+        } 
+        else {
+          showToast(`Archivo no reconocido: ${file.name}`, 3000, "error");
+          continue;
+        }
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          showToast(err.error || `Error en ${file.name}`, 3000, "error");
+          continue;
+        }
+
+        showToast(`✔ ${file.name} cargado`, 1500);
+
+      } catch (err) {
+        console.error(err);
+        showToast(`Error subiendo ${file.name}`, 3000, "error");
+      }
+    }
+
+    showToast("Carga finalizada 🚀", 1500);
+
+    await runValidacionVentas();
+
+  });
+
+  function confirmarCantidad(cantidad) {
+    return new Promise((resolve) => {
+
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      modal.innerHTML = `
+        <div class="confirm-box">
+          <p>¿Confirma que está despachando ${cantidad} unidades?</p>
+          <button id="okBtn">Confirmar</button>
+          <button id="cancelBtn">Cancelar</button>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      modal.querySelector("#okBtn").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancelBtn").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+      modal.classList.add("hidden");
+    }
+  });
+
+  autoUpdateBtn.addEventListener("click", async () => {
+
+    try {
+      showToast("Actualizando archivos...", 1500);
+
+      const res = await fetch('/api/data/update-all', { method: 'POST' });
+
+      // 🔥 AQUÍ TU NUEVA LÓGICA
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.error || "Error actualizando archivos", 3000, "error");
+        return;
+      }
+
+      showToast("Archivos actualizados ✅", 1500);
+
+      await runValidacionVentas();
+
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión", 2000, "error");
+    }
+
+  });
+
+  exportBtn.addEventListener("click", exportarVentasOdoo);
 
   resultsBody.addEventListener("click", e => {
 
@@ -64,9 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
-  closeGun.onclick = () => {
-    gunModal.classList.add("hidden");
-  };
+  if (closeGun && gunModal) {
+    closeGun.onclick = () => {
+      gunModal.classList.add("hidden");
+    };
+  }
 
   async function pollScanner() {
 
@@ -120,6 +392,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
 
+      const cantidad = Number(
+        tr.querySelector('.qty-valor')?.textContent || 0
+      );
+
+      if (cantidad > 1) {
+
+        const ok = await confirmarCantidad(cantidad);
+
+        if (!ok) {
+          showToast("Despacho cancelado ❌", 1500, "error");
+
+          // limpiar UI
+          scanResultEl.textContent = "—";
+          lastScannedCode = null;
+
+          return; // 🚫 IMPORTANTE
+        }
+      }
+
       // Persistir escaneo
       await fetch('/api/ml/ventas/codigos', {
         method: 'POST',
@@ -147,7 +438,6 @@ document.addEventListener('DOMContentLoaded', () => {
     await validarLineaDespacho(tr, input);
 
     showToast("Producto escaneado 📦", 1500);
-
   }
 
   function restaurarEstadoDespachoUI() {
@@ -184,6 +474,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }
 
+  function actualizarCheckboxSegunObs(tr, obsTexto) {
+
+    const firstCell = tr.children[0];
+    let existingCheck = firstCell.querySelector(".row-check");
+
+    if (obsTexto === 'REGISTRAR VENTA EN ODOO') {
+
+      if (!existingCheck) {
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.className = "row-check";
+
+        check.addEventListener("change", actualizarSelectAll);
+
+        firstCell.innerHTML = "";
+        firstCell.appendChild(check);
+      }
+
+    } else {
+      if (existingCheck) {
+        firstCell.innerHTML = "";
+      }
+    }
+
+    actualizarSelectAll();
+  }
+
   async function validarLineaDespacho(tr, input) {
 
     const obsCell = tr.querySelector('.obs-cell');
@@ -210,6 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'INGRESE PRODUCTO A DESPACHAR';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
@@ -218,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'PRODUCTO A DESPACHAR INCORRECTO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
@@ -226,6 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'ESCANEE EL PRODUCTO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
@@ -234,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
@@ -245,6 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'REGISTRAR VENTA EN ODOO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
@@ -256,9 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
       odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
 
     if (qtyOdoo < unidadesDespachar) {
-      obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR';
+      obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
@@ -266,16 +589,18 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'EXCESO DE UNIDADES REGISTRADAS';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
       return false;
     }
 
     obsCell.textContent = 'OK';
     obsCell.classList.remove('error-cell');
     obsCell.classList.add('ok-cell');
+    actualizarCheckboxSegunObs(tr, obsCell.textContent);
 
     lastScannedCode = null;
 
-    await runValidacionVentas();
+    //await runValidacionVentas();
 
     return true;
   }
@@ -470,20 +795,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!esperado || !scan) return false;
 
-    // coincidencia directa
+    // ✅ 1. coincidencia exacta
     if (esperado === scan) return true;
 
-    // si el escaneado tiene letras intentamos lógica especial
-    if (/[A-Z]/.test(scan) && esperado.includes('/')) {
+    // ✅ 2. coincidencia parcial directa
+    if (esperado.includes(scan) || scan.includes(esperado)) {
+      return true;
+    }
 
-      const partes = esperado.split('/').map(p => normCodigo(p));
+    // ✅ 3. NUEVO: buscar coincidencias en TODAS las variantes Odoo
+    const matches = variantesOdooCache.filter(v => {
+      const barcode = normCodigo(v.barcode);
+      return barcode.includes(scan);
+    });
 
-      const coincidencias = partes.filter(p => p === scan);
-
-      // solo aceptar si coincide exactamente una parte
-      if (coincidencias.length === 1) {
-        return true;
-      }
+    // 👉 SOLO aceptar si hay UNA coincidencia
+    if (matches.length === 1) {
+      return true;
     }
 
     return false;
@@ -546,6 +874,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   updateAnalyzeAvailability();
+
+  setTimeout(async () => {
+    try {
+      await runValidacionVentas();
+    } catch (e) {
+      console.warn("Auto validación no ejecutada aún", e);
+    }
+  }, 300);
 
   function toNumberCLP(v) {
     if (typeof v === 'number') return v;
@@ -744,7 +1080,76 @@ document.addEventListener('DOMContentLoaded', () => {
     applyFilter('CON_OBS');
   }
 
+  async function validarArchivosDelDia() {
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+
+    const faltantes = [];
+
+    async function check(url, nombre) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) {
+          faltantes.push(nombre);
+          return;
+        }
+
+        const data = await res.json();
+        const fecha = new Date(data.uploadedAt);
+        fecha.setHours(0,0,0,0);
+
+        if (fecha.getTime() !== hoy.getTime()) {
+          faltantes.push(nombre);
+        }
+
+      } catch {
+        faltantes.push(nombre);
+      }
+    }
+
+    await Promise.all([
+      check('/api/odoo/ventas/info', 'Ventas Odoo'),
+      check('/api/ml/ventas/info', 'Ventas ML'),
+      check('/api/odoo/variantes/info', 'Variantes Odoo'),
+      check('/api/odoo/stock/info', 'Stock Ubicaciones Odoo')
+    ]);
+
+    return faltantes;
+  }
+
   async function runValidacionVentas() {
+    // 🔒 VALIDAR ARCHIVOS DEL DÍA
+    const faltantes = await validarArchivosDelDia();
+
+    // 🧠 detectar entorno local
+    const esLocal = location.hostname === 'localhost';
+
+    if (faltantes.length && !esLocal) {
+
+      statusEl.textContent = '';
+
+      showToast(
+        "Debes actualizar archivos del día",
+        3000,
+        "error"
+      );
+
+      statusEl.innerHTML = `
+      ❌ Faltan archivos:<br>
+      ${faltantes.map(f => `- ${f}`).join("<br>")}
+      `;
+
+      if (faltantes.length) {
+        exportBtn.disabled = true;
+        return;
+      } else {
+        exportBtn.disabled = false;
+      }
+
+      return; // 🚫 SOLO bloquea en producción
+    }
+
     codigosPorVenta = {};
     const codigosRes = await fetch('/api/ml/ventas/codigos');
     codigosPorVenta = await codigosRes.json();
@@ -1121,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
 
               if (qtyOdoo < cantidadADespachar) {
-                obsFinal = 'FALTAN UNIDADES POR ENTREGAR';
+                obsFinal = '';
 
               } else if (qtyOdoo > cantidadADespachar) {
                 obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
@@ -1265,8 +1670,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const obs = item.obs;
         const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
 
-        const isRegistrar = obs === 'REGISTRAR VENTA EN ODOO';
-
         const tr = document.createElement('tr');
 
         const unidadesML = item.cantidad || 0;
@@ -1370,6 +1773,13 @@ document.addEventListener('DOMContentLoaded', () => {
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
 
         tr.innerHTML = `
+          <td>
+            ${
+              item.obs === "REGISTRAR VENTA EN ODOO"
+                ? `<input type="checkbox" class="row-check">`
+                : ``
+            }
+          </td>
           <td>
             <div class="venta-copy">
               ${item.ventaLink
@@ -1493,6 +1903,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ${item.obs}
           </td>
         `;
+        
+        const check = tr.querySelector(".row-check");
+
+        if (check) {
+          check.addEventListener("change", actualizarSelectAll);
+        }
 
         resultsBody.appendChild(tr);
       }
@@ -1534,8 +1950,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const unidOdoo =
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
-
+        
         tr.innerHTML = `
+          <td>
+          </td>
           <td>
             <div class="venta-copy">
               ${item.ventaLink
@@ -1645,8 +2063,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       buildPills([...observaciones, ...observacionesOK]);
-
       restaurarEstadoDespachoUI();
+      actualizarSelectAll();
 
       resultsSection.classList.remove('hidden');
       statusEl.textContent = `Se encontraron ${observaciones.length} observaciones.`;
@@ -2218,4 +2636,185 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
   });
+
+  async function exportarVentasOdoo() {
+
+    const rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
+        .filter(tr => tr.querySelector(".row-check")?.checked);
+
+    const resumen = {};
+
+    rows.forEach(tr => {
+      const venta = tr.querySelector(".copy-venta")?.dataset?.venta;
+      const precio = Number(
+        tr.querySelector(".precio-valor")?.textContent.replace(/\./g, '') || 0
+      );
+
+      if (!venta) return;
+
+      if (!resumen[venta]) resumen[venta] = 0;
+      resumen[venta] += precio;
+    });
+
+    const confirmado = await mostrarResumenExportacion(resumen);
+
+    if (!confirmado) {
+      showToast("Carga cancelada", 1500);
+      return;
+    }
+    
+    // 🔹 SOLO filas con observación específica
+    const filas = rows.filter(tr => {
+      const obs = tr.querySelector(".obs-cell")?.textContent.trim();
+      return obs === "REGISTRAR VENTA EN ODOO";
+    });
+
+    if(!filas.length){
+      showToast("No hay ventas para exportar", 2000, "error");
+      return;
+    }
+
+    try {
+      // 🔹 pedir correlativo al backend
+      const res = await fetch("/api/ml/ventas/correlativo");
+
+      if(!res.ok){
+        console.error("Error backend correlativo", await res.text());
+        throw new Error("No se pudo obtener el correlativo");
+      }
+
+      const data = await res.json();
+      const correlativo = data.correlativo;
+
+      let correlativoActual = correlativo;
+
+      const dataExcel = [];
+
+      const ventasAgrupadas = new Map();   // 🟢 CASAMSTOCK
+      const ordenesIndividuales = [];      // 🔵 UBICACIONES
+
+      filas.forEach(tr => {
+        const orden = tr.dataset.orden;
+        const venta = tr.querySelector(".copy-venta")?.dataset.venta;
+        const codigo = tr.querySelector(".codigo-input")?.value.trim();
+        const cantidad = Number(tr.querySelector(".qty-valor")?.textContent || 0);
+        const precio = Number(
+          tr.querySelector(".precio-valor")?.textContent.replace(/\./g,'') || 0
+        );
+
+        tr.dataset.orden = venta.referencia;
+
+        const ubicaciones = getUbicacionesPorCodigo(codigo);
+        const multi = ubicaciones.length > 1;
+
+        if (multi) {
+
+          // 🔵 MLDESPUBICACIONES → 1 producto = 1 orden
+          correlativoActual++;
+
+          const correlativoStr = String(correlativoActual).padStart(5,'0');
+
+          ordenesIndividuales.push({
+            referencia: `MLDESPUBICACIONES${correlativoStr}`,
+            lineas: [{
+              codigo,
+              cantidad,
+              precio,
+              venta
+            }]
+          });
+
+        } else {
+
+          const KEY_CASAMSTOCK = "GLOBAL";
+
+          if(!ventasAgrupadas.has(KEY_CASAMSTOCK)){
+
+            correlativoActual++;
+
+            const correlativoStr = String(correlativoActual).padStart(5,'0');
+
+            ventasAgrupadas.set(KEY_CASAMSTOCK, {
+              referencia: `MLDESPCASAMSTOCK${correlativoStr}`,
+              lineas: []
+            });
+          }
+
+          ventasAgrupadas.get(KEY_CASAMSTOCK).lineas.push({
+            codigo,
+            cantidad,
+            precio,
+            venta
+          });
+        }
+
+      });
+
+      // 🔹 construir excel
+      // 🟢 CASAMSTOCK (por venta)
+      ventasAgrupadas.forEach(v => {
+
+        v.lineas.forEach((l, index) => {
+
+          dataExcel.push({
+            "Referencia de la orden": index === 0 ? v.referencia : "",
+            "Cliente": index === 0 ? "MercadoLibre" : "",
+            "Líneas de la orden/Cantidad": l.cantidad,
+            "Líneas de la orden/Producto": l.codigo,
+            "Líneas de la orden/Precio unitario": l.precio,
+            "Líneas de la orden/Nro. Vta.": l.venta
+          });
+
+        });
+
+      });
+
+      // 🔵 UBICACIONES (1 producto = 1 orden)
+      ordenesIndividuales.forEach(v => {
+
+        const l = v.lineas[0];
+
+        dataExcel.push({
+          "Referencia de la orden": v.referencia,
+          "Cliente": "MercadoLibre",
+          "Líneas de la orden/Cantidad": l.cantidad,
+          "Líneas de la orden/Producto": l.codigo,
+          "Líneas de la orden/Precio unitario": l.precio,
+          "Líneas de la orden/Nro. Vta.": l.venta
+        });
+
+      });
+
+      // 🔹 generar archivo
+      const ws = XLSX.utils.json_to_sheet(dataExcel);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+
+      XLSX.writeFile(wb, "ventas_odoo.xlsx");
+
+      // 🔹 guardar nuevo correlativo
+      await fetch("/api/ml/ventas/correlativo", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ correlativo: correlativoActual })
+      });
+
+      // limpiar UI
+      resultsBody.innerHTML = '';
+      resultsSection.classList.add('hidden');
+
+      // bloquear botón
+      exportBtn.disabled = true;
+
+      // mensaje
+      statusEl.innerHTML = `
+      ⚠️ Debes cargar nuevamente el archivo <b>Ventas Odoo</b> actualizado
+      `;
+
+      showToast("Excel exportado correctamente 🚀");
+    } catch (err) {
+      console.error(err);
+      showToast("Error al exportar ventas", 2000, "error");
+    }
+  }
 });

@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
       odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
 
     if (qtyOdoo < unidadesDespachar) {
-      obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR';
+      obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
       return false;
@@ -1362,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
 
               if (qtyOdoo < cantidadADespachar) {
-                obsFinal = 'FALTAN UNIDADES POR ENTREGAR';
+                obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
 
               } else if (qtyOdoo > cantidadADespachar) {
                 obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
@@ -1636,6 +1636,7 @@ document.addEventListener('DOMContentLoaded', () => {
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
 
         tr.innerHTML = `
+          <td></td>
           <td>
             <div class="venta-copy">
               ${item.ventaLink
@@ -1824,6 +1825,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
 
         tr.innerHTML = `
+          <td></td>
           <td>
             <div class="venta-copy">
               ${item.ventaLink

@@ -4,6 +4,45 @@ import multer from "multer";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import archiverPkg from "archiver";
+
+function validarLastModified(lastModified) {
+  if (!lastModified) return false;
+
+  const fechaArchivo = new Date(Number(lastModified));
+  const hoy = new Date();
+
+  // 🔥 zona Chile
+  const toCL = (d) =>
+    new Date(d.toLocaleString("en-US", { timeZone: "America/Santiago" }));
+
+  const f = toCL(fechaArchivo);
+  const h = toCL(hoy);
+
+  f.setHours(0,0,0,0);
+  h.setHours(0,0,0,0);
+
+  return f.getTime() === h.getTime();
+}
+
+function esArchivoDeHoy(filePath) {
+  const stats = fs.statSync(filePath);
+
+  const mtime = new Date(stats.mtime);
+
+  const hoy = new Date();
+  
+  // 🔥 normalizar zona horaria
+  const toCL = (d) => new Date(d.toLocaleString("en-US", { timeZone: "America/Santiago" }));
+
+  const mtimeCL = toCL(mtime);
+  const hoyCL = toCL(hoy);
+
+  mtimeCL.setHours(0,0,0,0);
+  hoyCL.setHours(0,0,0,0);
+
+  return mtimeCL.getTime() === hoyCL.getTime();
+}
+
 const archiver = archiverPkg.default || archiverPkg;
 
 const app = express();
@@ -389,10 +428,13 @@ app.post("/api/jumpseller/ventas/codigos", express.json(), (req, res) => {
 
 app.get("/api/ml/ventas/info", (req, res) => {
   const metaPath = path.join(UPLOAD_DIR, "ventas_ml_meta.json");
+
   if (!fs.existsSync(metaPath)) {
     return res.status(404).json({ error: "No hay Ventas ML cargadas aún" });
   }
+
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+
   res.json(meta);
 });
 
@@ -440,6 +482,17 @@ app.post("/api/ml/ventas", upload.single("archivo"), (req, res) => {
 
   const finalName = `ventas_ml_${ts}.xlsx`;
   const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  const { lastModified } = req.body;
+
+  if (!validarLastModified(lastModified)) {
+
+    fs.unlinkSync(finalPath);
+
+    return res.status(400).json({
+      error: "El archivo de Ventas ML no es del día"
+    });
+  }
 
   fs.renameSync(req.file.path, finalPath);
 
@@ -518,6 +571,55 @@ app.get("/api/odoo/ventas/ultimo", (req, res) => {
   res.sendFile(filePath);
 });
 
+app.get("/api/ml/ventas/correlativo", (req, res) => {
+
+  try {
+    const dataDir = path.join(process.cwd(), 'data');
+    const filePath = path.join(dataDir, 'correlativo.json');
+
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify({ correlativo: 1 }, null, 2));
+    }
+
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+    res.json(data);
+
+  } catch (err) {
+    console.error("Error correlativo:", err);
+    res.status(500).json({ error: "Error correlativo" });
+  }
+
+});
+
+app.post("/api/ml/ventas/correlativo", (req, res) => {
+
+  try {
+    const dataDir = path.join(process.cwd(), 'data');
+    const filePath = path.join(dataDir, 'correlativo.json');
+
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({ ok: true });
+
+  } catch (err) {
+    console.error("Error guardando correlativo:", err);
+    res.status(500).json({ error: "Error guardando correlativo" });
+  }
+
+});
+
 app.post("/api/odoo/ventas", upload.single("archivo"), (req, res) => {
   const now = new Date();
   const pad = (n) => n.toString().padStart(2, "0");
@@ -527,8 +629,27 @@ app.post("/api/odoo/ventas", upload.single("archivo"), (req, res) => {
 
   const finalName = `ventas_odoo_${ts}.xlsx`;
   const finalPath = path.join(UPLOAD_DIR, finalName);
+  const { lastModified } = req.body;
+
+  if (!validarLastModified(lastModified)) {
+
+    fs.unlinkSync(finalPath);
+
+    return res.status(400).json({
+      error: "El archivo de Ventas Odoo no es del día"
+    });
+  }
 
   fs.renameSync(req.file.path, finalPath);
+
+  if (!esArchivoDeHoy(finalPath)) {
+
+    fs.unlinkSync(finalPath);
+
+    return res.status(400).json({
+      error: "El archivo de Ventas Odoo no es del día"
+    });
+  }
 
   const meta = { file: finalName, uploadedAt: now.toISOString() };
   fs.writeFileSync(
@@ -542,8 +663,28 @@ app.post("/api/odoo/ventas", upload.single("archivo"), (req, res) => {
 app.post('/api/odoo/stock', upload.single('archivo'), (req, res) => {
 
   const filePath = path.join(UPLOAD_DIR, 'stock-odoo.xlsx');
+  const { lastModified } = req.body;
+
+  if (!validarLastModified(lastModified)) {
+
+    fs.unlinkSync(filePath);
+
+    return res.status(400).json({
+      error: "El archivo de Stock Odoo no es del día"
+    });
+  }
 
   fs.renameSync(req.file.path, filePath);
+
+  // 🔥 VALIDACIÓN
+  if (!esArchivoDeHoy(filePath)) {
+
+    fs.unlinkSync(filePath);
+
+    return res.status(400).json({
+      error: "El archivo de Stock Odoo no es del día"
+    });
+  }
 
   const info = {
     uploadedAt: new Date().toISOString()
@@ -810,8 +951,27 @@ app.post("/api/odoo/variantes", upload.single("archivo"), (req, res) => {
 
   const finalName = `variantes_odoo_${timestamp}.xlsx`;
   const finalPath = path.join(UPLOAD_DIR, finalName);
+  const { lastModified } = req.body;
+
+  if (!validarLastModified(lastModified)) {
+
+    fs.unlinkSync(finalPath);
+
+    return res.status(400).json({
+      error: "El archivo de Ventas Odoo no es del día"
+    });
+  }
 
   fs.renameSync(req.file.path, finalPath);
+
+  if (!esArchivoDeHoy(finalPath)) {
+
+    fs.unlinkSync(finalPath);
+
+    return res.status(400).json({
+      error: "El archivo de Variantes Odoo no es del día"
+    });
+  }
 
   const meta = { file: finalName, uploadedAt: now.toISOString() };
   fs.writeFileSync(
