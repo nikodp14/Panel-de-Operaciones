@@ -1361,7 +1361,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (const row of odooData) {
         const v = normVentaKey(row[6]); // 🔥 usar SIEMPRE normVentaKey Col G
-        const q = Number(row[7] || 0); // Col H
+        const q = Number(row[7]) || 0; // Col H
+
         if (v) {
           odooQtyByVenta.set(v, (odooQtyByVenta.get(v) || 0) + q);
         }
@@ -1572,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
 
               if (qtyOdoo < cantidadADespachar) {
-                obsFinal = '';
+                obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
 
               } else if (qtyOdoo > cantidadADespachar) {
                 obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
@@ -1695,6 +1696,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
+
+          console.log(itemBase.ventaMLFinal, obsRender);
 
           if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
