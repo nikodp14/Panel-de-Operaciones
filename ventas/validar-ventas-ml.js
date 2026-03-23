@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       let html = `
         <div class="confirm-box" style="min-width:400px;">
-          <h3>Verifique la carga en Odoo</h3>
+          <h3>Ventas a procesar</h3>
           <table style="width:100%; margin-top:10px; color:white;">
             <thead>
               <tr>
@@ -202,6 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } 
         else if (name.includes("sale.order")) {
           endpoint = "/api/odoo/ventas";
+
+          await fetch('/api/estado/odoo-ventas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pendienteVentasOdoo: false })
+          });
         }
         else if (name.includes("product.product")) {
           endpoint = "/api/odoo/variantes";
@@ -600,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lastScannedCode = null;
 
-    //await runValidacionVentas();
+    await runValidacionVentas();
 
     return true;
   }
@@ -1080,6 +1086,29 @@ document.addEventListener('DOMContentLoaded', () => {
     applyFilter('CON_OBS');
   }
 
+  function construirResumenPedidos() {
+
+    const resumen = {};
+
+    const items = window._ventasProcesadas || [];
+
+    items.forEach(item => {
+
+      // 🔥 SOLO los que vas a exportar
+      if (item.obs !== 'REGISTRAR VENTA EN ODOO') return;
+
+      const totalLinea = Math.round(item.precio * item.cantidad * 1.19);
+
+      if (!resumen[item.venta]) {
+        resumen[item.venta] = 0;
+      }
+
+      resumen[item.venta] += totalLinea;
+    });
+
+    return resumen;
+  }
+
   async function validarArchivosDelDia() {
 
     const hoy = new Date();
@@ -1124,6 +1153,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 🧠 detectar entorno local
     const esLocal = location.hostname === 'localhost';
+
+    const estadoRes = await fetch('/api/estado/odoo-ventas');
+    const estado = await estadoRes.json();
+
+    if (estado.pendienteVentasOdoo) {
+
+      exportBtn.disabled = true;
+
+      showToast("Debes cargar el Excel de Ventas Odoo actualizado", 3000, "error");
+
+      statusEl.innerHTML = `
+        ⚠️ Debes cargar el archivo de Ventas Odoo antes de continuar.
+      `;
+
+      return;
+    }
 
     if (faltantes.length && !esLocal) {
 
@@ -1302,6 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : new Date('2026-03-06');  // producción
       const observaciones = [];
       const observacionesOK = [];
+      window._ventasProcesadas = [];
       const odooQtyByVenta = new Map();
 
       // Set con las ventas registradas en Odoo (col G -> index 6)
@@ -1655,6 +1701,13 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             observaciones.push(itemBase);
           }
+
+          window._ventasProcesadas.push({
+            venta: itemBase.ventaMLFinal,
+            precio: itemBase.precioUnitario,
+            cantidad: itemBase.cantidad,
+            obs: itemBase.obs
+          });
         }
       }
 
@@ -2637,14 +2690,77 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
-  async function exportarVentasOdoo() {
+  function mostrarValidacionTotales(resumen) {
+    return new Promise(resolve => {
 
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      let html = `
+        <div class="confirm-box" style="min-width:400px;">
+          <h3>Verifique la importación en Odoo</h3>
+          <table style="width:100%; margin-top:10px; color:white;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Número Pedido</th>
+                <th style="text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      Object.entries(resumen)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .forEach(([orden, total]) => {
+        html += `
+          <tr>
+            <td>${orden}</td>
+            <td style="text-align:right;">${formatCLP(Math.round(total))}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+
+          <p style="margin-top:10px;">
+            Confirma que los montos coinciden en Odoo
+          </p>
+
+          <div style="margin-top:15px;">
+            <button id="confirm2">Confirmar</button>
+            <button id="cancel2">Cancelar</button>
+          </div>
+        </div>
+      `;
+
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+
+      modal.querySelector("#confirm2").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancel2").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+  
+  async function exportarVentasOdoo() {
+    const resumenPedidos = {};
     const rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
         .filter(tr => tr.querySelector(".row-check")?.checked);
 
     const resumen = {};
 
     rows.forEach(tr => {
+      const checkbox = tr.querySelector(".row-check");
+      if (!checkbox || !checkbox.checked) return;
       const venta = tr.querySelector(".copy-venta")?.dataset?.venta;
       const precio = Number(
         tr.querySelector(".precio-valor")?.textContent.replace(/\./g, '') || 0
@@ -2656,12 +2772,15 @@ document.addEventListener('DOMContentLoaded', () => {
       resumen[venta] += precio;
     });
 
-    const confirmado = await mostrarResumenExportacion(resumen);
+    let confirmado = await mostrarResumenExportacion(resumen);
 
     if (!confirmado) {
-      showToast("Carga cancelada", 1500);
+      showToast("Carga cancelada", 1500, "error");
       return;
     }
+
+    //resultsSection.classList.add("hidden");
+    //resultsBody.innerHTML = "";
     
     // 🔹 SOLO filas con observación específica
     const filas = rows.filter(tr => {
@@ -2750,6 +2869,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       });
 
+      let numeropedidoCasam = ' ';
+
       // 🔹 construir excel
       // 🟢 CASAMSTOCK (por venta)
       ventasAgrupadas.forEach(v => {
@@ -2765,6 +2886,15 @@ document.addEventListener('DOMContentLoaded', () => {
             "Líneas de la orden/Nro. Vta.": l.venta
           });
 
+          if (index === 0){
+            numeropedidoCasam = v.referencia;
+          }
+          
+          if (!resumenPedidos[numeropedidoCasam]){
+            resumenPedidos[numeropedidoCasam] = 0;
+          }
+          console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
+          resumenPedidos[numeropedidoCasam] += (l.precio * l.cantidad) * 1.19;
         });
 
       });
@@ -2783,6 +2913,12 @@ document.addEventListener('DOMContentLoaded', () => {
           "Líneas de la orden/Nro. Vta.": l.venta
         });
 
+        if (!resumenPedidos[v.referencia]){
+            resumenPedidos[v.referencia] = 0;
+          }
+            
+          resumenPedidos[v.referencia] += Math.round((l.precio * 1.19) * l.cantidad);
+
       });
 
       // 🔹 generar archivo
@@ -2791,6 +2927,19 @@ document.addEventListener('DOMContentLoaded', () => {
       XLSX.utils.book_append_sheet(wb, ws, "Ventas");
 
       XLSX.writeFile(wb, "ventas_odoo.xlsx");
+
+      let confirmado = await mostrarValidacionTotales(resumenPedidos);
+
+      if (!confirmado) {
+        showToast("Carga cancelada", 1500, "error");
+        return;
+      }
+
+      await fetch('/api/estado/odoo-ventas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendienteVentasOdoo: true })
+      });
 
       // 🔹 guardar nuevo correlativo
       await fetch("/api/ml/ventas/correlativo", {

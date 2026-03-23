@@ -5,6 +5,29 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import archiverPkg from "archiver";
 
+function readJSONSafe(path, defaultValue) {
+  try {
+    if (!fs.existsSync(path)) {
+      fs.writeFileSync(path, JSON.stringify(defaultValue, null, 2));
+      return defaultValue;
+    }
+
+    return JSON.parse(fs.readFileSync(path, 'utf-8'));
+
+  } catch (err) {
+    console.error("Error leyendo JSON:", path, err);
+    return defaultValue;
+  }
+}
+
+function writeJSONSafe(path, data) {
+  try {
+    fs.writeFileSync(path, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Error escribiendo JSON:", path, err);
+  }
+}
+
 function validarLastModified(lastModified) {
   if (!lastModified) return false;
 
@@ -205,6 +228,26 @@ app.get("/api/dolar", (req,res)=>{
     error:"No hay dólar disponible"
   });
 
+});
+
+app.get('/api/estado/odoo-ventas', (req, res) => {
+
+  const estado = readJSONSafe('data/estado-odoo.json', {
+    pendienteVentasOdoo: false
+  });
+
+  res.json(estado);
+});
+
+app.post('/api/estado/odoo-ventas', (req, res) => {
+
+  const { pendienteVentasOdoo } = req.body;
+
+  writeJSONSafe('data/estado-odoo.json', {
+    pendienteVentasOdoo
+  });
+
+  res.json({ ok: true });
 });
 
 async function actualizarDolar(){
