@@ -13,6 +13,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resultsSection.classList.remove("hidden");
 
+  function getVarianteOdooFlexible(code){
+
+    if(!code) return null;
+
+    // 1. exacto primero
+    let exact = variantesOdooCache.find(v => v.barcode === code);
+    if(exact) return exact;
+
+    // 2. buscar por contenido
+    const matches = variantesOdooCache.filter(v =>
+      v.barcode.includes(code) || code.includes(v.barcode)
+    );
+
+    // 3. solo una coincidencia → usarla
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
+  }
+
   function buscarCodigoEquivalente(venta, codigo){
 
     if(!codigo) return null;
@@ -720,7 +741,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ====================== */
 
       const code = input.value.trim();
-      const info = getVarianteOdooPorCodigo(code);
+      const info = getVarianteOdooFlexible(code);
 
       if(info){
 
@@ -965,7 +986,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if(code){
 
-        const info = getVarianteOdooPorCodigo(code);
+        const info = getVarianteOdooFlexible(code);
 
         if(info){
 
@@ -1245,7 +1266,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const code = tr.querySelector(".codigo-input")?.value || "";
 
         if(code){
-          const info = getVarianteOdooPorCodigo(code);
+          const info = getVarianteOdooFlexible(code);
 
           if(info){
             tr.querySelector(".nombre-valor").textContent = info.name;
