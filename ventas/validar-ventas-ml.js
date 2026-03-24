@@ -108,6 +108,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
+  function resolverCodigoEquivalente(ventaKey, codigo){
+
+    if(!codigo) return null;
+
+    const code = normCodigo(codigo);
+
+    // 1. exacto
+    const keyExact = `${ventaKey}|${code}`;
+    if(odooQtyByVentaCodigo.has(keyExact)){
+      return code;
+    }
+
+    // 2. buscar coincidencias
+    const matches = [];
+
+    odooQtyByVentaCodigo.forEach((_, key) => {
+
+      const [v, cod] = key.split("|");
+
+      if(v !== ventaKey) return;
+
+      const codNorm = normCodigo(cod);
+
+      if(
+        codNorm.includes(code) ||
+        code.includes(codNorm)
+      ){
+        matches.push(cod);
+      }
+
+    });
+
+    // 3. solo una → válida
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
+  }
+
   function actualizarSelectAll() {
 
     const checks = document.querySelectorAll(".row-check");
@@ -565,8 +605,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 🔹 Validación Odoo
+    const codigoEquivalente = resolverCodigoEquivalente(
+      ventaKey,
+      codigoEfectivo
+    );
+
+    const codigoFinal = codigoEquivalente || codigoEfectivo;
+
     const existeProductoEnOdoo =
-      odooQtyByVentaCodigo.has(`${ventaKey}|${codigoEfectivo}`);
+      odooQtyByVentaCodigo.has(`${ventaKey}|${codigoFinal}`);
 
     if (!existeProductoEnOdoo) {
       obsCell.textContent = 'REGISTRAR VENTA EN ODOO';
@@ -581,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     const qtyOdoo =
-      odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
+      odooQtyByVentaCodigo.get(`${ventaKey}|${codigoFinal}`) || 0;
 
     if (qtyOdoo < unidadesDespachar) {
       obsCell.textContent = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
@@ -722,14 +769,32 @@ document.addEventListener('DOMContentLoaded', () => {
     .sort((a,b)=>b.cantidad-a.cantidad);
   }
 
-  function getVarianteOdooPorCodigo(barcode) {
+  function getVarianteOdooFlexible(barcode){
+
     if (!barcode) return null;
 
-    const code = String(barcode).trim().toLowerCase();
+    const code = normCodigo(barcode);
 
-    return variantesOdooCache.find(v =>
-      v.barcode.toLowerCase() === code
-    ) || null;
+    // exacto
+    let exact = variantesOdooCache.find(v =>
+      normCodigo(v.barcode) === code
+    );
+
+    if(exact) return exact;
+
+    // contenido
+    const matches = variantesOdooCache.filter(v => {
+
+      const b = normCodigo(v.barcode);
+
+      return b.includes(code) || code.includes(b);
+    });
+
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
   }
 
   function buildPackMap(configWorkbook) {
@@ -1556,10 +1621,17 @@ document.addEventListener('DOMContentLoaded', () => {
           // 🔹 VALIDACIÓN ODOO AQUÍ DENTRO
           if (existeEnOdoo && !includesCancelOrReturn(estadoML)) {
 
+            const codigoEquivalente = resolverCodigoEquivalente(
+              ventaKey,
+              codigoKey
+            );
+
+            const codigoFinal = codigoEquivalente || codigoKey;
+
             if (!codigoKey) {
               obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
 
-            } else if (!odooQtyByVentaCodigo.has(`${ventaKey}|${codigoKey}`)) {
+            } else if (!odooQtyByVentaCodigo.has(`${ventaKey}|${codigoFinal}`)) {
 
               if (existeVentaEnOdooConOtroCodigo) {
                 obsFinal = 'EXISTE LA VENTA EN ODOO, PERO CON OTRO CÓDIGO';
@@ -1568,9 +1640,15 @@ document.addEventListener('DOMContentLoaded', () => {
               }
 
             } else {
+              const codigoEquivalente = resolverCodigoEquivalente(
+                ventaKey,
+                codigoKey
+              );
+
+              const codigoFinal = codigoEquivalente || codigoKey;
 
               const qtyOdoo =
-                odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
+                odooQtyByVentaCodigo.get(`${ventaKey}|${codigoFinal}`) || 0;
 
               if (qtyOdoo < cantidadADespachar) {
                 obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
@@ -1876,7 +1954,14 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
 
                   ${(() => {
-                    const info = getVarianteOdooPorCodigo(codigoEfectivo);
+                    const codigoEquivalente = resolverCodigoEquivalente(
+                      ventaKey,
+                      codigoEfectivo
+                    );
+
+                    const codigoFinal = codigoEquivalente || codigoEfectivo;
+
+                    const info = getVarianteOdooFlexible(codigoFinal);
 
                     return `
                       <div class="linea-nombre">
@@ -1912,7 +1997,14 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="ubicaciones-col">
             ${(() => {
 
-              const ubicaciones = getUbicacionesPorCodigo(codigoEfectivo);
+              const codigoEquivalente = resolverCodigoEquivalente(
+                ventaKey,
+                codigoEfectivo
+              );
+
+              const codigoFinal = codigoEquivalente || codigoEfectivo;
+
+              const ubicaciones = getUbicacionesPorCodigo(codigoFinal);
 
               if (!ubicaciones.length) return '—';
 
@@ -2004,8 +2096,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigoKey = normCodigo(item.codigoPersistido);
         const ventaKey = normVentaKey(ventaMLRow);
 
-        const unidOdoo =
-          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
+        const codigoEquivalente = resolverCodigoEquivalente(
+          ventaKey,
+          codigoKey
+        );
+
+        const codigoFinal = codigoEquivalente || codigoKey;
+
+        const qtyOdoo =
+          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoFinal}`) || 0;
         
         tr.innerHTML = `
           <td>
@@ -2044,7 +2143,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               <!-- 👇 SOLO en OK -->
               ${(() => {
-                const info = getVarianteOdooPorCodigo(item.codigoPersistido);
+                const info = getVarianteOdooFlexible(item.codigoPersistido);
 
                 return `
                   <div class="linea-codigo">
@@ -2099,7 +2198,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${item.cantidad || 0}</td>
 
           <!-- Unid. en Odoo -->
-          <td>${unidOdoo}</td>
+          <td>${qtyOdoo}</td>
 
           <!-- Cambio producto -->
           <td>—</td>
