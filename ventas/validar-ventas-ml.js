@@ -2143,7 +2143,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
               <!-- 👇 SOLO en OK -->
               ${(() => {
-                const info = getVarianteOdooFlexible(item.codigoPersistido);
+                const codigo = item.codigoPersistido || '';
+                const info = getVarianteOdooFlexible(codigo);
 
                 return `
                   <div class="linea-codigo">

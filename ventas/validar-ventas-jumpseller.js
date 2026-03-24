@@ -1504,7 +1504,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
-          if (!obsFinal) {
+          if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
           } else {
             observaciones.push(itemBase);
@@ -1512,9 +1512,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      if (!observaciones.length && !observacionesOK.length) {
+      const totalObs = observaciones.length;
+
+      if (totalObs === 0) {
         statusEl.textContent = 'No se encontraron observaciones 🎉';
-        return;
+      } else {
+        statusEl.textContent = `Se encontraron ${totalObs} observaciones`;
       }
 
       let ultimaFilaRenderizada = null;
