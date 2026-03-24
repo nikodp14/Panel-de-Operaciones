@@ -32,6 +32,304 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const gunModal = document.getElementById("gunScannerModal");
   const closeGun = document.getElementById("closeGunScanner");
+  const modal = document.getElementById("modalImagen");
+  const cerrarModal = document.getElementById("cerrarModal");
+  const modalContainer = document.getElementById("modalImagesContainer");
+  const filesInput = document.getElementById("filesInput");
+
+  // 🔥 mismas ayudas que ML + nueva
+  const ayudas = {
+    verVariantesOdoo: [
+      "/imagenes/variantes-odoo0.jpg",
+      "/imagenes/variantes-odoo1.jpg",
+      "/imagenes/variantes-odoo2.jpg"
+    ],
+    verStockUbicacionesOdoo: [
+      "/imagenes/stock-ubicaciones-odoo0.jpg",
+      "/imagenes/stock-ubicaciones-odoo1.jpg",
+      "/imagenes/stock-ubicaciones-odoo2.jpg"
+    ],
+    verVentasOdoo: [
+      "/imagenes/ventas-odoo0.jpg",
+      "/imagenes/ventas-odoo1.jpg",
+      "/imagenes/ventas-odoo2.jpg"
+    ],
+    verProductosJumpseller: [
+      "/imagenes/productos-jumpseller.jpg"
+    ],
+    verPedidosJumpseller: [
+      "/imagenes/pedidos-jumpseller 1.jpg",
+      "/imagenes/pedidos-jumpseller 2.jpg"
+    ]
+  };
+
+  Object.keys(ayudas).forEach(id => {
+
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener("click", () => {
+
+      const images = ayudas[id];
+
+      modalContainer.innerHTML = images.map(src => `
+        <img src="${src}" class="modal-img" />
+      `).join("");
+
+      modal.classList.remove("hidden");
+
+    });
+
+  });
+
+  cerrarModal.addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.classList.add("hidden");
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+      modal.classList.add("hidden");
+    }
+  });
+
+  async function archivosSonDeHoy() {
+
+    const endpoints = [
+      '/api/odoo/ventas/info',
+      '/api/odoo/stock/info',
+      '/api/odoo/variantes/info',
+      '/api/jumpseller/productos/info',
+      '/api/jumpseller/ventas/info'
+    ];
+
+    const resultados = await Promise.all(
+      endpoints.map(async (url) => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return false;
+
+          const data = await res.json();
+          const fecha = new Date(data.uploadedAt);
+
+          const hoy = new Date();
+
+          return (
+            fecha.getFullYear() === hoy.getFullYear() &&
+            fecha.getMonth() === hoy.getMonth() &&
+            fecha.getDate() === hoy.getDate()
+          );
+        } catch {
+          return false;
+        }
+      })
+    );
+
+    return resultados.every(Boolean);
+  }
+
+  async function validarArchivosDelDiaJumpseller() {
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+
+    const faltantes = [];
+
+    async function check(url, nombre) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+
+        if (!res.ok) {
+          faltantes.push(nombre);
+          return;
+        }
+
+        const data = await res.json();
+        const fecha = new Date(data.uploadedAt);
+        fecha.setHours(0,0,0,0);
+
+        if (fecha.getTime() !== hoy.getTime()) {
+          faltantes.push(nombre);
+        }
+
+      } catch {
+        faltantes.push(nombre);
+      }
+    }
+
+    await Promise.all([
+      check('/api/odoo/ventas/info', 'Ventas Odoo'),
+      check('/api/odoo/stock/info', 'Stock Odoo'),
+      check('/api/odoo/variantes/info', 'Variantes Odoo'),
+      check('/api/jumpseller/productos/info', 'Productos Jumpseller'),
+      check('/api/jumpseller/ventas/info', 'Pedidos Jumpseller')
+    ]);
+
+    return faltantes;
+  }
+
+  function esArchivoDeHoy(file) {
+
+    const hoy = new Date();
+    const fechaArchivo = new Date(file.lastModified);
+
+    return (
+      hoy.getFullYear() === fechaArchivo.getFullYear() &&
+      hoy.getMonth() === fechaArchivo.getMonth() &&
+      hoy.getDate() === fechaArchivo.getDate()
+    );
+  }
+
+  function validarArchivosSeleccionados(files) {
+
+    const required = {
+      variantes: false,
+      stock: false,
+      ventas: false,
+      productos: false,
+      pedidos: false
+    };
+
+    const erroresFecha = [];
+
+    files.forEach(file => {
+
+      const name = file.name.toLowerCase();
+
+      // 🔴 validar fecha
+      if (!esArchivoDeHoy(file)) {
+        erroresFecha.push(file.name);
+        return;
+      }
+
+      // 🔍 detectar tipo
+      if (name.includes("product.product")) {
+        required.variantes = true;
+      }
+      else if (name.includes("stock.quant")) {
+        required.stock = true;
+      }
+      else if (name.includes("sale.order")) {
+        required.ventas = true;
+      }
+      else if (name.includes("demoto_productos_")) {
+        required.productos = true;
+      }
+      else if (name.includes("demoto_pedidos_")) {
+        required.pedidos = true;
+        console.log('pasa');
+      }
+
+    });
+
+    return { required, erroresFecha };
+  }
+
+  filesInput.addEventListener("change", async () => {
+
+    const files = Array.from(filesInput.files);
+
+    if (!files.length) return;
+
+    const { required, erroresFecha } =
+      validarArchivosSeleccionados(files);
+
+    // ❌ archivos no son del día
+    if (erroresFecha.length) {
+      statusEl.textContent =
+        `❌ Archivos no son del día: ${erroresFecha.join(", ")}`;
+      return;
+    }
+
+    // ❌ faltan archivos
+    let faltantes = Object.entries(required)
+      .filter(([_, ok]) => !ok)
+      .map(([k]) => k);
+
+    if (faltantes.length) {
+
+      const nombres = {
+        variantes: "Variantes Odoo",
+        stock: "Stock Odoo",
+        ventas: "Ventas Odoo",
+        productos: "Productos Jumpseller",
+        pedidos: "Pedidos Jumpseller"
+      };
+    }
+
+    // ✅ TODO OK → subir archivos
+  
+    statusEl.textContent = '';
+    showToast("Subiendo archivos...", 1500);
+
+    for (const file of files) {
+
+      try {
+
+        const formData = new FormData();
+        formData.append("archivo", file);
+        formData.append("lastModified", file.lastModified);
+
+        const name = file.name.toLowerCase();
+
+        let endpoint = "";
+
+        if (name.includes("sale.order")) {
+          endpoint = "/api/odoo/ventas";
+        }
+        else if (name.includes("product.product")) {
+          endpoint = "/api/odoo/variantes";
+        }
+        else if (name.includes("stock.quant")) {
+          endpoint = "/api/odoo/stock";
+        }
+        else if (name.includes("demoto_productos_")) {
+          endpoint = "/api/jumpseller/productos";
+        }
+        else if (name.includes("demoto_pedidos_")) {
+          endpoint = "/api/jumpseller/ventas";
+        }
+        else {
+          continue;
+        }
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          showToast(`Error en ${file.name}`, 3000, "error");
+          continue;
+        }
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    showToast("Archivos cargados ✅", 1500);
+
+    faltantes = await validarArchivosDelDiaJumpseller();
+
+    if (faltantes.length) {
+
+      statusEl.innerHTML = `
+        ❌ Faltan archivos:<br>
+        ${faltantes.map(f => `- ${f}`).join("<br>")}
+      `;
+
+      return;
+    }
+
+    await runValidacionVentas();
+
+  });
 
   resultsBody.addEventListener("click", e => {
 
@@ -666,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  loadOdooInfo();
+  loadArchivosInfo();
 
   function includesCancelOrReturn(estadoML) {
     const s = String(estadoML || '').toLowerCase();
@@ -893,10 +1191,85 @@ document.addEventListener('DOMContentLoaded', () => {
     applyFilter('CON_OBS');
   }
 
+  async function loadArchivosInfo() {
+
+    const container = document.getElementById("archivosInfo");
+    if (!container) return;
+
+    const endpoints = [
+      { url: '/api/odoo/ventas/info', label: 'Ventas Odoo' },
+      { url: '/api/odoo/stock/info', label: 'Stock Odoo' },
+      { url: '/api/odoo/variantes/info', label: 'Variantes Odoo' },
+      { url: '/api/jumpseller/productos/info', label: 'Productos Jumpseller' },
+      { url: '/api/jumpseller/pedidos/info', label: 'Pedidos Jumpseller' }
+    ];
+
+    const hoy = new Date();
+
+    const results = await Promise.all(
+      endpoints.map(async (e) => {
+
+        try {
+          const res = await fetch(e.url);
+          if (!res.ok) return { ...e, ok: false };
+
+          const data = await res.json();
+          const fecha = new Date(data.uploadedAt);
+
+          const esHoy =
+            fecha.getFullYear() === hoy.getFullYear() &&
+            fecha.getMonth() === hoy.getMonth() &&
+            fecha.getDate() === hoy.getDate();
+
+          return {
+            ...e,
+            ok: true,
+            fecha,
+            esHoy
+          };
+
+        } catch {
+          return { ...e, ok: false };
+        }
+
+      })
+    );
+
+    container.innerHTML = results.map(r => {
+
+      if (!r.ok) {
+        return `<p class="file-error">❌ ${r.label}: no cargado</p>`;
+      }
+
+      const fechaStr = r.fecha.toLocaleString('es-CL');
+
+      return `
+        <p class="${r.esHoy ? 'file-ok' : 'file-old'}">
+          ${r.esHoy ? '🟢' : '🟡'} ${r.label}: ${fechaStr}
+        </p>
+      `;
+
+    }).join("");
+
+}
+
   async function runValidacionVentas() {
     codigosPorVenta = {};
     const codigosRes = await fetch('/api/jumpseller/ventas/codigos');
     codigosPorVenta = await codigosRes.json();
+
+    const faltantes = await validarArchivosDelDiaJumpseller();
+
+    if (faltantes.length) {
+      showToast("Faltan archivos del día", 3000, "error");
+
+      statusEl.innerHTML = `
+        ❌ Faltan archivos:<br>
+        ${faltantes.map(f => `- ${f}`).join("<br>")}
+      `;
+
+      return;
+    }
 
     statusEl.textContent = 'Procesando archivos...';
     await loadUltimasVariantesOdooParaBusqueda();
@@ -1578,9 +1951,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tituloReal = tituloPorPublicacion.get(pubMLSinMLC);
 
-        const tituloPub = tituloReal
+        const tituloPub = /*tituloReal
           ? tituloReal
-          : String(item.r[ML_COL_TITULO] || '').trim();// Col S
+          : */String(item.r[ML_COL_TITULO] || '').trim();// Col S
         let variante = String(item.r[ML_COL_VARIANTE] || '')
           .replace(/color\s*:/i, '')
           .trim(); // Col T
@@ -2002,8 +2375,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  loadMlInfo();
-
   let saveTimeout;
 
   resultsBody.addEventListener('input', async (e) => {
@@ -2157,12 +2528,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
-  document.addEventListener('visibilitychange', () => {
+  /*document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-      loadMlInfo();
       updateAnalyzeAvailability();
     }
-  });
+  });*/
 
   function validarExcelVentasJumpseller(file, rows) {
     // Heurísticas típicas del Excel de Ventas ML
@@ -2273,7 +2643,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await runValidacionVentas();
 
       // 4) Refrescar info
-      await loadMlInfo();
+      //await loadMlInfo();
       await updateAnalyzeAvailability();
 
     } catch (e) {
@@ -2388,7 +2758,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const autoBtn = document.getElementById("autoUpdateBtn");
+  /*const autoBtn = document.getElementById("autoUpdateBtn");
 
   autoBtn.addEventListener("click", async () => {
 
@@ -2461,7 +2831,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast("Archivos actualizados ✔", 2000);
 
     analyzeBtn.click();
-  });
+  });*/
 
   async function uploadIfExists(file, url) {
 
@@ -2504,6 +2874,30 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
     }
-
   });
+
+  setTimeout(async () => {
+
+    try {
+      statusEl.textContent = 'Ejecutando validación automática...';
+
+      await runValidacionVentas();
+
+    } catch (err) {
+      console.error("Auto validación error", err);
+      statusEl.textContent = 'Error en validación automática';
+    }
+
+  }, 300);
+
+  setTimeout(async () => {
+
+    try {
+      statusEl.textContent = 'Cargando validación automática...';
+      await runValidacionVentas();
+    } catch (err) {
+      console.warn("Auto validación no ejecutada", err);
+    }
+
+  }, 300);
 });

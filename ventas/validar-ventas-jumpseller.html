@@ -22,48 +22,25 @@
     <main class="content">
       <div class="container">
         <div class="card">
-          <h2>Descargar Variantes Odoo (Sólo si se crearon o modificaron productos)</h2>
-          <ol>
-            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
-        </div>
-        <div class="card">
-          <h2>Descargar Ventas Odoo</h2>
-          <ol>
-            <li>Ingrese a <strong>Ventas</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Plantilla Ventas</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
-        </div>
-        <div class="card">
-          <h2>Descargar Stock Ubicaciones Odoo</h2>
-          <ol>
-            <li>Ingrese a <strong>Inventario</strong>.</li>
-            <li>Ingrese a <strong>Reportes->Ubicaciones</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → STOCK UBICACIONES ODOO</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
-        </div>
-        <div class="card">
-          <h2>Descargar Excel Productos Jumpseller</h2>
-          <ol>
-             <li>Ingresar Menú <strong>Productos</strong>->Todos los Productos.</li>
-             <li>Esportar->CSV para Excel</li>
-             <li>Esperar que llegue correo y guardar en carpeta de archivos.</li>
-          </ol>
-        </div>
-        <div class="card">
-          <h2>Descargar Excel Ventas Jumpseller</h2>
-          <ol>
-             <li>Ingresar Menú <strong>Pedidos</strong>->Todos los Pedidos.</li>
-             <li>Esportar->Formato Excel (XLS)->Con Información de Producto.</li>
-             <li>Exportar.</li>
-          </ol>
+          <h2 id="verVariantesOdoo" class="clickable-title">
+            Descargar Variantes Odoo
+          </h2>
+
+          <h2 id="verStockUbicacionesOdoo" class="clickable-title">
+            Descargar Stock Ubicaciones Odoo
+          </h2>
+
+          <h2 id="verVentasOdoo" class="clickable-title">
+            Descargar Ventas Odoo
+          </h2>
+
+          <h2 id="verProductosJumpseller" class="clickable-title">
+            Descargar Productos Jumpseller
+          </h2>
+
+          <h2 id="verPedidosJumpseller" class="clickable-title">
+            Descargar Pedidos Jumpseller
+          </h2>
         </div>
 
         <div class="card">
@@ -74,19 +51,23 @@
             <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
           </div>-->
           <h2>Analizar Ventas Jumpseller</h2>
-          <p id="jumpsellerVentasInfo" class="muted"></p>
-          <p id="odooVentasInfo" class="muted"></p>
+          <!--<div id="archivosInfo" class="archivos-info"></div>-->
+          <div class="upload-box">
+            <label>Cargar archivos:</label>
+            <input type="file" id="filesInput" multiple accept=".xlsx,.xls,.csv"/>
+          </div>
           <p class="muted">
             Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
           </p>
           <p class="muted">- Variantes de producto (product.product)</p>
           <p class="muted">- Quants (stock.quant)</p>
           <p class="muted">- Orden de venta (sale.order)</p>
+          <p class="muted">- demoto_productos_</p>
           <p class="muted">- demoto_Pedidos_</p>
-           <button id="autoUpdateBtn" class="primary-btn">
+           <!--<button id="autoUpdateBtn" class="primary-btn" style="display: none;">
             Actualizar todo desde Carpeta
-          </button>
-          <button id="analyzeVentasBtn" class="primary-btn" disabled>Validar ventas</button>
+          </button>-->
+          <button id="analyzeVentasBtn" class="primary-btn" disabled style="display: none;">Validar ventas</button>
           <p id="statusVentas" class="status"></p>
         </div>
 
@@ -127,6 +108,13 @@
   <script src="/ventas/validar-ventas-jumpseller.js"></script>
 
   <div id="toast" class="toast hidden"></div>
+
+  <div id="modalImagen" class="modal hidden">
+    <div class="modal-content">
+      <span id="cerrarModal">✕</span>
+      <div id="modalImagesContainer"></div>
+    </div>
+  </div>
 
   <div id="gunScannerModal" class="scanner-modal hidden">
   

@@ -852,6 +852,67 @@ app.get("/api/jumpseller/publicaciones/ultimo", (req, res) => {
   res.sendFile(filePath);
 });
 
+// ============================
+// Jumpseller Productos (persistente)
+// ============================
+
+app.get("/api/jumpseller/productos/info", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "productos_jumpseller_meta.json");
+
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Productos Jumpseller cargados aún" });
+  }
+
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  res.json(meta);
+});
+
+app.get("/api/jumpseller/productos/ultimo", (req, res) => {
+  const metaPath = path.join(UPLOAD_DIR, "productos_jumpseller_meta.json");
+
+  if (!fs.existsSync(metaPath)) {
+    return res.status(404).json({ error: "No hay Productos Jumpseller cargados aún" });
+  }
+
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const filePath = path.join(UPLOAD_DIR, meta.file);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Archivo no encontrado en disco" });
+  }
+
+  res.sendFile(filePath);
+});
+
+app.post("/api/jumpseller/productos", upload.single("archivo"), (req, res) => {
+  const now = new Date();
+
+  const pad = (n) => n.toString().padStart(2, "0");
+  const ts =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+  const finalName = `productos_jumpseller_${ts}.xlsx`;
+  const finalPath = path.join(UPLOAD_DIR, finalName);
+
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = {
+    file: finalName,
+    uploadedAt: now.toISOString()
+  };
+
+  fs.writeFileSync(
+    path.join(UPLOAD_DIR, "productos_jumpseller_meta.json"),
+    JSON.stringify(meta, null, 2)
+  );
+
+  res.json({
+    message: "Productos Jumpseller cargados correctamente",
+    ...meta
+  });
+});
+
 app.get("/api/jumpseller/productos/ultimo", (req, res) => {
   const metaPath = path.join(UPLOAD_DIR, "productos_jumpseller_meta.json");
   if (!fs.existsSync(metaPath)) {
@@ -959,73 +1020,74 @@ app.post("/api/jumpseller/productos", upload.single("archivo"), (req, res) => {
    Endpoints Variantes Odoo
 ============================ */
 
-// Info del último archivo
+// ============================
+// Variantes Odoo (persistente)
+// ============================
+
 app.get("/api/odoo/variantes/info", (req, res) => {
-  const metaPath = path.join(UPLOAD_DIR, "variantes_meta.json");
+  const metaPath = path.join(UPLOAD_DIR, "variantes_odoo_meta.json");
+
   if (!fs.existsSync(metaPath)) {
     return res.status(404).json({ error: "No hay Variantes Odoo cargadas aún" });
   }
+
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
   res.json(meta);
 });
 
-// Descargar último archivo
 app.get("/api/odoo/variantes/ultimo", (req, res) => {
-  const metaPath = path.join(UPLOAD_DIR, "variantes_meta.json");
+  const metaPath = path.join(UPLOAD_DIR, "variantes_odoo_meta.json");
+
   if (!fs.existsSync(metaPath)) {
     return res.status(404).json({ error: "No hay Variantes Odoo cargadas aún" });
   }
+
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
   const filePath = path.join(UPLOAD_DIR, meta.file);
+
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: "Archivo no encontrado en disco" });
   }
+
   res.sendFile(filePath);
 });
 
-// Subir archivo
 app.post("/api/odoo/variantes", upload.single("archivo"), (req, res) => {
-  const now = new Date();
-  const pad = (n) => n.toString().padStart(2, "0");
 
-  const timestamp =
+  const now = new Date();
+
+  const pad = (n) => n.toString().padStart(2, "0");
+  const ts =
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
     `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
 
-  const finalName = `variantes_odoo_${timestamp}.xlsx`;
+  const finalName = `variantes_odoo_${ts}.xlsx`;
   const finalPath = path.join(UPLOAD_DIR, finalName);
+
   const { lastModified } = req.body;
 
   if (!validarLastModified(lastModified)) {
-
-    fs.unlinkSync(finalPath);
-
-    return res.status(400).json({
-      error: "El archivo de Ventas Odoo no es del día"
-    });
-  }
-
-  fs.renameSync(req.file.path, finalPath);
-
-  if (!esArchivoDeHoy(finalPath)) {
-
-    fs.unlinkSync(finalPath);
-
+    fs.unlinkSync(req.file.path);
     return res.status(400).json({
       error: "El archivo de Variantes Odoo no es del día"
     });
   }
 
-  const meta = { file: finalName, uploadedAt: now.toISOString() };
+  fs.renameSync(req.file.path, finalPath);
+
+  const meta = {
+    file: finalName,
+    uploadedAt: now.toISOString()
+  };
+
   fs.writeFileSync(
-    path.join(UPLOAD_DIR, "variantes_meta.json"),
+    path.join(UPLOAD_DIR, "variantes_odoo_meta.json"),
     JSON.stringify(meta, null, 2)
   );
 
   res.json({
-    message: "Variantes Odoo cargadas correctamente ✔",
-    file: finalName,
-    uploadedAt: meta.uploadedAt,
+    message: "Variantes Odoo cargadas correctamente",
+    ...meta
   });
 });
 

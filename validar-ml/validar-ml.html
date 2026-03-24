@@ -25,47 +25,33 @@
       <div class="container">
         <!-- Instrucciones -->
         <div class="card">
-          <h2>Descargar Variantes Odoo</h2>
-          <ol>
-            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
-        </div>
-
-        <!-- Instrucciones -->
-        <div class="card">
-          <h2>Descargar Publicaciones ML</h2>
-          <ol>
-            <li>Ingrese a <strong>PUBLICACIONES</strong>.</li>
-            <li>Modificar desde Excel → <strong>Condiciones Generales</strong>.</li>
-            <li>Descarga la planilla de Excel.</li>
-            <li>Seleccione Publicaciones que quieres incluir en la planilla</li>
-            <li>Seleccione en Categorías -> <strong>Todas</strong>.</li>
-            <li>Haga click en <strong>Descargar</strong> al final de la página.</li>
-          </ol>
+          <h2 id="verVariantesOdoo" class="clickable-title">
+            Descargar Variantes Odoo
+          </h2>
+          <h2 id="verPublicacionesML" class="clickable-title">
+            Descargar Publicaciones ML
+          </h2>
         </div>
 
         <!-- Carga y acción -->
         <div class="card">
           <h2>Analizar Publicaciones ML</h2>
+          <div class="upload-box">
+            <label>Cargar archivos:</label>
+            <input type="file" id="filesInput" multiple accept=".xlsx,.xls,.csv"/>
+          </div>
 
           <div class="field">
             <!--<label for="fileInput">Archivo de Publicaciones ML (.xlsx)</label>
             <input type="file" id="mlFile" accept=".xlsx,.xls" />-->
-            <p id="mlInfo" class="status">Publicaciones ML: no cargadas</p>
-            <p id="odooInfo" class="status">Variantes Odoo: cargando información...</p>
+            <p id="mlInfo" class="status" style="display: none;">Publicaciones ML: no cargadas</p>
+            <p id="odooInfo" class="status" style="display: none;">Variantes Odoo: cargando información...</p>
 
             <p class="muted">
             Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
             </p>
             <p class="muted">- Variantes de producto (product.product)</p>
             <p class="muted">- Publicaciones-</p>
-
-            <button id="autoUpdateBtn" class="primary-btn">
-              Actualizar todo desde Carpeta
-            </button>
 
             <button id="analyzeBtn" class="primary-btn" disabled>
               Analizar observaciones
@@ -100,7 +86,14 @@
             </table>
           </div>
         </section>
+        <div id="modalImagen" class="modal hidden">
+          <div class="modal-content">
+            <span id="cerrarModal">✕</span>
+            <div id="modalImagesContainer"></div>
+          </div>
+        </div>
 
+        <div id="toast" class="toast hidden"></div>
       </div>
     </main>
   </div>

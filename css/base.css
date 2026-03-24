@@ -1357,7 +1357,8 @@ tr.locked .lock-btn {
 #verVariantesOdoo::before { content: "🧬"; }
 #verVentasOdoo::before { content: "💰"; }
 #verStockUbicacionesOdoo::before { content: "📦"; }
-#verExcelVentasML::before { content: "📊"; }
+#verProductosJumpseller::before { content: "📊"; }
+#verVentasJumpseller::before { content: "📊"; }
 
 .upload-box {
   margin: 10px 0;

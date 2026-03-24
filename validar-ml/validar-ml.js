@@ -1,4 +1,4 @@
-const mlFileInput = document.getElementById('mlFile');
+//const mlFileInput = document.getElementById('mlFile');
 const analyzeBtn = document.getElementById('analyzeBtn');
 const statusEl = document.getElementById('status');
 const summaryEl = document.getElementById('summary');
@@ -9,6 +9,43 @@ const actionCountersEl = document.getElementById('actionCounters');
 let lastObservations = [];
 let activeFilter = 'ALL';
 let omitidosSetCache = null;
+let toastTimer;
+
+const modal = document.getElementById("modalImagen");
+const cerrarModal = document.getElementById("cerrarModal");
+const modalContainer = document.getElementById("modalImagesContainer");
+
+const ayudas = {
+  verVariantesOdoo: [
+    "/imagenes/variantes-odoo0.jpg",
+    "/imagenes/variantes-odoo1.jpg"
+  ],
+  verPublicacionesML: [
+    "/imagenes/publicaciones-ml0.jpg",
+    "/imagenes/publicaciones-ml1.jpg"
+  ]
+};
+
+cerrarModal.addEventListener("click", () => {
+  modal.classList.add("hidden");
+});
+
+modal.addEventListener("click", (e) => {
+  if (e.target === modal) {
+    modal.classList.add("hidden");
+  }
+});
+
+function esArchivoDeHoy(file) {
+  const hoy = new Date();
+  const fechaArchivo = new Date(file.lastModified);
+
+  return (
+    fechaArchivo.getDate() === hoy.getDate() &&
+    fechaArchivo.getMonth() === hoy.getMonth() &&
+    fechaArchivo.getFullYear() === hoy.getFullYear()
+  );
+}
 
 function normalizeHeader(str) {
   return String(str || '')
@@ -195,30 +232,6 @@ function applyActiveFilter() {
   resultsEl.classList.remove('filter-SUBIR', 'filter-BAJAR');
   if (activeFilter === 'SUBIR') resultsEl.classList.add('filter-SUBIR');
   if (activeFilter === 'BAJAR') resultsEl.classList.add('filter-BAJAR');
-}
-
-async function updateButtonState() {
-  try {
-    if (mlFileInput && mlFileInput.files && mlFileInput.files.length) {
-      fileToUse = mlFileInput.files[0];
-    }
-
-    if (hasLocalFile) {
-      analyzeBtn.disabled = false;
-      return;
-    }
-
-    // Si no hay archivo local, habilitar solo si existe último en el server
-    const infoRes = await fetch('/api/ml/publicaciones/info', { cache: 'no-store' });
-    analyzeBtn.disabled = !infoRes.ok;
-
-  } catch {
-    analyzeBtn.disabled = true;
-  }
-}
-
-if (mlFileInput) {
-  mlFileInput.addEventListener('change', updateButtonState);
 }
 
 async function uploadPublicacionesML(fileToUse) {
@@ -803,77 +816,6 @@ function renderObservations(observations) {
   } catch {}
 })();
 
-updateButtonState();
-
-const autoBtn = document.getElementById("autoUpdateBtn");
-
-autoBtn.addEventListener("click", async () => {
-
-  let dirHandle;
-
-  try {
-    dirHandle = await window.showDirectoryPicker();
-  } catch {
-    return; // usuario canceló
-  }
-
-  const patterns = {
-    variantes: "Variantes de producto (product.product)",
-    publicaciones: "Publicaciones-"
-  };
-  const latest = {};
-
-  for await (const entry of dirHandle.values()) {
-
-    if (entry.kind !== "file") continue;
-
-    const file = await entry.getFile();
-
-    for (const key in patterns) {
-
-      if (file.name.includes(patterns[key])) {
-
-        if (!latest[key]) {
-          latest[key] = file;
-        } else {
-
-          const current = latest[key];
-
-          if (
-            file.lastModified > current.lastModified
-          ) {
-            latest[key] = file;
-          }
-
-        }
-
-      }
-
-    }
-
-  }
-
-  //console.log("Archivos detectados:", latest);
-
-  await uploadIfExists(latest.variantes, "/api/odoo/variantes");
-  await uploadIfExists(latest.publicaciones, "/api/ml/publicaciones");
-
-  const odoo = await fetch('/api/odoo/variantes/info').then(r => r.json());
-  const ml = await fetch('/api/ml/publicaciones/info').then(r => r.json());
-
-  document.getElementById('odooInfo').innerText =
-    `Variantes Odoo cargadas el: ${new Date(odoo.uploadedAt).toLocaleString()}`;
-
-  document.getElementById('mlInfo').innerText =
-    `Publicaciones ML cargadas el: ${new Date(ml.uploadedAt).toLocaleString()}`;
-
-  analyzeBtn.disabled = false;
-
-  showToast("Archivos actualizados ✔", 2000);
-
-  analyzeBtn.click();
-});
-
 async function uploadIfExists(file, url) {
 
   if (!file) return;
@@ -909,3 +851,112 @@ function showToast(message, duration = 3000, type = 'success') {
     setTimeout(() => toast.classList.add('hidden'), 250);
   }, duration);
 }
+
+Object.keys(ayudas).forEach(id => {
+
+ const el = document.getElementById(id);
+  if (!el) return;
+
+  el.addEventListener("click", () => {
+
+    const images = ayudas[id];
+
+    modalContainer.innerHTML = images.map(src => `
+      <img src="${src}" class="modal-img" />
+    `).join("");
+
+    modal.classList.remove("hidden");
+
+  });
+
+});
+
+const filesInput = document.getElementById("filesInput");
+
+filesInput.addEventListener("change", async () => {
+
+  const files = Array.from(filesInput.files);
+  if (!files.length) return;
+
+  let variantesCargadas = false;
+  let publicacionesCargadas = false;
+
+  showToast("Subiendo archivos...", 1500);
+
+  for (const file of files) {
+
+    try {
+      if (!esArchivoDeHoy(file)) {
+        showToast(`❌ ${file.name} no es del día`, 4000, "error");
+        continue;
+      }
+
+      const name = file.name.toLowerCase();
+
+      let endpoint = "";
+
+      if (name.includes("product.product")) {
+        endpoint = "/api/odoo/variantes";
+        variantesCargadas = true;
+      } 
+      else if (name.includes("publicaciones")) {
+        endpoint = "/api/ml/publicaciones";
+        publicacionesCargadas = true;
+      } 
+      else {
+        showToast(`Archivo no reconocido: ${file.name}`, 3000, "error");
+        continue;
+      }
+
+      const fd = new FormData();
+      fd.append("archivo", file);
+      fd.append("lastModified", file.lastModified);
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        body: fd
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.error || `Error en ${file.name}`, 3000, "error");
+        continue;
+      }
+
+      showToast(`✔ ${file.name}`, 1200);
+
+    } catch (err) {
+      console.error(err);
+      showToast(`Error subiendo ${file.name}`, 3000, "error");
+    }
+  }
+
+  // 🔥 actualizar info en pantalla
+  try {
+    if (variantesCargadas) {
+      const odoo = await fetch('/api/odoo/variantes/info').then(r => r.json());
+      document.getElementById('odooInfo').innerText =
+        `Variantes Odoo cargadas el: ${new Date(odoo.uploadedAt).toLocaleString()}`;
+    }
+
+    if (publicacionesCargadas) {
+      const ml = await fetch('/api/ml/publicaciones/info').then(r => r.json());
+      document.getElementById('mlInfo').innerText =
+        `Publicaciones ML cargadas el: ${new Date(ml.uploadedAt).toLocaleString()}`;
+    }
+
+  } catch (e) {
+    console.warn("Error actualizando info", e);
+  }
+
+  // 🔥 habilitar análisis
+  analyzeBtn.disabled = !(variantesCargadas && publicacionesCargadas);
+
+  showToast("Carga finalizada 🚀", 1500);
+
+  // 🔥 auto ejecutar si ambos están
+  if (variantesCargadas && publicacionesCargadas) {
+    analyzeBtn.click();
+  }
+
+});
