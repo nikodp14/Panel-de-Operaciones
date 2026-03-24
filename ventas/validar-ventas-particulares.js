@@ -13,6 +13,39 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resultsSection.classList.remove("hidden");
 
+  function buscarCodigoEquivalente(venta, codigo){
+
+    if(!codigo) return null;
+
+    // 1. match exacto primero
+    const keyExact = `${venta}|${codigo}`;
+    if(odooQtyByVentaCodigo.has(keyExact)){
+      return codigo;
+    }
+
+    // 2. buscar coincidencias por contenido
+    const matches = [];
+
+    odooQtyByVentaCodigo.forEach((_, key) => {
+
+      const [v, cod] = key.split("|");
+
+      if(v !== venta) return;
+
+      if(cod.includes(codigo) || codigo.includes(cod)){
+        matches.push(cod);
+      }
+
+    });
+
+    // 3. si hay UNA sola → usarla
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
+  }
+
   function aplicarFiltro(tipo){
 
     const rows = resultsBody.querySelectorAll("tr");
@@ -491,7 +524,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const unidades = Number(tr.querySelector(".unidades-vendidas").value||0);
 
-    const key = `${venta}|${codigo}`;
+    const codigoEquivalente = buscarCodigoEquivalente(venta, codigo);
+
+    const key = codigoEquivalente
+      ? `${venta}|${codigoEquivalente}`
+      : `${venta}|${codigo}`;
 
     const qtyOdoo = odooQtyByVentaCodigo.get(key)||0;
 
