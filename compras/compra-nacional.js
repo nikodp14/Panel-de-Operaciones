@@ -405,6 +405,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         <input type="number" class="cantidad-input" min="0" value="0" />
       </td>
       <td>
+        <input type="number" class="precio-neto-input" min="0" value="0" />
+      </td>
+      <td>
         <input type="number" class="precio-input" min="0" value="0" />
       </td>
       <td class="total-compra">0</td>
@@ -592,6 +595,45 @@ document.addEventListener('DOMContentLoaded', async () => {
       suggestions.classList.remove('hidden');
     }
 
+    // 🔵 NETO → CON IVA
+    if (e.target.classList.contains('precio-neto-input')) {
+
+      const tr = e.target.closest('tr');
+
+      const neto = Number(e.target.value) || 0;
+      const conIva = neto * IVA;
+
+      const precioInput = tr.querySelector('.precio-input');
+
+      // evitar loop infinito
+      if (document.activeElement === e.target) {
+        precioInput.value = Math.round(conIva);
+      }
+
+      recalcularTotales();
+      guardarCotizacion();
+    }
+
+
+    // 🔵 CON IVA → NETO
+    if (e.target.classList.contains('precio-input')) {
+
+      const tr = e.target.closest('tr');
+
+      const conIva = Number(e.target.value) || 0;
+      const neto = conIva / IVA;
+
+      const netoInput = tr.querySelector('.precio-neto-input');
+
+      // evitar loop infinito
+      if (document.activeElement === e.target) {
+        netoInput.value = Math.round(neto);
+      }
+
+      recalcularTotales();
+      guardarCotizacion();
+    }
+
     if (e.target.classList.contains('cantidad-input') ||
         e.target.classList.contains('precio-input') ||
         e.target.classList.contains('costo-envio-input')){
@@ -684,6 +726,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         variante: tr.querySelector('.variante-valor')?.textContent || '',
         cantidad: tr.querySelector('.cantidad-input')?.value || 0,
         precio: tr.querySelector('.precio-input')?.value || 0,
+        precioNeto: tr.querySelector('.precio-neto-input')?.value || 0,
         descuento: tr.querySelector('.descuento-input')?.value || 25,
         costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0
       });
@@ -743,6 +786,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.precio-input').value = l.precio;
+        tr.querySelector('.precio-neto-input').value = l.precioNeto || 0;
         tr.querySelector('.descuento-input').value = l.descuento ?? 25;
         tr.querySelector('.costo-envio-input').value = l.costoEnvio || 0;
 

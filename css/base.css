@@ -1241,6 +1241,12 @@ td:has(.unidades-vendidas){
   width:90px; /* ajusta según tu layout */
 }
 
+.precio-odoo
+{
+  justify-content:flex-end;
+  width:90px; /* ajusta según tu layout */
+}
+
 #totalCompraFooter{
   display:flex;
   justify-content:flex-end;
