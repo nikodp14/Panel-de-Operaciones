@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="copiable-cell">
         ${
           isLink
-            ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+            ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
             : `<span class="copiable-value">${valor}</span>`
         }
         <span class="copiar-icon">📋</span>

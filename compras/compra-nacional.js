@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="copiable-cell">
           ${
             isLink
-              ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+              ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
               : `<span class="copiable-value">${valor}</span>`
           }
           <span class="copiar-icon">📋</span>
@@ -936,11 +936,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     actualizarEstadoExportacion();
   }
 
-  if(e.target.classList.contains('ingresado-check')){
+  body.addEventListener('change', (e) => {
 
-    const tr = e.target.closest('tr');
+    if (e.target.classList.contains('ingresado-check')) {
 
-    actualizarEstadoIngresado(tr);
+      const tr = e.target.closest('tr');
 
-  }
+      actualizarEstadoIngresado(tr);
+
+    }
+
+  });
 });
