@@ -160,6 +160,36 @@ async function precargarDolar(){
 
 }
 
+const filePath = path.join(process.cwd(), 'data', 'correlativo-pedidos.json');
+
+function leerCorrelativo() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({ ultimo: 0 }, null, 2));
+  }
+
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function guardarCorrelativo(data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/pedidos/siguiente', (req, res) => {
+
+  const data = leerCorrelativo();
+
+  data.ultimo += 1;
+
+  guardarCorrelativo(data);
+
+  const numero = data.ultimo;
+
+  const ref = 'N' + String(numero).padStart(5, '0');
+
+  res.json({ numero, ref });
+
+});
+
 app.post('/api/contador-internacional', (req, res) => {
 
   const filePath = './data/contador-internacional.json';

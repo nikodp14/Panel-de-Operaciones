@@ -139,10 +139,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function exportarPedidoExcel(){
 
-      const pedido = prompt('Número de última compra');
-      if(!pedido) return;
+      const resPedido = await fetch('/api/pedidos/siguiente');
+      const dataPedido = await resPedido.json();
 
-      const refOrden = 'P' + String(Number(pedido) + 1).padStart(5,'0');
+      const refOrden = dataPedido.ref;
       const cotizacion = document.getElementById('cotizacionInput').value.trim();
 
       const now = new Date();
@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const producto = tr.querySelector('.codigo-input')?.value || '';
         const cantidad = tr.querySelector('.cantidad-input')?.value || '';
-        const precio = tr.querySelector('.precio-odoo')?.textContent || '';
+        const precio = tr.querySelector('.precio-odoo .copiable-value')?.textContent || '0';
 
         if(!producto) return;
 
@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const totalOdooLinea = cantidad * precioSinIva;
 
       tr.querySelector('.total-compra').textContent = '$ ' + Math.round(totalLinea.toFixed(0)).toLocaleString('es-CL');
-      tr.querySelector('.precio-odoo').textContent = '$ ' + Math.round(precioSinIva.toFixed(0)).toLocaleString('es-CL');
+      tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioSinIva.toFixed(0), false, true);
       tr.querySelector('.total-odoo').textContent = '$ ' + Math.round(totalOdooLinea.toFixed(0)).toLocaleString('es-CL');
       const numeroPub =
         tr.querySelector('.numero-publicacion .copiable-value')?.textContent
