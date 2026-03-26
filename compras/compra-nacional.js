@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       } else if (precioActualML > precioML) {
         // 🟢 ML está más caro que nuestro cálculo
-        precioMLEl.style.color = '#0a8f2f';
+        precioMLEl.style.color = '#1dbe4b';
         precioMLEl.style.fontWeight = '700';
 
       } else {

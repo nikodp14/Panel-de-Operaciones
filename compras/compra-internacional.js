@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.style.fontWeight = '700';
     }
     else if (actual > calculado){
-      el.style.color = '#0a8f2f';
+      el.style.color = '#1dbe4b'';
       el.style.fontWeight = '700';
     }
     else{
