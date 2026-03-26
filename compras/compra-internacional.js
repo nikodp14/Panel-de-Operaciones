@@ -432,10 +432,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function renderCopiable(valor) {
+  function renderCopiable(valor, isLink = false) {
+
+    const link = isLink
+      ? `https://articulo.mercadolibre.cl/MLC-${valor}`
+      : null;
+
     return `
       <div class="copiable-cell">
-        <span class="copiable-value">${valor}</span>
+        ${
+          isLink
+            ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+            : `<span class="copiable-value">${valor}</span>`
+        }
         <span class="copiar-icon">📋</span>
       </div>
     `;
@@ -1049,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="total-odoo">${esPack ? '0' : ''}</td>
 
           <td class="ml-col numero-publicacion">
-            ${renderCopiable(pub)}
+            ${renderCopiable(pub, true)}
           </td>
 
           <td class="ml-col estado-publicacion">
@@ -1089,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pub = ordenadas[0] || (resultado.publicacion || '').toUpperCase().trim();
 
     filaPrincipal.querySelector('.numero-publicacion').innerHTML =
-      renderCopiable(pub);
+      renderCopiable(pub, true);
 
     const data = comisionMap.get(pub);
 

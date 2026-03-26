@@ -154,10 +154,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    function renderCopiable(valor) {
+    function renderCopiable(valor, isLink = false) {
+
+      const link = isLink
+        ? `https://articulo.mercadolibre.cl/MLC-${valor}`
+        : null;
+
       return `
         <div class="copiable-cell">
-          <span class="copiable-value">${valor}</span>
+          ${
+            isLink
+              ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+              : `<span class="copiable-value">${valor}</span>`
+          }
           <span class="copiar-icon">📋</span>
         </div>
       `;
@@ -541,7 +550,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 🔥 Obtener comisión ML desde barcode
     const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
     guardarCotizacion();
 
     // 🔥 Limpiar si no coincide con barcode válido
@@ -679,7 +688,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resultado = await obtenerComisionDesdeBarcode(barcode);
 
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
+    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
     nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
 
@@ -782,7 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resultado = await obtenerComisionDesdeBarcode(barcode);
 
         tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-        tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion);
+        tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.precio-input').value = l.precio;
