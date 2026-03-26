@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    function renderCopiable(valor, isLink = false) {
+    function renderCopiable(valor, isLink = false, isPrice = false) {
 
       const link = isLink
         ? `https://articulo.mercadolibre.cl/MLC-${valor}`
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${
             isLink
               ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
-              : `<span class="copiable-value">${valor}</span>`
+              : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span><span class="copiable-value" style="display: none;">${valor}</span>`
           }
           <span class="copiar-icon">📋</span>
         </div>
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <input type="number" class="precio-input" min="0" value="0" />
       </td>
       <td class="total-compra">0</td>
-      <td>
+      <td class="col-descuento">
         <input type="number" class="descuento-input" value="${descuentoGlobal}" min="0" max="100" style="width:60px;">
       </td>
       <td class="precio-odoo">0</td>
@@ -533,8 +533,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const totalOdooLinea = cantidad * precioSinIva;
 
       tr.querySelector('.total-compra').textContent = '$ ' + Math.round(totalLinea.toFixed(0)).toLocaleString('es-CL');
-      tr.querySelector('.precio-odoo').textContent = precioSinIva.toFixed(0);
-      tr.querySelector('.total-odoo').textContent = totalOdooLinea.toFixed(0);
+      tr.querySelector('.precio-odoo').textContent = '$ ' + Math.round(precioSinIva.toFixed(0)).toLocaleString('es-CL');
+      tr.querySelector('.total-odoo').textContent = '$ ' + Math.round(totalOdooLinea.toFixed(0)).toLocaleString('es-CL');
       const numeroPub =
         tr.querySelector('.numero-publicacion .copiable-value')?.textContent
         ?.trim()
@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const elJumpseller = tr.querySelector('.precio-jumpseller');
 
-      elJumpseller.innerHTML = renderCopiable(precioJumpseller.toFixed(0));
+      elJumpseller.innerHTML = renderCopiable(precioJumpseller.toFixed(0), false, true);
 
       pintarComparacionPrecio(elJumpseller, precioJumpseller, precioActualJumpseller);
 
@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioMLEl = tr.querySelector('.precio-ml');
 
-      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0));
+      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0), false, true);
 
       if (precioActualML) {
 
@@ -601,7 +601,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     totalCompraFooter.textContent = '$ ' + Math.round(totalCompra.toFixed(0)).toLocaleString('es-CL');
-    totalConIvaFooter.textContent = (totalOdoo * 1.19).toFixed(0);
+    totalConIvaFooter.textContent = '$ ' + Math.round((totalOdoo * 1.19).toFixed(0)).toLocaleString('es-CL');
   }
 
   body.addEventListener('input', async (e) => {

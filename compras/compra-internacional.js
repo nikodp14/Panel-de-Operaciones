@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const el = tr.querySelector('.precio-jumpseller');
 
-    el.innerHTML = renderCopiable(precio.toFixed(0));
+    el.innerHTML = renderCopiable(precio.toFixed(0), false, true);
 
     pintarComparacionPrecio(el, precio, actual);
 
@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function renderCopiable(valor, isLink = false) {
+  function renderCopiable(valor, isLink = false, isPrice = false) {
 
     const link = isLink
       ? `https://articulo.mercadolibre.cl/MLC-${valor}`
@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${
           isLink
             ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
-            : `<span class="copiable-value">${valor}</span>`
+            : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span><span class="copiable-value" style="display: none;">${valor}</span>`
         }
         <span class="copiar-icon">📋</span>
       </div>
@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.style.fontWeight = '700';
     }
     else if (actual > calculado){
-      el.style.color = '#1dbe4b'';
+      el.style.color = '#1dbe4b';
       el.style.fontWeight = '700';
     }
     else{
@@ -893,7 +893,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else{
 
       if(precioUsdEl) precioUsdEl.textContent = precioUSD.toFixed(2);
-      if(precioOdooEl) precioOdooEl.innerHTML = renderCopiable(precioOdoo.toFixed(0));
+      if(precioOdooEl) precioOdooEl.innerHTML = renderCopiable(precioOdoo.toFixed(0), false, true);
       if(totalOdooEl) totalOdooEl.textContent = '$ ' + Math.round(precioOdoo.toFixed(0) * cantidad).toLocaleString('es-CL');
     }
 
@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       );
 
       precioMLEl.innerHTML =
-        renderCopiable(precioML.toFixed(0));
+        renderCopiable(precioML.toFixed(0), false, true);
 
     }
 

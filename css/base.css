@@ -548,9 +548,12 @@ body.sidebar-collapsed .container {
 
 #comprasResults .cantidad-input,
 #comprasResults .total-input,
-#comprasResults .costo-envio-input{
+#comprasResults .costo-envio-input,
+#comprasResults .precio-neto-input,
+#comprasResults .precio-input,
+#comprasResults .precio-caja-input{
   width:70px;
-  text-align:center;
+  text-align:right;
 }
 
 .delete-col {
@@ -598,11 +601,18 @@ body.sidebar-collapsed .container {
   font-weight: 700;
   background-color: #f3e5f5;
   border-radius: 4px;
+  text-align: right;
 }
 
 .precio-jumpseller {
   background-color: #b4c9e4;
   font-weight: 600;
+  text-align: right;
+}
+
+.precio-ml,
+.porcentaje-comision{
+  text-align: right;
 }
 
 .copiable-cell {
@@ -722,7 +732,7 @@ body.sidebar-collapsed .container {
 }
 
 .table-wrap table {
-  min-width: 1100px;
+  min-width: 100%;
 }
 
 /* Observaciones validar-ml */
@@ -849,8 +859,7 @@ body.sidebar-collapsed .container {
 }
 
 /* Columna Producto Cot. más ancha */
-#comprasResults table th:nth-child(3),
-#comprasResults table td:nth-child(3){
+#comprasResults table th:nth-child(3){
   min-width: 350px;
   width: 350px;
 }
@@ -1259,7 +1268,7 @@ td:has(.unidades-vendidas){
 
 .col-producto,
 td:nth-child(4) {
-  min-width: 180px;
+  min-width: 80px;
 }
 
 tr.locked {
@@ -1418,4 +1427,13 @@ tr.locked .lock-btn {
 #cancelBtn {
   background: #374151;
   color: white;
+}
+
+.col-descuento {
+  max-width: 45px;
+}
+
+.descuento-input {
+  max-width: 40px;
+  text-align:right
 }
