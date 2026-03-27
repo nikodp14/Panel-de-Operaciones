@@ -19,6 +19,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     let variantesCache = [];
     let packSetCache = null;
     let jumpsellerPriceMapCache = null;
+    let inputTimer = null;
+
+    function buscarPorReferenciaInterna(valor){
+
+      const v = valor.toUpperCase();
+
+      const matches = variantesCache.filter(item => {
+
+        const internal = item.default_code || '';
+        const barcode = item.barcode || '';
+
+        return (
+          internal.includes(v) ||
+          v.includes(internal) ||
+          barcode === v
+        );
+
+      });
+
+      if(matches.length === 1){
+        return matches[0];
+      }
+
+      return null;
+    }
 
     async function loadJumpsellerPriceMap(){
 
@@ -443,9 +468,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       variantesCache = rows.slice(1).map(r => ({
         barcode: String(r[1] || '').trim().toUpperCase(),
+        default_code: String(r[0] || '').trim().toUpperCase(),
         name: String(r[2] || '').trim(),
         variant: String(r[5] || '').trim()
-      })).filter(v => v.barcode);
+      })).filter(v => v.barcode || v.default_code);
     }
     
     function addRow() {
@@ -466,7 +492,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
             <span class="copiar-icon">📋</span>
           </div>
-
+          <div class="linea-internal">
+            <span class="internal-valor"></span>
+          </div>
           <div class="producto-info">
             <div class="linea-nombre">
               <span class="nombre-valor"></span>
@@ -612,71 +640,117 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (e.target.classList.contains('codigo-input')) {
 
-    const input = e.target;
-    const tr = input.closest('tr');
-    const suggestions = tr.querySelector('.odoo-suggestions');
-    const nombreEl = tr.querySelector('.nombre-valor');
-    const varianteEl = tr.querySelector('.variante-valor');
+      clearTimeout(inputTimer);
 
-    const rawValue = input.value.trim();
-    const normalizedValue = rawValue.toUpperCase();
-    const lowerValue = rawValue.toLowerCase();
+      inputTimer = setTimeout(async () => {
+        const input = e.target;
+        const tr = input.closest('tr');
+        const suggestions = tr.querySelector('.odoo-suggestions');
+        const nombreEl = tr.querySelector('.nombre-valor');
+        const varianteEl = tr.querySelector('.variante-valor');
 
-    // 🔥 Obtener comisión ML desde barcode
-    const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
-    tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
-    tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
-    guardarCotizacion();
+        const rawValue = input.value.trim();
+        const normalizedValue = rawValue.toUpperCase();
+        const lowerValue = rawValue.toLowerCase();
+        const internalEl = tr.querySelector('.internal-valor');
 
-    // 🔥 Limpiar si no coincide con barcode válido
-    if (!variantesCache.some(v => v.barcode === normalizedValue)){
-      nombreEl.textContent = '';
-      varianteEl.textContent = '';
-    }
+        // 🔥 Obtener comisión ML desde barcode
+        const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
+        tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
+        tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
+        guardarCotizacion();
 
-    if (lowerValue.length < 3) {
-      suggestions.innerHTML = '';
-      suggestions.classList.add('hidden');
-      return;
-    }
+        // 🔥 Limpiar si no coincide con barcode válido
+        if (!variantesCache.some(v => v.barcode === normalizedValue)){
+          nombreEl.textContent = '';
+          varianteEl.textContent = '';
+        }
 
-    await loadVariantes();
+        await loadVariantes();
 
-    // 🔥 Autocompletar automático si coincide exactamente
-    const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
+        const matchUnico = buscarPorReferenciaInterna(normalizedValue);
 
-    if (exactMatch) {
-      nombreEl.textContent = exactMatch.name || '';
-      varianteEl.textContent = exactMatch.variant || '';
-      suggestions.innerHTML = '';
-      suggestions.classList.add('hidden');
-      return;
-    }
+        if (matchUnico) {
 
-      const matches = variantesCache
-        .filter(v =>
-          v.barcode.includes(normalizedValue) ||
-          v.name.toLowerCase().includes(lowerValue)
-        )
-        .slice(0, 500);
+          // 🔥 poner barcode en input
+          input.value = matchUnico.barcode;
 
-      suggestions.innerHTML = `
-        <div class="odoo-header">
-          <span>Variantes Odoo</span>
-          <span class="odoo-close">✕</span>
-        </div>
-        <div class="odoo-list">
-          ${matches.map(v => `
-            <div class="odoo-option" data-barcode="${v.barcode}">
-              <div class="odoo-barcode">${v.barcode}</div>
-              <div class="odoo-name">${v.name}</div>
-              <div class="odoo-variant">${v.variant}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+          // 🔥 mostrar referencia interna (parte después del /)
+          const internal = matchUnico.default_code || '';
+          const partes = internal.split('/');
+          const codigoInterno = partes.length > 1 ? partes[1] : internal;
 
-      suggestions.classList.remove('hidden');
+          internalEl.textContent = codigoInterno;
+
+          nombreEl.textContent = matchUnico.name || '';
+          varianteEl.textContent = matchUnico.variant || '';
+
+          suggestions.innerHTML = '';
+          suggestions.classList.add('hidden');
+
+          guardarCotizacion();
+
+          return;
+        }
+
+        if (!matchUnico) {
+          internalEl.textContent = '';
+        }
+
+        if (lowerValue.length < 3) {
+          suggestions.innerHTML = '';
+          suggestions.classList.add('hidden');
+          return;
+        }
+
+        await loadVariantes();
+
+        // 🔥 Autocompletar automático si coincide exactamente
+        const exactMatch = variantesCache.find(v =>
+          v.barcode === normalizedValue ||
+          v.default_code === normalizedValue
+        );
+
+        if (exactMatch) {
+          nombreEl.textContent = exactMatch.name || '';
+          varianteEl.textContent = exactMatch.variant || '';
+          suggestions.innerHTML = '';
+          suggestions.classList.add('hidden');
+          return;
+        }
+
+        const matches = variantesCache
+          .filter(v => {
+
+            const barcode = v.barcode || '';
+            const internal = v.default_code || '';
+
+            return (
+              barcode.includes(normalizedValue) ||
+              internal.includes(normalizedValue) ||
+              v.name.toLowerCase().includes(lowerValue)
+            );
+          })
+          .slice(0, 500);
+
+        suggestions.innerHTML = `
+          <div class="odoo-header">
+            <span>Variantes Odoo</span>
+            <span class="odoo-close">✕</span>
+          </div>
+          <div class="odoo-list">
+            ${matches.map(v => `
+              <div class="odoo-option" data-barcode="${v.barcode}">
+                <div class="odoo-barcode">${v.barcode}</div>
+                <div class="odoo-name">${v.name}</div>
+                <div class="odoo-variant">${v.variant}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        suggestions.classList.remove('hidden');
+      }, 80);
     }
 
     // 🔵 NETO → CON IVA
