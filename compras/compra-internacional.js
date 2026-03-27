@@ -960,7 +960,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       calcularFila(tr); // 🔥 siempre recalcula UI
 
       const precioOdoo = Number(
-        tr.querySelector('.precio-odoo .copiable-value')?.textContent || 0
+        tr.querySelector('.precio-odoo .copiar-icon')?.dataset.copy || 0
       );
 
       const cantidad =
@@ -1054,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="precio-usd">${esPack ? '0' : ''}</td>
           <td class="precio-odoo">${esPack ? '0' : ''}</td>
           <td class="total-odoo">${esPack ? '0' : ''}</td>
-          <td class="ml-col estado-publicacion">
+          <td class="estado-publicacion">
             ${data?.estado || ''}
           </td>
           <td></td>
@@ -1756,7 +1756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const producto = tr.querySelector('.codigo-input')?.value || '';
       const cantidad = tr.querySelector('.cantidad-input')?.value || '';
       const precio = Number(
-        tr.querySelector('.precio-odoo .copiable-value')?.textContent || '0'
+        tr.querySelector('.precio-odoo .copiar-icon')?.dataset.copy || 0
       );
 
       if(!producto) return;

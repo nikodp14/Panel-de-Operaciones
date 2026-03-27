@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const producto = tr.querySelector('.codigo-input')?.value || '';
         const cantidad = tr.querySelector('.cantidad-input')?.value || '';
-        const precio = tr.querySelector('.precio-odoo .copiable-value')?.textContent || '0';
+        const precio = tr.querySelector('.precio-odoo .copiar-icon')?.dataset.copy || '0'
 
         if(!producto) return;
 
