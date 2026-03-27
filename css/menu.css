@@ -26,7 +26,7 @@
   top: 44px; /* altura del topbar */
   left: 0;
   height: calc(100vh - 44px);
-  width: 240px;
+  width: 370px;
   background: #fff;
   border-right: 1px solid #e3e8f3;
   padding: 1rem;
