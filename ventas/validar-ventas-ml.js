@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const ODOO_COL_QTY = 7;      // Col H: Cantidad
   const filesInput = document.getElementById("filesInput");
   const formatCLP = (n) => new Intl.NumberFormat("es-CL").format(n);
+  const esLocal = location.hostname === 'localhost';
   // === ÍNDICES ML (Ventas ML) ===
   // Ajusta aquí si cambia el formato del Excel de ML
   const ML_COL_VENTA = 0;      // Col A: Número de venta ML
@@ -1224,7 +1225,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const faltantes = await validarArchivosDelDia();
 
     // 🧠 detectar entorno local
-    const esLocal = location.hostname === 'localhost';
 
     const estadoRes = await fetch('/api/estado/odoo-ventas');
     const estado = await estadoRes.json();

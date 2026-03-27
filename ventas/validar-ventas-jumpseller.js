@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsBody = document.getElementById('ventasResultsBody');
   const odooVentasInfo = document.getElementById('odooVentasInfo');
   const jumpsellerVentasInfo = document.getElementById('jumpsellerVentasInfo');
+  const esLocal = location.hostname === 'localhost';
   // === ÍNDICES ODOO (ajusta una vez y listo) ===
   const ODOO_COL_VENTA = 6;    // Col G: Número de venta (ML)
   const ODOO_COL_CODIGO = 8;   // Col C: Código de producto
@@ -143,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function check(url, nombre) {
       try {
-        const esLocal = location.hostname === 'localhost';
+        
         if (!esLocal){
           const res = await fetch(url, { cache: 'no-store' });
 
@@ -190,8 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function validarArchivosSeleccionados(files) {
-
-    const esLocal = location.hostname === 'localhost';
 
     const required = {
       variantes: esLocal ? true : false,
