@@ -746,8 +746,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="precio-usd">0</td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
-      <td class="ml-col numero-publicacion"></td>
-      <td class="ml-col estado-publicacion"></td>
+      <td class="numero-publicacion"></td>
+      <td class="estado-publicacion"></td>
       <td class="porcentaje-ganancia">0</td>
       <td>
         <input type="number" class="precio-caja-input" min="0" value="0">

@@ -1403,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // 👇 encabezado en fila 3 (igual que validar-ml)
           const pubRows = XLSX.utils.sheet_to_json(wsPub, {
             defval: '',
-            range: 2
+            range: 0
           });
 
           for (const row of pubRows) {
@@ -1926,6 +1926,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pubMLSinMLC = String(item.r[ML_COL_PUBML] || '')
           .replace(/^MLC/i, '')
           .trim();
+          console.log(pubMLSinMLC);
 
         let unidadesDespachar = await calcularCantidadDespacho(
           pubMLSinMLC,
@@ -2361,10 +2362,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       resultsSection.classList.remove('hidden');
       statusEl.textContent = `Se encontraron ${observaciones.length} observaciones.`;
-      validacionEnCurso = false;
     } catch (err) {
       console.error(err);
       statusEl.textContent = err.message || 'Error procesando los archivos. Revisa el formato.';
+    }
+    finally{
       validacionEnCurso = false;
     }
   };
