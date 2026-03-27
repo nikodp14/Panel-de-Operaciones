@@ -235,22 +235,23 @@ function applyActiveFilter() {
 }
 
 function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
-  console.log(valor, isLink, isPrice, isLinkMl)
 
   const link = isLink && isLinkMl
     ? `https://articulo.mercadolibre.cl/MLC-${valor}`
-    //: isLink && !isLinkMl ? `https://demoto.jumpseller.com/admin/cl/products/edit/${valor}`
-    : isLink && !isLinkMl ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
+    : isLink && !isLinkMl
+      ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
       : null;
 
   return `
     <div class="copiable-cell">
       ${
         isLink
-          ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
-          : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span><span class="copiable-value" style="display: none;">${valor}</span>`
+          ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+          : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span>`
       }
-      <span class="copiar-icon">📋</span>
+
+      <!-- 🔥 botón copiar separado -->
+      <span class="copiar-icon" data-copy="${valor}">📋</span>
     </div>
   `;
 }
@@ -938,6 +939,19 @@ function renderObservations(observations) {
     analyzeBtn.disabled = false;
   } catch {}
 })();
+
+document.addEventListener("click", (e) => {
+
+  if (e.target.classList.contains("copiar-icon")) {
+
+    const text = e.target.dataset.copy;
+
+    navigator.clipboard.writeText(text);
+
+    showToast(`Copiado: ${text}`, 1500);
+  }
+
+});
 
 async function uploadIfExists(file, url) {
 

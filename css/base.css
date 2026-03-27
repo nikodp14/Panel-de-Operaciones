@@ -1468,11 +1468,11 @@ tr.locked .lock-btn {
 }
 
 /* centrarlos */
-.field {
+/*.field {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
+}*/
 
 #resultadoCheck {
   font-size: 32px;
