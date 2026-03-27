@@ -1387,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let tituloPorPublicacion = new Map();
 
       try {
-        const pubRes = await fetch('/api/jumpseller/publicaciones/ultimo', { cache: 'no-store' });
+        const pubRes = await fetch('/api/jumpseller/productos/ultimo', { cache: 'no-store' });
         if (pubRes.ok) {
 
           const pubBuf = await pubRes.arrayBuffer();
