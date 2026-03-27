@@ -391,22 +391,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let valor = '';
 
-    // 🔹 caso input (codigo)
-    const codigoRow = e.target.closest('.codigo-row');
-    if (codigoRow) {
-      const input = codigoRow.querySelector('.codigo-input');
-      valor = input?.value || '';
-    }
+    // 🔥 PRIORIDAD: data-copy
+    valor = e.target.dataset.copy || '';
 
-    // 🔹 caso celdas copiables (precio, ML, etc)
-    const copiableCell = e.target.closest('.copiable-cell');
-    if (copiableCell) {
-      const el = copiableCell.querySelector('.copiable-value');
-
-      if (el) {
-        valor = el.tagName === 'INPUT'
-          ? el.value
-          : el.textContent;
+    // 🔹 fallback input
+    if (!valor) {
+      const codigoRow = e.target.closest('.codigo-row');
+      if (codigoRow) {
+        const input = codigoRow.querySelector('.codigo-input');
+        valor = input?.value || '';
       }
     }
 
@@ -432,20 +425,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function renderCopiable(valor, isLink = false, isPrice = false) {
+  function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
 
-    const link = isLink
+    const link = isLink && isLinkMl
       ? `https://articulo.mercadolibre.cl/MLC-${valor}`
-      : null;
+      : isLink && !isLinkMl
+        ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
+        : null;
 
     return `
       <div class="copiable-cell">
         ${
           isLink
-            ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
-            : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span><span class="copiable-value" style="display: none;">${valor}</span>`
+            ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+            : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span>`
         }
-        <span class="copiar-icon">📋</span>
+
+        <!-- 🔥 botón copiar separado -->
+        <span class="copiar-icon" data-copy="${valor}">📋</span>
       </div>
     `;
   }
@@ -746,13 +743,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td class="precio-usd">0</td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
-      <td class="numero-publicacion"></td>
       <td class="estado-publicacion"></td>
       <td class="porcentaje-ganancia">0</td>
       <td>
         <input type="number" class="precio-caja-input" min="0" value="0">
       </td>
+      <td class="publicacion-jumpseller"></td>
       <td class="ml-col precio-jumpseller">0</td>
+      <td class="ml-col numero-publicacion"></td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
       </td>
@@ -806,7 +804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function obtenerDatosML(tr){
 
     const numeroPub =
-      tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+      tr.querySelector('.numero-publicacion .copiar-icon')?.dataset.copy
       ?.trim()
       ?.toUpperCase() || '';
 
@@ -1056,18 +1054,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="precio-usd">${esPack ? '0' : ''}</td>
           <td class="precio-odoo">${esPack ? '0' : ''}</td>
           <td class="total-odoo">${esPack ? '0' : ''}</td>
-
-          <td class="ml-col numero-publicacion">
-            ${renderCopiable(pub, true)}
-          </td>
-
           <td class="ml-col estado-publicacion">
             ${data?.estado || ''}
           </td>
           <td></td>
           <td></td>
+          <td class="publicacion-jumpseller">
+            ${renderCopiable(pub, true, false, false)}
+          </td>
           <td class="ml-col precio-jumpseller"></td>
-
+          <td class="ml-col numero-publicacion">
+            ${renderCopiable(pub, true)}
+          </td>
           <td class="ml-col">
             <input type="text" class="costo-envio-input" value="0">
           </td>
@@ -1099,6 +1097,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     filaPrincipal.querySelector('.numero-publicacion').innerHTML =
       renderCopiable(pub, true);
+
+    filaPrincipal.querySelector('.publicacion-jumpseller').innerHTML =
+      renderCopiable(pub, true, false, false);
 
     const data = comisionMap.get(pub);
 
@@ -1785,7 +1786,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     XLSX.writeFile(wb, `pedido_${refOrden}.xlsx`);
 
-    const confirmar = confirm('¿Marcar líneas exportadas como ingresadas?');
+    /*const confirmar = confirm('¿Marcar líneas exportadas como ingresadas?');
 
     if(confirmar){
 
@@ -1808,7 +1809,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       actualizarEstadoExportacion();
       recalcularTotales();
       guardarCotizacion();
-    }
+    }*/
 
   }
 

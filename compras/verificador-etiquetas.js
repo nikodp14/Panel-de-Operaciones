@@ -7,6 +7,40 @@ document.addEventListener("DOMContentLoaded", () => {
   const barcodeInput = document.getElementById("barcodeInput");
   const textCodeInput = document.getElementById("textCodeInput");
   const resultadoCheck = document.getElementById("resultadoCheck");
+  const filesInput = document.getElementById("filesInput");
+  const statusEl = document.getElementById("statusVentas");
+
+  filesInput.addEventListener("change", async () => {
+
+    const files = Array.from(filesInput.files);
+    if (!files.length) return;
+
+    statusEl.textContent = "Subiendo archivo...";
+
+    for (const file of files) {
+
+      const formData = new FormData();
+      formData.append("archivo", file);
+      formData.append("lastModified", file.lastModified);
+
+      const name = file.name.toLowerCase();
+
+      if (!name.includes("product.product")) continue;
+
+      await fetch("/api/odoo/variantes", {
+        method: "POST",
+        body: formData
+      });
+    }
+
+    statusEl.textContent = "Archivo cargado ✅";
+
+    // 🔥 recargar cache
+    await loadVariantesOdoo();
+
+    filesInput.value = "";
+
+  });
 
   if (!barcodeInput || !textCodeInput || !resultadoCheck) {
     console.warn("Inputs no encontrados en el DOM");

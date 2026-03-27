@@ -592,7 +592,8 @@ body.sidebar-collapsed .container {
   font-weight: 600;
 }
 
-.numero-publicacion {
+.numero-publicacion,
+.publicacion-jumpseller {
   font-weight: 700;
 }
 
@@ -604,7 +605,8 @@ body.sidebar-collapsed .container {
   text-align: right;
 }
 
-.precio-jumpseller {
+.precio-jumpseller,
+.publicacion-jumpseller {
   background-color: #67e8f9;
   font-weight: 600;
   text-align: right;
@@ -1478,4 +1480,12 @@ tr.locked .lock-btn {
   font-size: 32px;
   font-weight: bold;
   margin-top: 20px;
+}
+
+.internal-valor {
+  font-weight: 600;
+}
+
+.clear-icon {
+  cursor: pointer;
 }

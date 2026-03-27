@@ -21,6 +21,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     let jumpsellerPriceMapCache = null;
     let inputTimer = null;
 
+    function aplicarLogicaCodigo(tr, valor){
+
+      const input = tr.querySelector('.codigo-input');
+      const nombreEl = tr.querySelector('.nombre-valor');
+      const varianteEl = tr.querySelector('.variante-valor');
+      const internalEl = tr.querySelector('.internal-valor');
+
+      const normalizedValue = String(valor || '').trim().toUpperCase();
+
+      const matchUnico = buscarPorReferenciaInterna(normalizedValue);
+
+      if (matchUnico) {
+
+        // 🔥 setea barcode
+        input.value = matchUnico.barcode;
+
+        // 🔥 setea referencia interna visible
+        const internal = matchUnico.default_code || '';
+        const partes = internal.split('/');
+        const codigoInterno = partes.length > 1 ? partes[1] : internal;
+
+        internalEl.textContent = codigoInterno;
+
+        nombreEl.textContent = matchUnico.name || '';
+        varianteEl.textContent = matchUnico.variant || '';
+
+      } else {
+
+        // fallback (por si ya es barcode)
+        input.value = normalizedValue;
+
+        const info = variantesCache.find(v => v.barcode === normalizedValue);
+
+        nombreEl.textContent = info?.name || '';
+        varianteEl.textContent = info?.variant || '';
+        internalEl.textContent = '';
+      }
+    }
+
     function buscarPorReferenciaInterna(valor){
 
       const v = valor.toUpperCase();
@@ -115,27 +154,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     document.addEventListener('click', e => {
+      // 🔥 limpiar input
+      if (e.target.classList.contains('clear-icon')) {
+
+        const row = e.target.closest('.codigo-row');
+        if (!row) return;
+
+        const tr = e.target.closest('tr');
+
+        const input = row.querySelector('.codigo-input');
+        const nombreEl = tr.querySelector('.nombre-valor');
+        const varianteEl = tr.querySelector('.variante-valor');
+        const internalEl = tr.querySelector('.internal-valor');
+        const suggestions = tr.querySelector('.odoo-suggestions');
+
+        // 🔥 limpiar todo
+        input.value = '';
+        nombreEl.textContent = '';
+        varianteEl.textContent = '';
+        internalEl.textContent = '';
+
+        suggestions.innerHTML = '';
+        suggestions.classList.add('hidden');
+
+        // 🔥 limpiar ML también (muy importante)
+        tr.querySelector('.porcentaje-comision').textContent = '0%';
+        tr.querySelector('.numero-publicacion').innerHTML = '';
+        tr.querySelector('.publicacion-jumpseller').innerHTML = '';
+
+        guardarCotizacion();
+
+        input.focus();
+      }
 
       if (!e.target.classList.contains('copiar-icon')) return;
 
       let valor = '';
 
-      // 🔹 caso input (codigo)
-      const codigoRow = e.target.closest('.codigo-row');
-      if (codigoRow) {
-        const input = codigoRow.querySelector('.codigo-input');
-        valor = input?.value || '';
+      // 🔥 PRIORIDAD: data-copy
+      valor = e.target.dataset.copy || '';
+
+      // 🔹 fallback input (codigo)
+      if (!valor) {
+        const codigoRow = e.target.closest('.codigo-row');
+        if (codigoRow) {
+          const input = codigoRow.querySelector('.codigo-input');
+          valor = input?.value || '';
+        }
       }
 
-      // 🔹 caso celdas copiables (precio, ML, etc)
-      const copiableCell = e.target.closest('.copiable-cell');
-      if (copiableCell) {
-        const el = copiableCell.querySelector('.copiable-value');
+      // 🔹 fallback legacy
+      if (!valor) {
+        const copiableCell = e.target.closest('.copiable-cell');
+        if (copiableCell) {
+          const el = copiableCell.querySelector('.copiable-value');
 
-        if (el) {
-          valor = el.tagName === 'INPUT'
-            ? el.value
-            : el.textContent;
+          if (el) {
+            valor = el.tagName === 'INPUT'
+              ? el.value
+              : el.textContent;
+          }
         }
       }
 
@@ -248,20 +326,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    function renderCopiable(valor, isLink = false, isPrice = false) {
+    function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
 
-      const link = isLink
+      const link = isLink && isLinkMl
         ? `https://articulo.mercadolibre.cl/MLC-${valor}`
-        : null;
+        : isLink && !isLinkMl
+          ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
+          : null;
 
       return `
         <div class="copiable-cell">
           ${
             isLink
-              ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
-              : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span><span class="copiable-value" style="display: none;">${valor}</span>`
+              ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+              : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span>`
           }
-          <span class="copiar-icon">📋</span>
+
+          <!-- 🔥 botón copiar separado -->
+          <span class="copiar-icon" data-copy="${valor}">📋</span>
         </div>
       `;
     }
@@ -491,6 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="codigo-row">
             <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
             <span class="copiar-icon">📋</span>
+            <span class="clear-icon">🧼</span>
           </div>
           <div class="linea-internal">
             <span class="internal-valor"></span>
@@ -522,9 +605,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       </td>
       <td class="precio-odoo">0</td>
       <td class="total-odoo">0</td>
-      <td class="numero-publicacion"></td>
       <td class="estado-publicacion"></td>
+      <td class="publicacion-jumpseller"></td>
       <td class="ml-col precio-jumpseller">0</td>
+      <td class="ml-col numero-publicacion"></td>
       <td class="ml-col">
         <input type="number" class="costo-envio-input" min="0" value="0" />
       </td>
@@ -658,6 +742,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resultado = await obtenerComisionDesdeBarcode(normalizedValue);
         tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
         tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
+        tr.querySelector('.publicacion-jumpseller').innerHTML = renderCopiable(resultado.publicacion, true, false);
         guardarCotizacion();
 
         // 🔥 Limpiar si no coincide con barcode válido
@@ -732,6 +817,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             );
           })
           .slice(0, 500);
+
+        if (!matches.length) {
+          suggestions.innerHTML = '';
+          suggestions.classList.add('hidden');
+          return;
+        }
 
         suggestions.innerHTML = `
           <div class="odoo-header">
@@ -838,6 +929,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
     tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
+    tr.querySelector('.publicacion-jumpseller').innerHTML = renderCopiable(resultado.publicacion, true, false);
     nombreEl.textContent = info?.name || '';
     varianteEl.textContent = info?.variant || '';
 
@@ -913,14 +1005,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     body.innerHTML = '';
 
-    if(cotData.descuentoGlobal !== undefined){
-      document.getElementById('descuentoGlobal').value =
-        cotData.descuentoGlobal;
-    }
+    const descuentoInput = document.getElementById('descuentoGlobal');
 
-    if (!cotData) {
+    if (!cotData || !cotData.lineas || !cotData.lineas.length) {
+
+      descuentoInput.value = 30;
+
       addRow();
       return;
+    }
+
+    // 🔥 si existe → usar el guardado
+    if (cotData.descuentoGlobal !== undefined) {
+      descuentoInput.value = cotData.descuentoGlobal;
     }
 
     await loadVariantes();
@@ -933,14 +1030,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const barcode = l.barcode || '';
 
-        tr.querySelector('.codigo-input').value = barcode;
-        tr.querySelector('.nombre-valor').textContent = l.nombre;
-        tr.querySelector('.variante-valor').textContent = l.variante;
+        aplicarLogicaCodigo(tr, barcode);
 
         const resultado = await obtenerComisionDesdeBarcode(barcode);
 
         tr.querySelector('.porcentaje-comision').textContent = resultado.comision + '%';
         tr.querySelector('.numero-publicacion').innerHTML = renderCopiable(resultado.publicacion, true);
+        tr.querySelector('.publicacion-jumpseller').innerHTML = renderCopiable(resultado.publicacion, true, false, false);
 
         tr.querySelector('.cantidad-input').value = l.cantidad;
         tr.querySelector('.precio-input').value = l.precio;
