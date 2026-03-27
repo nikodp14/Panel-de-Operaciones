@@ -706,11 +706,13 @@ document.addEventListener('DOMContentLoaded', () => {
         name: String(r[2] || '').trim(),
         variant: String(r[5] || '').trim(),
 
+        default_code: String(r[0] || '').trim(),
+
         // versión normalizada (para comparar)
         nameNorm: normalizeVariantColor(r[2] || ''),
         variantNorm: normalizeVariantColor(r[5] || '')
       }))
-      .filter(v => v.barcode);
+      .filter(v => v.barcode || v.default_code);
 
     clearInterval(scanInterval);
     scanInterval = null;
@@ -877,7 +879,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ✅ 3. NUEVO: buscar coincidencias en TODAS las variantes Odoo
     const matches = variantesOdooCache.filter(v => {
       const barcode = normCodigo(v.barcode);
-      return barcode.includes(scan);
+      const internal = normCodigo(v.default_code);
+
+      return (
+        (barcode && (barcode.includes(scan) || scan.includes(barcode)) && barcode.includes(esperado)) ||
+        (internal && (internal.includes(scan) || scan.includes(internal)) && internal.includes(esperado))
+      );
     });
 
     // 👉 SOLO aceptar si hay UNA coincidencia

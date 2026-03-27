@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let scannerLock = false;
   let variantesValidarSet = new Set();
   let jumpsellerProductosCache = [];
+  let validacionEnCurso = false;
 
   const gunModal = document.getElementById("gunScannerModal");
   const closeGun = document.getElementById("closeGunScanner");
@@ -142,19 +143,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function check(url, nombre) {
       try {
-        const res = await fetch(url, { cache: 'no-store' });
+        const esLocal = location.hostname === 'localhost';
+        if (!esLocal){
+          const res = await fetch(url, { cache: 'no-store' });
 
-        if (!res.ok) {
-          faltantes.push(nombre);
-          return;
-        }
+          if (!res.ok) {
+            faltantes.push(nombre);
+            return;
+          }
 
-        const data = await res.json();
-        const fecha = new Date(data.uploadedAt);
-        fecha.setHours(0,0,0,0);
+          const data = await res.json();
+          const fecha = new Date(data.uploadedAt);
+          fecha.setHours(0,0,0,0);
 
-        if (fecha.getTime() !== hoy.getTime()) {
-          faltantes.push(nombre);
+          if (fecha.getTime() !== hoy.getTime()) {
+            faltantes.push(nombre);
+          }
         }
 
       } catch {
@@ -187,12 +191,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function validarArchivosSeleccionados(files) {
 
+    const esLocal = location.hostname === 'localhost';
+
     const required = {
-      variantes: false,
-      stock: false,
-      ventas: false,
-      productos: false,
-      pedidos: false
+      variantes: esLocal ? true : false,
+      stock: esLocal ? true : false,
+      ventas: esLocal ? true : false,
+      productos: esLocal ? true : false,
+      pedidos: esLocal ? true : false
     };
 
     const erroresFecha = [];
@@ -767,6 +773,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // versión original (para mostrar)
         name: String(r[2] || '').trim(),
         variant: String(r[5] || '').trim(),
+        
+        default_code: String(r[0] || '').trim(),
 
         // versión normalizada (para comparar)
         nameNorm: normalizeVariantColor(r[2] || ''),
@@ -910,20 +918,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!esperado || !scan) return false;
 
-    // coincidencia directa
+    // ✅ 1. coincidencia exacta
     if (esperado === scan) return true;
 
-    // si el escaneado tiene letras intentamos lógica especial
-    if (/[A-Z]/.test(scan) && esperado.includes('/')) {
+    // ✅ 2. coincidencia parcial directa
+    if (esperado.includes(scan) || scan.includes(esperado)) {
+      return true;
+    }
 
-      const partes = esperado.split('/').map(p => normCodigo(p));
+    // ✅ 3. NUEVO: buscar coincidencias en TODAS las variantes Odoo
+    const matches = variantesOdooCache.filter(v => {
+      const barcode = normCodigo(v.barcode);
+      const internal = normCodigo(v.default_code);
 
-      const coincidencias = partes.filter(p => p === scan);
+      return (
+        (barcode && (barcode.includes(scan) || scan.includes(barcode)) && barcode.includes(esperado)) ||
+        (internal && (internal.includes(scan) || scan.includes(internal)) && internal.includes(esperado))
+      );
+    });
 
-      // solo aceptar si coincide exactamente una parte
-      if (coincidencias.length === 1) {
-        return true;
-      }
+    // 👉 SOLO aceptar si hay UNA coincidencia
+    if (matches.length === 1) {
+      return true;
     }
 
     return false;
@@ -1254,6 +1270,8 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
   async function runValidacionVentas() {
+    if (validacionEnCurso) return;
+    validacionEnCurso = true;
     codigosPorVenta = {};
     const codigosRes = await fetch('/api/jumpseller/ventas/codigos');
     codigosPorVenta = await codigosRes.json();
@@ -1702,7 +1720,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const envioInput =
               codigosPorVenta[keyPersistencia]?.envioManual || 0;
 
-            if (!envioInput || Number(envioInput) == 0) {
+            if (idx == 0 && (!envioInput || Number(envioInput) == 0) && !includesCancelOrReturn(estadoML)) {
               obsFinal = 'INGRESE COSTO DE ENVÍO';
             }
 
@@ -1837,7 +1855,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!obsRender) {
 
             const requiereEnvio =
-              esLineaHijaPaquete &&
+              !esLineaHijaPaquete &&
               !(metodoEnvio || '').toLowerCase().includes('demoto') &&
               !((metodoEnvio || '').toLowerCase().includes('santiago') &&
                 (metodoEnvio || '').toLowerCase().includes('colina') &&
@@ -1846,7 +1864,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const envioGuardado =
               codigosPorVenta[keyPersistencia]?.envioManual || 0;
 
-            if (requiereEnvio && (!envioGuardado || envioGuardado == 0)) {
+            if (requiereEnvio && (!envioGuardado || envioGuardado == 0) && !includesCancelOrReturn(estadoML)) {
               obsRender = 'INGRESE COSTO DE ENVÍO';
             }
             else if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
@@ -1954,9 +1972,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const tituloPub = /*tituloReal
           ? tituloReal
           : */String(item.r[ML_COL_TITULO] || '').trim();// Col S
-        let variante = String(item.r[ML_COL_VARIANTE] || '')
+        let variante = '';
+        if (ML_COL_VARIANTE !== -1) {
+          variante = String(item.r[ML_COL_VARIANTE] || '')
           .replace(/color\s*:/i, '')
           .trim(); // Col T
+        } else {
+          variante = extraerColorDesdeTitulo(tituloPub);
+        }
 
         // Normalización de variante
         const varianteNorm = variante.toLowerCase();
@@ -1992,7 +2015,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(pubMLSinMLC, variante, tituloPub, variantesOdooCache, variantesValidarSet, matches);
           }*/
 
-          if (matches && matches.length) {
+          if (matches && matches.length === 1) {
             codigoSugerido = matches[0].barcode;
           }
 
@@ -2338,9 +2361,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       resultsSection.classList.remove('hidden');
       statusEl.textContent = `Se encontraron ${observaciones.length} observaciones.`;
+      validacionEnCurso = false;
     } catch (err) {
       console.error(err);
       statusEl.textContent = err.message || 'Error procesando los archivos. Revisa el formato.';
+      validacionEnCurso = false;
     }
   };
 

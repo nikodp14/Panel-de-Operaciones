@@ -36,32 +36,78 @@ input{
 
 <script>
 
-const input = document.getElementById("barcodeInput");
-const status = document.getElementById("status");
+  const input = document.getElementById("barcodeInput");
+  const status = document.getElementById("status");
+  const esLocal = location.hostname === "localhost";
 
-let scanBuffer = "";
-let scanTimer = null;
+  let scanBuffer = "";
+  let scanTimer = null;
+  let startTime = 0;
 
-input.addEventListener("input", () => {
+  document.addEventListener("keydown", (e) => {
 
-  scanBuffer = input.value;
+    // 🔥 SOLO EN LOCAL
+    if (esLocal && e.key === "Enter") {
 
-  clearTimeout(scanTimer);
+      const code = input.value.trim();
 
-  scanTimer = setTimeout(async () => {
+      if (!code) return;
 
-    const code = scanBuffer.trim();
+      enviarCodigo(code);
 
-    if(!code) return;
+      status.textContent = "🧪 Enviado manual: " + code;
 
-    try{
+      input.value = "";
+      scanBuffer = "";
 
-      await fetch("/api/scanner",{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
+      return;
+    }
+
+    const now = Date.now();
+
+    // reset si pasa mucho tiempo entre teclas
+    if ((!startTime || now - startTime > 100) && !eslocal) {
+      scanBuffer = "";
+      startTime = now;
+    }
+
+    // ignorar teclas raras
+    if (e.key.length > 1) return;
+
+    scanBuffer += e.key;
+
+    clearTimeout(scanTimer);
+
+    scanTimer = setTimeout(() => {
+
+      const duration = Date.now() - startTime;
+
+      // 🔥 VALIDAR QUE ES SCANNER (rápido)
+      if (esLocal || (scanBuffer.length >= 6 && duration < 150)) {
+        enviarCodigo(scanBuffer);
+        status.textContent = "✅ Escaneado: " + scanBuffer;
+      } else {
+        input
+        status.textContent = "❌ Entrada manual bloqueada";
+        input.value = "";
+        scanBuffer = "";
+      }
+
+      scanBuffer = "";
+
+    }, 80); // ⏱️ clave: espera corta
+  });
+
+  async function enviarCodigo(code) {
+
+    try {
+
+      await fetch("/api/scanner", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
         },
-        body:JSON.stringify({ code })
+        body: JSON.stringify({ code })
       });
 
       status.textContent = "Código enviado: " + code;
@@ -71,19 +117,12 @@ input.addEventListener("input", () => {
         code
       }, "*");
 
-    }catch(err){
+    } catch (err) {
 
       status.textContent = "Error enviando código";
 
     }
-
-    input.value = "";
-    scanBuffer = "";
-    input.focus();
-
-  }, 100); // 🔥 espera 100ms sin escribir
-
-});
+  }
 
 </script>
 

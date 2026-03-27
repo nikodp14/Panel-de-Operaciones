@@ -618,6 +618,10 @@ app.get("/compras/compra-nacional.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "compras", "compra-nacional.html"));
 });
 
+app.get("/compras/verificador-codigos.html", (req, res) => {
+  renderWithSidebar(res, path.join(__dirname, "compras", "verificador-codigos.html"));
+});
+
 app.get("/compras/compra-internacional.html", (req, res) => {
   renderWithSidebar(res, path.join(__dirname, "compras", "compra-internacional.html"));
 });
