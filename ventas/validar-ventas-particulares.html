@@ -21,43 +21,31 @@
 
     <main class="content">
       <div class="container">
-       <h2>Descargar Variantes Odoo (Sólo si se crearon o modificaron productos)</h2>
-          <ol>
-            <li>Ingrese a <strong>Inventario → Productos → Variantes del Producto</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Descargar Catálogo</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
+       <div class="card">
+          <h2 id="verVariantesOdoo" class="clickable-title">
+            Variantes Odoo
+          </h2>
+
+          <h2 id="verStockUbicacionesOdoo" class="clickable-title">
+            Stock Ubicaciones Odoo
+          </h2>
+
+          <h2 id="verVentasOdoo" class="clickable-title">
+            Ventas Odoo
+          </h2>
         </div>
         <div class="card">
-          <h2>Descargar Ventas Odoo</h2>
-          <ol>
-            <li>Ingrese a <strong>Ventas</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → Plantilla Ventas</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
-        </div>
-        <div class="card">
-          <h2>Descargar Stock Ubicaciones Odoo</h2>
-          <ol>
-            <li>Ingrese a <strong>Inventario</strong>.</li>
-            <li>Ingrese a <strong>Reportes->Ubicaciones</strong>.</li>
-            <li>Seleccione todos los registros y luego el botón <strong>Seleccionar Todo</strong>.</li>
-            <li>En el engranaje <strong>Acciones → Exportar → Plantilla → STOCK UBICACIONES ODOO</strong>.</li>
-            <li>Haga clic en <strong>Exportar</strong>.</li>
-          </ol>
-        </div>
-        <div class="card">
+          <h2>Validar Ventas Particulares</h2>
+          <div class="upload-box">
+            <label>Cargar archivos:</label>
+            <input type="file" id="filesInput" multiple accept=".xlsx,.xls,.csv"/>
+          </div>
           <p class="muted">
             Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
           </p>
           <p class="muted">- Variantes de producto (product.product)</p>
           <p class="muted">- Quants (stock.quant)</p>
           <p class="muted">- Orden de venta (sale.order)</p>
-           <button id="autoUpdateBtn" class="primary-btn">
-            Actualizar todo desde Carpeta
-          </button>
           <p id="statusVentas" class="status"></p>
         </div>
 
@@ -115,5 +103,12 @@
   <script src="/ventas/validar-ventas-particulares.js"></script>
 
   <div id="toast" class="toast hidden"></div>
+
+  <div id="modalImagen" class="modal hidden">
+    <div class="modal-content">
+      <span id="cerrarModal">✕</span>
+      <div id="modalImagesContainer"></div>
+    </div>
+  </div>
 </body>
 </html>

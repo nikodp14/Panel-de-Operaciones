@@ -4,6 +4,58 @@ document.addEventListener("DOMContentLoaded", async () => {
   const addVentaBtn = document.getElementById("addVentaBtn");
   const resultsSection = document.getElementById("ventasResults");
   const countersEl = document.getElementById("actionCounters");
+  const filesInput = document.getElementById("filesInput");
+  const statusEl = document.getElementById("statusVentas");
+  const modalContainer = document.getElementById("modalImagesContainer");
+  const modal = document.getElementById("modalImagen");
+  const cerrarModal = document.getElementById("cerrarModal");
+  const ayudas = {
+    verVariantesOdoo: [
+      "/imagenes/variantes-odoo0.jpg",
+      "/imagenes/variantes-odoo1.jpg",
+      "/imagenes/variantes-odoo2.jpg"
+    ],
+    verStockUbicacionesOdoo: [
+      "/imagenes/stock-ubicaciones-odoo0.jpg",
+      "/imagenes/stock-ubicaciones-odoo1.jpg",
+      "/imagenes/stock-ubicaciones-odoo2.jpg"
+    ],
+    verVentasOdoo: [
+      "/imagenes/ventas-odoo0.jpg",
+      "/imagenes/ventas-odoo1.jpg",
+      "/imagenes/ventas-odoo2.jpg"
+    ],
+    verProductosJumpseller: [
+      "/imagenes/productos-jumpseller.jpg"
+    ],
+    verPedidosJumpseller: [
+      "/imagenes/pedidos-jumpseller 1.jpg",
+      "/imagenes/pedidos-jumpseller 2.jpg"
+    ]
+  };
+
+  Object.keys(ayudas).forEach(id => {
+
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener("click", () => {
+
+      const images = ayudas[id];
+
+      modalContainer.innerHTML = images.map(src => `
+        <img src="${src}" class="modal-img" />
+      `).join("");
+
+      modal.classList.remove("hidden");
+
+    });
+
+  });
+
+  cerrarModal.addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
 
   let ventaCounter = 1;
 
@@ -11,7 +63,58 @@ document.addEventListener("DOMContentLoaded", async () => {
   let stockOdooCache = [];
   let odooQtyByVentaCodigo = new Map();
 
-  resultsSection.classList.remove("hidden");
+  resultsSection.classList.add("hidden");
+  countersEl.classList.add("hidden");
+
+  function esArchivoDeHoy(file) {
+
+    const hoy = new Date();
+    const fechaArchivo = new Date(file.lastModified);
+
+    return (
+      hoy.getFullYear() === fechaArchivo.getFullYear() &&
+      hoy.getMonth() === fechaArchivo.getMonth() &&
+      hoy.getDate() === fechaArchivo.getDate()
+    );
+  }
+
+  async function validarArchivosDelDia() {
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+
+    const faltantes = [];
+
+    async function check(url, nombre) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+
+        if (!res.ok) {
+          faltantes.push(nombre);
+          return;
+        }
+
+        const data = await res.json();
+        const fecha = new Date(data.uploadedAt);
+        fecha.setHours(0,0,0,0);
+
+        if (fecha.getTime() !== hoy.getTime()) {
+          faltantes.push(nombre);
+        }
+
+      } catch {
+        faltantes.push(nombre);
+      }
+    }
+
+    await Promise.all([
+      check('/api/odoo/ventas/info', 'Ventas Odoo'),
+      check('/api/odoo/stock/info', 'Stock Odoo'),
+      check('/api/odoo/variantes/info', 'Variantes Odoo')
+    ]);
+
+    return faltantes;
+  }
 
   function normCodigo(v) {
     if (v === null || v === undefined) return '';
@@ -42,6 +145,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     return null;
+  }
+
+  async function validarEstadoInicial(){
+
+    const faltantes = await validarArchivosDelDia();
+
+    if (faltantes.length) {
+
+      statusEl.innerHTML = `
+        ❌ Faltan archivos:<br>
+        ${faltantes.map(f => `- ${f}`).join("<br>")}
+      `;
+
+      // 🔥 OCULTAR GRILLA
+      resultsSection.classList.add("hidden");
+      countersEl.classList.add("hidden");
+
+      return false;
+    }
+
+    statusEl.textContent = "Archivos OK ✅";
+
+    return true;
   }
 
   function buscarCodigoEquivalente(venta, codigo){
@@ -103,6 +229,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const rows = [...resultsBody.querySelectorAll("tr")];
 
+    // 🔴 si no hay filas → ocultar
+    if (!rows.length) {
+      countersEl.classList.add("hidden");
+      countersEl.innerHTML = "";
+      return;
+    }
+
     const total = rows.length;
 
     const ok = rows.filter(r =>
@@ -143,6 +276,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     countersEl.classList.remove("hidden");
+
+     countersEl.classList.remove("hidden");
 
     aplicarFiltro("OBS");   // 🔥 activar observaciones por defecto
   }
@@ -790,6 +925,124 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   });
 
+  filesInput.addEventListener("change", async () => {
+
+    const files = Array.from(filesInput.files);
+
+    if (!files.length) return;
+
+    // ❌ validar fecha
+    const erroresFecha = files
+      .filter(f => !esArchivoDeHoy(f))
+      .map(f => f.name);
+
+    if (erroresFecha.length) {
+      statusEl.textContent =
+        `❌ Archivos no son del día: ${erroresFecha.join(", ")}`;
+      return;
+    }
+
+    statusEl.textContent = 'Subiendo archivos...';
+
+    for (const file of files) {
+
+      const formData = new FormData();
+      formData.append("archivo", file);
+      formData.append("lastModified", file.lastModified);
+
+      const name = file.name.toLowerCase();
+
+      let endpoint = "";
+
+      if (name.includes("sale.order")) {
+        endpoint = "/api/odoo/ventas";
+      }
+      else if (name.includes("product.product")) {
+        endpoint = "/api/odoo/variantes";
+      }
+      else if (name.includes("stock.quant")) {
+        endpoint = "/api/odoo/stock";
+      }
+      else {
+        continue;
+      }
+
+      await fetch(endpoint, {
+        method: "POST",
+        body: formData
+      });
+
+    }
+
+    const faltantes = await validarArchivosDelDia();
+
+    if (faltantes.length) {
+
+      statusEl.innerHTML = `
+        ❌ Faltan archivos:<br>
+        ${faltantes.map(f => `- ${f}`).join("<br>")}
+      `;
+
+      return;
+    }
+
+    statusEl.textContent = "Archivos cargados ✅";
+
+    // 🔥 RECARGAR TODO
+    await recargarSistema();
+
+  });
+
+  async function recargarSistema(){
+
+    variantesOdooCache = [];
+    stockOdooCache = [];
+    odooQtyByVentaCodigo.clear();
+
+    countersEl.classList.add("hidden");
+
+    await loadUltimasVariantesOdooParaBusqueda();
+    await loadStockOdoo();
+    await loadVentasOdoo();
+
+    resultsBody.innerHTML = "";
+
+    ventaCounter = 1;
+
+    agregarLineaVenta(ventaCounter);
+    ventaCounter++;
+
+    construirCapsulas();
+
+    // 🔥 AQUÍ se muestra
+    resultsSection.classList.remove("hidden");
+
+  }
+
+  async function recargarSistema(){
+
+    variantesOdooCache = [];
+    stockOdooCache = [];
+    odooQtyByVentaCodigo.clear();
+
+    await loadUltimasVariantesOdooParaBusqueda();
+    await loadStockOdoo();
+    await loadVentasOdoo();
+
+    resultsBody.innerHTML = "";
+
+    ventaCounter = 1;
+
+    agregarLineaVenta(ventaCounter);
+    ventaCounter++;
+
+    construirCapsulas();
+
+    // 🔥 AQUÍ se muestra
+    resultsSection.classList.remove("hidden");
+
+  }
+
   /* ================================
   COURIER INPUT
   ================================ */
@@ -1172,7 +1425,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   ================================ */
 
   const autoBtn = document.getElementById("autoUpdateBtn");
-  const statusEl = document.getElementById("statusVentas");
 
   autoBtn?.addEventListener("click", () => {
     document.getElementById("fileInputOdoo").click();
@@ -1307,4 +1559,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
   });
+  
+  const ok = await validarEstadoInicial();
+
+  if (ok) {
+    resultsSection.classList.remove("hidden");
+    construirCapsulas();
+  }
 });
