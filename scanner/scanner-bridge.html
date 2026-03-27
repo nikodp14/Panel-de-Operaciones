@@ -66,7 +66,7 @@ input{
     const now = Date.now();
 
     // reset si pasa mucho tiempo entre teclas
-    if ((!startTime || now - startTime > 100) && !eslocal) {
+    if ((!startTime || now - startTime > 100) && !esLocal) {
       scanBuffer = "";
       startTime = now;
     }
