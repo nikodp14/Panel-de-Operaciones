@@ -13,6 +13,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resultsSection.classList.remove("hidden");
 
+  function normCodigo(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '')     // quita espacios
+      //.replace(/[-–—]/g, '')  // quita guiones, se modifica para corregir - para ubicaciones
+      .replace(/\.0$/, '');   // quita .0 típico de Excel
+  }
+
   function getVarianteOdooFlexible(code){
 
     if(!code) return null;
