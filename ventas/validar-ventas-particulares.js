@@ -44,38 +44,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     return null;
   }
 
-  function buscarCodigoEquivalente(venta, codigo) {
+  function buscarCodigoEquivalente(venta, codigo){
 
-    const esperado = normCodigo(venta);
-    const scan = normCodigo(codigo);
+    if(!codigo) return null;
 
-    if (!esperado || !scan) return false;
-
-    // ✅ 1. coincidencia exacta
-    if (esperado === scan) return true;
-
-    // ✅ 2. coincidencia parcial directa
-    if (esperado.includes(scan) || scan.includes(esperado)) {
-      return true;
+    // 1. match exacto primero
+    const keyExact = `${venta}|${codigo}`;
+    if(odooQtyByVentaCodigo.has(keyExact)){
+      return codigo;
     }
 
-    // ✅ 3. NUEVO: buscar coincidencias en TODAS las variantes Odoo
-    const matches = variantesOdooCache.filter(v => {
-      const barcode = normCodigo(v.barcode);
-      const internal = normCodigo(v.default_code);
+    // 2. buscar coincidencias por contenido
+    const matches = [];
 
-      return (
-        (barcode && (barcode.includes(scan) || scan.includes(barcode)) && barcode.includes(esperado)) ||
-        (internal && (internal.includes(scan) || scan.includes(internal)) && internal.includes(esperado))
-      );
+    odooQtyByVentaCodigo.forEach((_, key) => {
+
+      const [v, cod] = key.split("|");
+
+      if(v !== venta) return;
+
+      if(cod.includes(codigo) || codigo.includes(cod)){
+        matches.push(cod);
+      }
+
     });
 
-    // 👉 SOLO aceptar si hay UNA coincidencia
-    if (matches.length === 1) {
-      return true;
+    // 3. si hay UNA sola → usarla
+    if(matches.length === 1){
+      return matches[0];
     }
 
-    return false;
+    return null;
   }
 
   function aplicarFiltro(tipo){
