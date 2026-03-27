@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Verficador etiquetas</title>
+
+  <!-- MISMO ORDEN que el resto del sistema -->
+  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-btn" aria-label="Mostrar/Ocultar menú">☰</button>
+    <h1>Panel de Operaciones</h1>
+  </header>
+
+  <div class="layout">
+   <div id="__SIDEBAR__"></div>
+
+    <main class="content">
+      <div class="container">
+        <div class="card">
+          <h2 id="verVariantesOdoo" class="clickable-title">
+            Descargar Variantes Odoo
+          </h2>
+        </div>
+
+        <div class="card">
+          <h2>Verificador Etiquetas</h2>
+          <div class="upload-box">
+            <label>Cargar archivos:</label>
+            <input type="file" id="filesInput" multiple accept=".xlsx,.xls,.csv"/>
+          </div>
+          <p id="mlVentasInfo" class="muted" style="display:none;"></p>
+          <p id="odooVentasInfo" class="muted" style="display:none;"></p>
+          <p class="muted">
+            Se utilizarán los últimos archivos de la carpeta descargas con estos textos:
+          </p>
+          <p class="muted">- Variantes de producto (product.product)</p>
+           <button id="autoUpdateBtn" class="primary-btn" style="display: none;">
+            Actualizar todo desde Carpeta
+          </button>
+          <button id="analyzeVentasBtn" class="primary-btn" disabled style="display:none;">Validar ventas</button>
+          <button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>
+          <p id="statusVentas" class="status"></p>
+        </div>
+        <!-- INPUTS -->
+        <div class="field">
+          <label>Código de barras</label>
+          <input type="text" id="barcodeInput" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label>Código producto (texto)</label>
+          <input type="text" id="textCodeInput" autocomplete="off" />
+        </div>
+
+        <!-- RESULTADO -->
+        <div id="resultadoCheck" class="status" style="font-size:20px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/layout.js"></script>
+  <script src="/js/config-helpers.js"></script>
+  <script src="/js/ml-variant-resolver.js"></script>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="/compras/verificador-etiquetas.js"></script>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="modalImagen" class="modal hidden">
+    <div class="modal-content">
+      <span id="cerrarModal">✕</span>
+      <div id="modalImagesContainer"></div>
+    </div>
+  </div>
+
+  <div id="gunScannerModal" class="scanner-modal hidden">
+    <div class="scanner-modal-content">
+      <div class="scanner-header">
+        Escáner de pistola
+        <button id="closeGunScanner">✕</button>
+      </div>
+
+      <iframe src="/scanner" id="gunScannerFrame"></iframe>
+
+    </div>
+  </div>
+</body>
+</html>

@@ -1437,3 +1437,45 @@ tr.locked .lock-btn {
   max-width: 40px;
   text-align:right
 }
+
+.field {
+  margin: 12px 0;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.field input {
+  width: 260px;              /* 🔥 más pequeño */
+  padding: 10px 12px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid #374151;
+  background: #111827;
+  color: white;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+/* focus bonito */
+.field input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+/* centrarlos */
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#resultadoCheck {
+  font-size: 32px;
+  font-weight: bold;
+  margin-top: 20px;
+}
