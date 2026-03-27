@@ -2307,7 +2307,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }
 
-    const info = getVarianteOdooPorCodigo(normCodigo(input.value)) || {};
+    const info = getVarianteOdooFlexible(normCodigo(input.value)) || {};
 
     nombreEl.textContent = info.name || '—';
     varianteEl.textContent = info.variant || '—';
