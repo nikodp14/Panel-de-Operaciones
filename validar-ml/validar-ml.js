@@ -886,7 +886,6 @@ function renderObservations(observations) {
     tr.innerHTML = `
       <td class="numero-publicacion">
         ${renderCopiable(normalizeMlPublication(row.publication), true, false)}
-        <span class="copy-venta" data-copy="${normalizeMlPublication(row.publication)}" title="Copiar publicación">📋</span>      </td>
       <td>${row.mlTitleDisplay || ''}</td>
       <td>${row.mlVariantDisplay || ''}</td>
       <td>${row.mlStock}</td>
