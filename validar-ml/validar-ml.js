@@ -1,5 +1,5 @@
 //const mlFileInput = document.getElementById('mlFile');
-const analyzeBtn = document.getElementById('analyzeBtn');
+//const analyzeBtn = document.getElementById('analyzeBtn');
 const statusEl = document.getElementById('status');
 const summaryEl = document.getElementById('summary');
 const resultsEl = document.getElementById('results');
@@ -234,6 +234,24 @@ function applyActiveFilter() {
   if (activeFilter === 'BAJAR') resultsEl.classList.add('filter-BAJAR');
 }
 
+function renderCopiable(valor, isLink = false, isPrice = false) {
+
+  const link = isLink
+    ? `https://articulo.mercadolibre.cl/MLC-${valor}`
+    : null;
+
+  return `
+    <div class="copiable-cell">
+      ${
+        isLink
+          ? `<a href="${link}" target="_blank" class="copiable-link copiable-value">${valor}</a>`
+          : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span><span class="copiable-value" style="display: none;">${valor}</span>`
+      }
+      <span class="copiar-icon">📋</span>
+    </div>
+  `;
+}
+
 async function uploadPublicacionesML(fileToUse) {
   const fd = new FormData();
   fd.append("archivo", fileToUse);
@@ -270,7 +288,7 @@ async function fetchUltimasPublicacionesML() {
 
 const mlInfoEl = document.getElementById("mlInfo");
 
-analyzeBtn.addEventListener('click', async () => {
+async function runAnalysis() {
   try {
     clearView();
 
@@ -369,7 +387,108 @@ analyzeBtn.addEventListener('click', async () => {
     console.error(error);
     statusEl.textContent = `Error: ${error.message}`;
   }
-});
+}
+
+/*analyzeBtn.addEventListener('click', async () => {
+  try {
+    clearView();
+
+    let fileToUse;
+
+    // Usar siempre el último Publicaciones ML del servidor
+    const mlData = await fetchUltimasPublicacionesML();
+
+    if (!mlData) {
+      throw new Error('Aún no hay Publicaciones ML cargadas en el servidor.');
+    }
+
+    fileToUse = mlData.file;
+
+    mlInfoEl.innerText =
+      `Usando Publicaciones ML cargadas el: ${new Date(mlData.info.uploadedAt).toLocaleString()}`;
+
+    statusEl.textContent = 'Validando archivo de Publicaciones ML...';
+
+    // 🔎 Leer Excel para validar
+    const buf = await fileToUse.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    // 👇 Elegir la hoja correcta
+    const sheetName =
+      wb.SheetNames.find(n => normalizeHeader(n).includes('publicaciones')) ||
+      wb.SheetNames[0];
+
+    const ws = wb.Sheets[sheetName];
+
+    // 👇 Leer filas crudas para validar encabezados en la fila 3
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+
+    if (!validarExcelPublicacionesML(rows)) {
+      statusEl.textContent =
+        '❌ El archivo seleccionado no corresponde a Publicaciones de MercadoLibre. ' +
+        'Descárgalo desde MercadoLibre (Publicaciones → Modificar desde Excel → Descargar).';
+      return;
+    }
+
+    statusEl.textContent = 'Subiendo Publicaciones ML...';
+
+    // ⬆️ Subir archivo (ya validado)
+    const uploadRes = await uploadPublicacionesML(fileToUse);
+
+    statusEl.textContent = 'Cargando Variantes Odoo y Publicaciones ML...';
+
+    // ⬇️ Descargar el archivo recién subido
+    const mlFileRes = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
+    if (!mlFileRes.ok) throw new Error('No se pudo descargar Publicaciones ML recién subidas.');
+    const mlBuf = await mlFileRes.arrayBuffer();
+    const mlFilePersistido = new File([mlBuf], uploadRes.file);
+
+    const [
+      { file: odooFile, info: odooInfo },
+      omitidosSet,
+      stockMlConfigMap,
+      variantesValidarSet
+    ] = await Promise.all([
+      fetchUltimasVariantesOdoo(),
+      loadOmitidosFromConfig(),
+      loadStockMlConfigFromConfig(),
+      loadVariantesValidarFromConfig(),
+    ]);
+
+    document.getElementById('odooInfo').innerText =
+      `Variantes Odoo cargadas el: ${new Date(odooInfo.uploadedAt).toLocaleString()}`;
+
+    mlInfoEl.innerText =
+      `Publicaciones ML cargadas el: ${new Date(uploadRes.uploadedAt).toLocaleString()}`;
+
+    statusEl.textContent = 'Procesando archivos...';
+
+    const mlRows = await readExcelRows(mlFilePersistido, {
+      preferredSheetNameIncludes: 'publicaciones',
+      fallbackSheetIndex: 1,
+      headerRowIndex: 2,
+    });
+
+    const odooRows = await readExcelRows(odooFile);
+
+    const observations = buildObservations(
+      odooRows,
+      mlRows,
+      omitidosSet,
+      stockMlConfigMap,
+      variantesValidarSet
+    );
+
+    lastObservations = observations;
+    activeFilter = 'OBS';
+    applyActiveFilter();
+    statusEl.textContent = '';
+
+  } catch (error) {
+    console.error(error);
+    statusEl.textContent = `Error: ${error.message}`;
+  }
+});*/
 
 function clearView() {
   summaryEl.innerHTML = '';
@@ -766,7 +885,7 @@ function renderObservations(observations) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="numero-publicacion">
-        ${normalizeMlPublication(row.publication)}
+        ${renderCopiable(normalizeMlPublication(row.publication), true, false)}
         <span class="copy-venta" data-copy="${normalizeMlPublication(row.publication)}" title="Copiar publicación">📋</span>      </td>
       <td>${row.mlTitleDisplay || ''}</td>
       <td>${row.mlVariantDisplay || ''}</td>
@@ -950,13 +1069,25 @@ filesInput.addEventListener("change", async () => {
   }
 
   // 🔥 habilitar análisis
-  analyzeBtn.disabled = !(variantesCargadas && publicacionesCargadas);
+  //analyzeBtn.disabled = !(variantesCargadas && publicacionesCargadas);
 
   showToast("Carga finalizada 🚀", 1500);
 
   // 🔥 auto ejecutar si ambos están
   if (variantesCargadas && publicacionesCargadas) {
-    analyzeBtn.click();
+    runAnalysis();
   }
+});
 
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const odoo = await fetch('/api/odoo/variantes/info');
+    const ml = await fetch('/api/ml/publicaciones/info');
+
+    if (odoo.ok && ml.ok) {
+      runAnalysis();
+    }
+  } catch (e) {
+    console.warn("Auto-run falló", e);
+  }
 });
