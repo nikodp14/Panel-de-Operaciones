@@ -234,11 +234,14 @@ function applyActiveFilter() {
   if (activeFilter === 'BAJAR') resultsEl.classList.add('filter-BAJAR');
 }
 
-function renderCopiable(valor, isLink = false, isPrice = false) {
+function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
+  console.log(valor, isLink, isPrice, isLinkMl)
 
-  const link = isLink
+  const link = isLink && isLinkMl
     ? `https://articulo.mercadolibre.cl/MLC-${valor}`
-    : null;
+    //: isLink && !isLinkMl ? `https://demoto.jumpseller.com/admin/cl/products/edit/${valor}`
+    : isLink && !isLinkMl ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
+      : null;
 
   return `
     <div class="copiable-cell">
@@ -885,7 +888,9 @@ function renderObservations(observations) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="numero-publicacion">
-        ${renderCopiable(normalizeMlPublication(row.publication), true, false)}
+        ${renderCopiable(normalizeMlPublication(row.publication), true, false, false)}</td>
+      <td class="numero-publicacion">
+        ${renderCopiable(normalizeMlPublication(row.publication), true, false, true)}</td>
       <td>${row.mlTitleDisplay || ''}</td>
       <td>${row.mlVariantDisplay || ''}</td>
       <td>${row.mlStock}</td>
