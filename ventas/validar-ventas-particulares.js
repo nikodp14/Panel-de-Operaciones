@@ -75,13 +75,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (pass === "4744") {
         modoSupervisor = true;
+
         alert("Modo supervisor activado");
+
+        // 🔥 FORZAR REVALIDACIÓN
+        iniciarModoSupervisor();
       } else {
         alert("Clave incorrecta");
       }
     }
 
   });
+
+  async function iniciarModoSupervisor() {
+
+    statusEl.textContent = "Modo supervisor activo ⚠️";
+
+    // limpiar bloqueo visual
+    resultsSection.classList.remove("hidden");
+    countersEl.classList.remove("hidden");
+
+    // 🔥 cargar sistema aunque no haya archivos
+    await recargarSistema();
+  }
 
   function esArchivoDeHoy(file) {
 
