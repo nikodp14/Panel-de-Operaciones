@@ -67,6 +67,58 @@ document.addEventListener("DOMContentLoaded", async () => {
   resultsSection.classList.add("hidden");
   countersEl.classList.add("hidden");
 
+  async function cargarVentasServer(){
+
+    try{
+
+      const res = await fetch('/api/ventas-particulares');
+
+      if(!res.ok) return;
+
+      const data = await res.json();
+
+      if(!Array.isArray(data)) return;
+
+      resultsBody.innerHTML = "";
+
+      data.forEach(v => {
+
+        agregarLineaVenta(v.venta);
+
+        const tr = resultsBody.lastChild;
+
+        tr.querySelector(".fecha-input").value = v.fecha || "";
+        tr.querySelector(".codigo-input").value = v.codigo || "";
+        tr.querySelector(".unidades-vendidas").value = v.unidades || 1;
+        tr.querySelector(".precio-total").value = v.total || "";
+
+        if(v.flex){
+          tr.querySelector(".flex-check").checked = true;
+        }
+
+        if(v.courier){
+          tr.querySelector(".courier-check").checked = true;
+
+          const courierInput = tr.querySelector(".courier-valor");
+          courierInput.classList.remove("hidden");
+          courierInput.value = v.courierValor || "";
+        }
+
+        // 🔥 recalcular todo
+        calcularValorOdoo(tr);
+        validarLinea(tr);
+
+      });
+
+      // 🔥 asegurar que se vea
+      resultsSection.classList.remove("hidden");
+
+    }catch(err){
+      console.error("Error cargando ventas:", err);
+    }
+
+  }
+
   document.addEventListener("keydown", (e) => {
 
     if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "p") {
@@ -1030,32 +1082,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     await recargarSistema();
 
   });
-
-  async function recargarSistema(){
-
-    variantesOdooCache = [];
-    stockOdooCache = [];
-    odooQtyByVentaCodigo.clear();
-
-    countersEl.classList.add("hidden");
-
-    await loadUltimasVariantesOdooParaBusqueda();
-    await loadStockOdoo();
-    await loadVentasOdoo();
-
-    resultsBody.innerHTML = "";
-
-    ventaCounter = 1;
-
-    agregarLineaVenta(ventaCounter);
-    ventaCounter++;
-
-    construirCapsulas();
-
-    // 🔥 AQUÍ se muestra
-    resultsSection.classList.remove("hidden");
-
-  }
 
   async function recargarSistema(){
 
