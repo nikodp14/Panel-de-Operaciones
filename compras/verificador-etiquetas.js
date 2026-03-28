@@ -9,6 +9,45 @@ document.addEventListener("DOMContentLoaded", () => {
   const resultadoCheck = document.getElementById("resultadoCheck");
   const filesInput = document.getElementById("filesInput");
   const statusEl = document.getElementById("statusVentas");
+  const esLocal = location.hostname === "localhost";
+  let scanStartTime = 0;
+  let scanLength = 0;
+  let scanTimer;
+
+  barcodeInput.addEventListener("input", () => {
+
+    const now = Date.now();
+
+    // inicio de lectura
+    if (scanLength === 0) {
+      scanStartTime = now;
+    }
+
+    scanLength++;
+
+    clearTimeout(scanTimer);
+
+    scanTimer = setTimeout(() => {
+
+      const duration = Date.now() - scanStartTime;
+
+      const esScanner = duration < 150 && scanLength >= 6;
+
+      if (esScanner) {
+        // ✅ SOLO si es scanner
+        textCodeInput.focus();
+        textCodeInput.select();
+      } else {
+        // ❌ humano → limpiar
+        barcodeInput.value = "";
+      }
+
+      // reset
+      scanLength = 0;
+      scanStartTime = 0;
+
+    }, 100);
+  });
 
   filesInput.addEventListener("change", async () => {
 
@@ -123,38 +162,6 @@ document.addEventListener("DOMContentLoaded", () => {
       resultadoCheck.innerHTML = "❌ Error cargando variantes";
       resultadoCheck.style.color = "red";
     }
-  }
-
-  // ===============================
-  // BLOQUEAR ESCRITURA MANUAL
-  // ===============================
-
-    function bloquearEscrituraManual(input) {
-
-    let lastInputTime = 0;
-
-    input.addEventListener("keydown", (e) => {
-      const now = Date.now();
-
-      // ✅ permitir primer carácter
-      if (input.value.length === 0) {
-        lastInputTime = now;
-        return;
-      }
-
-      if (now - lastInputTime > 50 && e.key.length === 1) {
-        e.preventDefault();
-      }
-
-      lastInputTime = now;
-    });
-  }
-
-  const esLocal = location.hostname === "localhost";
-
-  if (!esLocal) {
-    bloquearEscrituraManual(barcodeInput);
-    bloquearEscrituraManual(textCodeInput);
   }
 
   // ===============================
