@@ -21,6 +21,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     let jumpsellerPriceMapCache = null;
     let inputTimer = null;
 
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('nuevo-icon')) {
+
+        const tr = e.target.closest('tr');
+        const activo = tr.dataset.modoManual === 'true';
+
+        const nuevoEstado = !activo;
+        tr.dataset.modoManual = nuevoEstado ? 'true' : 'false';
+
+        const input = tr.querySelector('.codigo-input');
+        const nombreEl = tr.querySelector('.nombre-valor');
+        const varianteEl = tr.querySelector('.variante-valor');
+        const internalEl = tr.querySelector('.internal-valor');
+
+        if (nuevoEstado) {
+
+          nombreEl.textContent = '';
+          varianteEl.textContent = '';
+          internalEl.textContent = '';
+
+          // 🔥 CLAVE: ejecutar lógica con lo que ya está escrito
+          const valor = input.value.trim();
+
+          if (valor) {
+            aplicarLogicaCodigo(tr, valor);
+          }
+        }
+
+        // 🎨 UI
+        e.target.style.opacity = nuevoEstado ? '1' : '0.5';
+        e.target.style.color = nuevoEstado ? '#0a8f2f' : '';
+
+        // 🔥 DESACTIVAR → ejecutar lógica
+        if (!nuevoEstado) {
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        guardarCotizacion();
+      }
+    });
+
     function aplicarLogicaCodigo(tr, valor){
 
       const input = tr.querySelector('.codigo-input');
@@ -32,7 +73,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const matchUnico = buscarPorReferenciaInterna(normalizedValue);
 
-      if (matchUnico) {
+      const modoManual = tr.dataset.modoManual === 'true';
+
+      if (matchUnico && !modoManual) {
 
         // 🔥 setea barcode
         input.value = matchUnico.barcode;
@@ -57,6 +100,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         nombreEl.textContent = info?.name || '';
         varianteEl.textContent = info?.variant || '';
         internalEl.textContent = '';
+      }
+
+      if (matchUnico && modoManual) {
+
+        nombreEl.textContent = '⚠ Producto ya existe';
+        varianteEl.textContent = matchUnico.name || '';
+
+        tr.classList.add('fila-warning');
+
+      } else {
+        tr.classList.remove('fila-warning');
       }
     }
 
@@ -185,6 +239,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         guardarCotizacion();
 
         input.focus();
+
+        document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`).forEach(r => r.remove());
+
+        tr.dataset.modoManual = 'false';
+        tr.querySelector('.nuevo-icon').style.opacity = '0.5';
+        tr.querySelector('.nuevo-icon').style.color = '';
       }
 
       if (!e.target.classList.contains('copiar-icon')) return;
@@ -574,6 +634,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
             <span class="copiar-icon">📋</span>
             <span class="clear-icon">🧼</span>
+            <span class="nuevo-icon" title="Nuevo producto">➕</span>
           </div>
           <div class="linea-internal">
             <span class="internal-valor"></span>
@@ -755,7 +816,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const matchUnico = buscarPorReferenciaInterna(normalizedValue);
 
-        if (matchUnico) {
+        const modoManual = tr.dataset.modoManual === 'true';
+
+        if (matchUnico && !modoManual) {
 
           // 🔥 poner barcode en input
           input.value = matchUnico.barcode;
@@ -978,7 +1041,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         precio: tr.querySelector('.precio-input')?.value || 0,
         precioNeto: tr.querySelector('.precio-neto-input')?.value || 0,
         descuento: tr.querySelector('.descuento-input')?.value || 25,
-        costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0
+        costoEnvio: tr.querySelector('.costo-envio-input')?.value || 0,
+        modoManual: tr.dataset.modoManual === 'true'
       });
     });
 
@@ -1027,6 +1091,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         addRow();
         const tr = body.lastElementChild;
+
+        tr.dataset.modoManual = l.modoManual ? 'true' : 'false';
+
+        const nuevoIcon = tr.querySelector('.nuevo-icon');
+
+        if (l.modoManual) {
+          nuevoIcon.style.opacity = '1';
+          nuevoIcon.style.color = '#0a8f2f';
+        } else {
+          nuevoIcon.style.opacity = '0.5';
+          nuevoIcon.style.color = '';
+        }
 
         const barcode = l.barcode || '';
 

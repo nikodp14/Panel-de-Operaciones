@@ -1,98 +1,140 @@
-let jumpsellerPriceMapCache = null;
-const gananciaIndividualInput = document.getElementById('gananciaIndividual');
-const gananciaPackInput = document.getElementById('gananciaPack');
+  document.addEventListener('DOMContentLoaded', async () => {
 
-function actualizarChecksHeader(){
+  let jumpsellerPriceMapCache = null;
+  const gananciaIndividualInput = document.getElementById('gananciaIndividual');
+  const gananciaPackInput = document.getElementById('gananciaPack');
 
-  const filas = document.querySelectorAll('#comprasBody tr');
+  function actualizarChecksHeader(){
 
-  const checksIngresado = [...filas]
-    .map(tr => tr.querySelector('.ingresado-check'))
-    .filter(Boolean);
+    const filas = document.querySelectorAll('#comprasBody tr');
 
-  const checksExport = [...filas]
-    .map(tr => tr.querySelector('.export-check'))
-    .filter(Boolean);
+    const checksIngresado = [...filas]
+      .map(tr => tr.querySelector('.ingresado-check'))
+      .filter(Boolean);
 
-  const allIngresado = checksIngresado.length &&
-    checksIngresado.every(c => c.checked);
+    const checksExport = [...filas]
+      .map(tr => tr.querySelector('.export-check'))
+      .filter(Boolean);
 
-  const allExport = checksExport.length &&
-    checksExport.every(c => c.checked);
+    const allIngresado = checksIngresado.length &&
+      checksIngresado.every(c => c.checked);
 
-  document.getElementById('checkAllIngresado').checked = allIngresado;
-  document.getElementById('checkAllExport').checked = allExport;
-}
+    const allExport = checksExport.length &&
+      checksExport.every(c => c.checked);
 
-function actualizarEstadoExportacion(){
-
-  const checks = document.querySelectorAll('.export-check');
-  const algunoMarcado = [...checks].some(c => c.checked);
-
-  document.getElementById('exportarExcelBtn').disabled = !algunoMarcado;
-}
-
-function getGananciaIndividual(){
-  return Number(gananciaIndividualInput.value || 80) / 100;
-}
-
-function getGananciaPack(){
-  return Number(gananciaPackInput.value || 70) / 100;
-}
-
-async function loadJumpsellerPriceMap(){
-
-  if (jumpsellerPriceMapCache) return jumpsellerPriceMapCache;
-
-  const res = await fetch('/api/jumpseller/productos/ultimo', { cache:'no-store' });
-
-  if(!res.ok){
-    return new Map();
+    document.getElementById('checkAllIngresado').checked = allIngresado;
+    document.getElementById('checkAllExport').checked = allExport;
   }
 
-  const buf = await res.arrayBuffer();
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('nuevo-icon')) {
 
-  const wb = XLSX.read(buf,{ type:'array' });
+      const tr = e.target.closest('tr');
+      const activo = tr.dataset.modoManual === 'true';
 
-  const ws = wb.Sheets[wb.SheetNames[0]];
+      const nuevoEstado = !activo;
+      tr.dataset.modoManual = nuevoEstado ? 'true' : 'false';
 
-  const rows = XLSX.utils.sheet_to_json(ws,{
-    header:1,
-    defval:'',
-    raw:false
+      const input = tr.querySelector('.codigo-input');
+      const nombreEl = tr.querySelector('.nombre-valor');
+      const varianteEl = tr.querySelector('.variante-valor');
+      const internalEl = tr.querySelector('.internal-valor');
+
+      // 🔥 ACTIVAR modo manual
+      if (nuevoEstado) {
+
+        nombreEl.textContent = '';
+        varianteEl.textContent = '';
+        internalEl.textContent = '';
+
+        // 🔥 CLAVE: evaluar lo que ya está escrito
+        const valor = input.value.trim();
+
+        if (valor) {
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+
+      // 🔥 DESACTIVAR → match automático
+      if (!nuevoEstado) {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+
+      // 🎨 UI correcta
+      e.target.style.opacity = nuevoEstado ? '1' : '0.5';
+      e.target.style.color = nuevoEstado ? '#0a8f2f' : '';
+
+      guardarCotizacion();
+    }
   });
 
-  const map = new Map();
+  function actualizarEstadoExportacion(){
 
-  const header = rows[0].map(h =>
-    String(h || '').trim().toLowerCase()
-  );
+    const checks = document.querySelectorAll('.export-check');
+    const algunoMarcado = [...checks].some(c => c.checked);
 
-  const indiceSku = header.findIndex(h => h === 'sku');
-  const indicePrice = header.findIndex(h => h === 'price');
+    document.getElementById('exportarExcelBtn').disabled = !algunoMarcado;
+  }
 
-  rows.slice(1).forEach(r => {
+  function getGananciaIndividual(){
+    return Number(gananciaIndividualInput.value || 80) / 100;
+  }
 
-    const sku = String(r[indiceSku] || '')
-      .replace(/^MLC/i,'')
-      .trim()
-      .toUpperCase();
+  function getGananciaPack(){
+    return Number(gananciaPackInput.value || 70) / 100;
+  }
 
-    const price = Math.round(Number(r[indicePrice] || 0));
+  async function loadJumpsellerPriceMap(){
 
-    if(sku){
-      map.set(sku, price);
+    if (jumpsellerPriceMapCache) return jumpsellerPriceMapCache;
+
+    const res = await fetch('/api/jumpseller/productos/ultimo', { cache:'no-store' });
+
+    if(!res.ok){
+      return new Map();
     }
 
-  });
+    const buf = await res.arrayBuffer();
 
-  jumpsellerPriceMapCache = map;
+    const wb = XLSX.read(buf,{ type:'array' });
 
-  return map;
+    const ws = wb.Sheets[wb.SheetNames[0]];
 
-}
-    
-document.addEventListener('DOMContentLoaded', async () => {
+    const rows = XLSX.utils.sheet_to_json(ws,{
+      header:1,
+      defval:'',
+      raw:false
+    });
+
+    const map = new Map();
+
+    const header = rows[0].map(h =>
+      String(h || '').trim().toLowerCase()
+    );
+
+    const indiceSku = header.findIndex(h => h === 'sku');
+    const indicePrice = header.findIndex(h => h === 'price');
+
+    rows.slice(1).forEach(r => {
+
+      const sku = String(r[indiceSku] || '')
+        .replace(/^MLC/i,'')
+        .trim()
+        .toUpperCase();
+
+      const price = Math.round(Number(r[indicePrice] || 0));
+
+      if(sku){
+        map.set(sku, price);
+      }
+
+    });
+
+    jumpsellerPriceMapCache = map;
+
+    return map;
+
+  }
 
   const body = document.getElementById('comprasBody');
   const cotizacionInput = document.getElementById('cotizacionInput');
@@ -415,6 +457,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       input.focus();
 
       document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`).forEach(r => r.remove());
+
+      tr.dataset.modoManual = 'false';
+      tr.querySelector('.nuevo-icon').style.opacity = '0.5';
+      tr.querySelector('.nuevo-icon').style.color = '';
     }
 
     if (!e.target.classList.contains('copiar-icon')) return;
@@ -762,6 +808,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     tr.dataset.precioUsd = '';
     tr.dataset.rowid = crypto.randomUUID();
 
+    tr.dataset.modoManual = 'false';
+
     tr.innerHTML = `
       <td>
         <input type="checkbox" class="export-check">
@@ -776,6 +824,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
             <span class="copiar-icon">📋</span>
             <span class="clear-icon">🧼</span>
+            <span class="nuevo-icon" title="Nuevo producto">➕</span>
           </div>
 
           <div class="odoo-suggestions hidden"></div>
@@ -1174,11 +1223,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 🔹 mostrar título ML como nombre principal
       nombreEl.textContent = tituloML;
 
-      // 🔹 mostrar variante solo si es distinta del título
-      if (varianteOdoo && !tituloML.toLowerCase().includes(varianteOdoo.toLowerCase())) {
-        varianteEl.style.display = '';
+      const modoManual = filaPrincipal.dataset.modoManual === 'true';
+
+      if (modoManual) {
+        varianteEl.style.display = ''; // 🔥 SIEMPRE mostrar en modo manual
       } else {
-        varianteEl.style.display = 'none';
+        if (varianteOdoo && !tituloML.toLowerCase().includes(varianteOdoo.toLowerCase())) {
+          varianteEl.style.display = '';
+        } else {
+          varianteEl.style.display = 'none';
+        }
       }
 
     }
@@ -1222,8 +1276,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const matchUnico = buscarPorReferenciaInterna(normalizedValue);
 
-      // 🔥 MATCH ÚNICO (barcode o referencia interna)
-      if (matchUnico) {
+      const modoManual = tr.dataset.modoManual === 'true';
+
+      if (matchUnico && !modoManual) {
 
         input.value = matchUnico.barcode;
 
@@ -1248,6 +1303,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      if (matchUnico && modoManual) {
+
+        const nombreEl = tr.querySelector('.nombre-valor');
+        const varianteEl = tr.querySelector('.variante-valor');
+
+        nombreEl.textContent = '⚠ Producto ya existe';
+        varianteEl.textContent = matchUnico.name || '';
+
+        tr.classList.add('fila-warning');
+
+      } else {
+        tr.classList.remove('fila-warning');
+      }
+
       // 🔥 LIMPIEZA SI NO HAY MATCH ÚNICO
       if (!matchUnico) {
 
@@ -1267,7 +1336,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           .forEach(r => r.remove());
       }
 
-      if (!matches.length) {
+      if (matchUnico && modoManual) {
+        matches.unshift(matchUnico); // 🔥 lo pone primero
+      }
+
+      if (!matches.length && !modoManual) {
         suggestions.innerHTML = '';
         suggestions.classList.add('hidden');
         guardarCotizacion();
@@ -1277,14 +1350,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 🔥 limpiar si no hay match
       internalEl.textContent = '';
 
-      if (lowerValue.length < 3) {
+      if (lowerValue.length < 3 && !modoManual) {
         suggestions.innerHTML = '';
         suggestions.classList.add('hidden');
         return;
       }
 
       // 🔥 si hay SOLO UNA coincidencia → autocompletar
-      if(normalizedValue.length >= 3 && matches.length === 1){
+      /*if(normalizedValue.length >= 3 && matches.length === 1 && !modoManual){
 
         const unico = matches[0];
 
@@ -1303,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         guardarCotizacion();
 
         return;
-      }
+      }*/
 
       suggestions.innerHTML = `
         <div class="odoo-header">
@@ -1448,7 +1521,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         ingresado: tr.querySelector('.ingresado-check')?.checked || false,
         seleccionado: tr.querySelector('.export-check')?.checked || false,
         subEnvios,
-        subTotales
+        subTotales,
+        modoManual: tr.dataset.modoManual === 'true'
       });
 
     });
@@ -1504,12 +1578,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         addRow();
         const tr = body.lastElementChild;
 
+        tr.dataset.modoManual = l.modoManual ? 'true' : 'false';
+        
+        const nuevoIcon = tr.querySelector('.nuevo-icon');
+
+        if (l.modoManual) {
+          nuevoIcon.style.opacity = '1';
+          nuevoIcon.style.color = '#0a8f2f';
+        } else {
+          nuevoIcon.style.opacity = '0.5';
+          nuevoIcon.style.color = '';
+        }
+
         const barcode = l.barcode || '';
 
         const input = tr.querySelector('.codigo-input');
         input.value = barcode;
 
-        input.dispatchEvent(new Event('input', { bubbles: true }));
+        if (!l.modoManual) {
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
 
         if (l.subEnvios?.length) {
 

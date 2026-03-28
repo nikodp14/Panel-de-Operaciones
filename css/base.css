@@ -1489,3 +1489,7 @@ tr.locked .lock-btn {
 .clear-icon {
   cursor: pointer;
 }
+
+.nuevo-icon {
+  cursor: pointer;
+}
