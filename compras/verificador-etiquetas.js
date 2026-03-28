@@ -129,14 +129,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // BLOQUEAR ESCRITURA MANUAL
   // ===============================
 
-  function bloquearEscrituraManual(input) {
+    function bloquearEscrituraManual(input) {
 
     let lastInputTime = 0;
 
     input.addEventListener("keydown", (e) => {
       const now = Date.now();
 
-      // escritura lenta → bloquear
+      // ✅ permitir primer carácter
+      if (input.value.length === 0) {
+        lastInputTime = now;
+        return;
+      }
+
       if (now - lastInputTime > 50 && e.key.length === 1) {
         e.preventDefault();
       }
