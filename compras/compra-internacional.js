@@ -386,6 +386,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   document.addEventListener('click', e => {
+    if (e.target.classList.contains('clear-icon')) {
+
+      const row = e.target.closest('.codigo-row');
+      if (!row) return;
+
+      const tr = e.target.closest('tr');
+
+      const input = row.querySelector('.codigo-input');
+      const nombreEl = tr.querySelector('.nombre-valor');
+      const varianteEl = tr.querySelector('.variante-valor');
+      const internalEl = tr.querySelector('.internal-valor');
+      const suggestions = tr.querySelector('.odoo-suggestions');
+
+      input.value = '';
+      nombreEl.textContent = '';
+      varianteEl.textContent = '';
+      internalEl.textContent = '';
+
+      suggestions.innerHTML = '';
+      suggestions.classList.add('hidden');
+
+      tr.querySelector('.porcentaje-comision').textContent = '0%';
+      tr.querySelector('.numero-publicacion').innerHTML = '';
+
+      guardarCotizacion();
+
+      input.focus();
+
+      document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`).forEach(r => r.remove());
+    }
 
     if (!e.target.classList.contains('copiar-icon')) return;
 
@@ -696,9 +726,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     variantesCache = rows.slice(1).map(r => ({
       barcode: String(r[1] || '').trim().toUpperCase(),
+      default_code: String(r[0] || '').trim().toUpperCase(),
       name: String(r[2] || '').trim(),
       variant: String(r[5] || '').trim()
     })).filter(v => v.barcode);
+  }
+
+  function buscarPorReferenciaInterna(valor){
+
+    const v = valor.toUpperCase();
+
+    const matches = variantesCache.filter(item => {
+
+      const internal = item.default_code || '';
+      const barcode = item.barcode || '';
+
+      const partes = internal.split('/').map(p => p.trim());
+
+      return (
+        barcode === v ||
+        partes.some(p => p === v) ||
+        internal.includes(v)
+      );
+    });
+
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
   }
     
   function addRow() {
@@ -719,11 +775,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="codigo-row">
             <input type="text" class="codigo-input copiable-value" placeholder="Buscar producto..." />
             <span class="copiar-icon">📋</span>
+            <span class="clear-icon">🧼</span>
           </div>
 
           <div class="odoo-suggestions hidden"></div>
 
           <div class="producto-info">
+            <div class="linea-internal">
+              <span class="internal-valor"></span>
+            </div>
             <div class="linea-nombre">
               <span class="nombre-valor"></span>
             </div>
@@ -1132,6 +1192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const input = e.target;
       const tr = input.closest('tr');
+      const internalEl = tr.querySelector('.internal-valor');
       const suggestions = tr.querySelector('.odoo-suggestions');
       const nombreEl = tr.querySelector('.nombre-valor');
       const varianteEl = tr.querySelector('.variante-valor');
@@ -1145,55 +1206,76 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 🔥 Limpiar si no coincide con barcode válido
       await loadVariantes();
-
-      // 🔥 matches SOLO por barcode (para autocompletar seguro)
-      const matchesBarcode = variantesCache.filter(v =>
-        v.barcode.includes(normalizedValue)
-      );
-
+      
       // 🔥 matches generales (para sugerencias)
-      const matches = variantesCache.filter(v =>
-        v.barcode.includes(normalizedValue) ||
-        v.name.toLowerCase().includes(lowerValue)
-      );
+      const matches = variantesCache.filter(v => {
 
-      const exactMatch = variantesCache.find(v => v.barcode === normalizedValue);
+        const barcode = v.barcode || '';
+        const internal = v.default_code || '';
 
-      // 🔥 CASO 1: input vacío → limpiar TODO
-      if(!normalizedValue){
-        nombreEl.textContent = '';
-        varianteEl.textContent = '';
+        return (
+          barcode.includes(normalizedValue) ||
+          internal.includes(normalizedValue) ||
+          v.name.toLowerCase().includes(lowerValue)
+        );
+      });
+
+      const matchUnico = buscarPorReferenciaInterna(normalizedValue);
+
+      // 🔥 MATCH ÚNICO (barcode o referencia interna)
+      if (matchUnico) {
+
+        input.value = matchUnico.barcode;
+
+        const internal = matchUnico.default_code || '';
+        const partes = internal.split('/');
+        const codigoInterno = partes.length > 1 ? partes[1] : internal;
+
+        internalEl.textContent = codigoInterno;
+
+        nombreEl.textContent = matchUnico.name || '';
+        varianteEl.textContent = matchUnico.variant || '';
+
         tr.classList.remove('fila-error');
 
         suggestions.innerHTML = '';
         suggestions.classList.add('hidden');
 
+        await procesarPublicaciones(tr, matchUnico.barcode);
+        calcularFila(tr);
+        guardarCotizacion();
+
         return;
       }
 
-      // 🔥 CASO 2: match exacto → llenar
-      if (exactMatch) {
+      // 🔥 LIMPIEZA SI NO HAY MATCH ÚNICO
+      if (!matchUnico) {
 
-        nombreEl.textContent = exactMatch.name || '';
-        varianteEl.textContent = exactMatch.variant || '';
-
-        tr.classList.remove('fila-error');
-
-      } else {
-
-        // 🔥 CASO 3: NO match → limpiar SIEMPRE
+        internalEl.textContent = '';
         nombreEl.textContent = '';
         varianteEl.textContent = '';
 
-        tr.classList.add('fila-error');
+        tr.querySelector('.porcentaje-comision').textContent = '0%';
+        tr.querySelector('.numero-publicacion').innerHTML = '';
+        tr.querySelector('.publicacion-jumpseller').innerHTML = '';
+
+        tr.querySelector('.precio-jumpseller').innerHTML = '0';
+        tr.querySelector('.precio-ml').innerHTML = '0';
+
+        // 🔥 eliminar sub-publicaciones también
+        document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`)
+          .forEach(r => r.remove());
       }
 
-      // 🔥 CASO NORMAL (solo si hay match válido)
-      if (exactMatch) {
-        await procesarPublicaciones(tr, codigoFinal);
-        calcularFila(tr);
+      if (!matches.length) {
+        suggestions.innerHTML = '';
+        suggestions.classList.add('hidden');
         guardarCotizacion();
+        return;
       }
+
+      // 🔥 limpiar si no hay match
+      internalEl.textContent = '';
 
       if (lowerValue.length < 3) {
         suggestions.innerHTML = '';
@@ -1427,18 +1509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const input = tr.querySelector('.codigo-input');
         input.value = barcode;
 
-        // 🔥 disparar lógica de sub publicaciones
-        const esValido = variantesCache.some(v => v.barcode === barcode);
-
-        if(esValido){
-          tr.querySelector('.nombre-valor').textContent = l.nombre;
-          tr.querySelector('.variante-valor').textContent = l.variante;
-        }else{
-          tr.querySelector('.nombre-valor').textContent = '';
-          tr.querySelector('.variante-valor').textContent = '';
-        }
-
-        await procesarPublicaciones(tr, barcode);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
 
         if (l.subEnvios?.length) {
 
@@ -1846,25 +1917,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   document
-  .getElementById('checkAllIngresado')
-  .addEventListener('change', e=>{
+    .getElementById('checkAllIngresado')
+    .addEventListener('change', e=>{
 
-    const checked = e.target.checked;
+      const checked = e.target.checked;
 
-    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+      document.querySelectorAll('#comprasBody tr').forEach(tr => {
 
-      const check = tr.querySelector('.ingresado-check');
+        const check = tr.querySelector('.ingresado-check');
 
-      if(!check) return;
+        if(!check) return;
 
-      check.checked = checked;
+        check.checked = checked;
 
-      actualizarEstadoIngresado(tr);
+        actualizarEstadoIngresado(tr);
 
+      });
+
+      actualizarEstadoExportacion();
+      recalcularTotales();
+      guardarCotizacion();
     });
-
-    actualizarEstadoExportacion();
-    recalcularTotales();
-    guardarCotizacion();
-  });
 });
