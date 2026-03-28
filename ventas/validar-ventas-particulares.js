@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const modalContainer = document.getElementById("modalImagesContainer");
   const modal = document.getElementById("modalImagen");
   const cerrarModal = document.getElementById("cerrarModal");
+  let modoSupervisor = false;
   const ayudas = {
     verVariantesOdoo: [
       "/imagenes/variantes-odoo0.jpg",
@@ -65,6 +66,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resultsSection.classList.add("hidden");
   countersEl.classList.add("hidden");
+
+  document.addEventListener("keydown", (e) => {
+
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "p") {
+
+      const pass = prompt("Clave supervisor:");
+
+      if (pass === "4744") {
+        modoSupervisor = true;
+        alert("Modo supervisor activado");
+      } else {
+        alert("Clave incorrecta");
+      }
+    }
+
+  });
 
   function esArchivoDeHoy(file) {
 
@@ -149,6 +166,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function validarEstadoInicial(){
 
+    // ✅ bypass directo
+    if (modoSupervisor) {
+      statusEl.textContent = "Modo supervisor activo ⚠️";
+      return true;
+    }
+
     const faltantes = await validarArchivosDelDia();
 
     if (faltantes.length) {
@@ -158,7 +181,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${faltantes.map(f => `- ${f}`).join("<br>")}
       `;
 
-      // 🔥 OCULTAR GRILLA
       resultsSection.classList.add("hidden");
       countersEl.classList.add("hidden");
 
