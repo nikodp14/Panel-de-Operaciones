@@ -1,655 +1,719 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
-    const body = document.getElementById('comprasBody');
-    const cotizacionInput = document.getElementById('cotizacionInput');
-    const addBtn = document.getElementById('addRowBtn');
-    const cargarBtn = document.getElementById('cargarCotBtn');
+  const body = document.getElementById('comprasBody');
+  const cotizacionInput = document.getElementById('cotizacionInput');
+  const addBtn = document.getElementById('addRowBtn');
+  const cargarBtn = document.getElementById('cargarCotBtn');
 
-    const verCotizacionesBtn = document.getElementById('verCotizacionesBtn');
-    const cotizacionesModal = document.getElementById('cotizacionesModal');
-    const cotizacionesLista = document.getElementById('cotizacionesLista');
-    const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
+  const verCotizacionesBtn = document.getElementById('verCotizacionesBtn');
+  const cotizacionesModal = document.getElementById('cotizacionesModal');
+  const cotizacionesLista = document.getElementById('cotizacionesLista');
+  const cerrarCotizaciones = document.getElementById('cerrarCotizaciones');
 
-    const totalCompraFooter = document.getElementById('totalCompraFooter');
-    const totalConIvaFooter = document.getElementById('totalConIvaFooter');
+  const totalCompraFooter = document.getElementById('totalCompraFooter');
+  const totalConIvaFooter = document.getElementById('totalConIvaFooter');
 
-    const DESCUENTO = 0.25;
-    const IVA = 1.19;
+  const DESCUENTO = 0.25;
+  const IVA = 1.19;
 
-    let variantesCache = [];
-    let packSetCache = null;
-    let jumpsellerPriceMapCache = null;
-    let inputTimer = null;
+  let variantesCache = [];
+  let packSetCache = null;
+  let jumpsellerPriceMapCache = null;
+  let inputTimer = null;
+  let bloqueado = false;
 
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('nuevo-icon')) {
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('nuevo-icon')) {
 
-        const tr = e.target.closest('tr');
-        const activo = tr.dataset.modoManual === 'true';
+      const tr = e.target.closest('tr');
+      const activo = tr.dataset.modoManual === 'true';
 
-        const nuevoEstado = !activo;
-        tr.dataset.modoManual = nuevoEstado ? 'true' : 'false';
-
-        const input = tr.querySelector('.codigo-input');
-        const nombreEl = tr.querySelector('.nombre-valor');
-        const varianteEl = tr.querySelector('.variante-valor');
-        const internalEl = tr.querySelector('.internal-valor');
-
-        if (nuevoEstado) {
-
-          nombreEl.textContent = '';
-          varianteEl.textContent = '';
-          internalEl.textContent = '';
-
-          // 🔥 CLAVE: ejecutar lógica con lo que ya está escrito
-          const valor = input.value.trim();
-
-          if (valor) {
-            aplicarLogicaCodigo(tr, valor);
-          }
-        }
-
-        // 🎨 UI
-        e.target.style.opacity = nuevoEstado ? '1' : '0.5';
-        e.target.style.color = nuevoEstado ? '#0a8f2f' : '';
-
-        // 🔥 DESACTIVAR → ejecutar lógica
-        if (!nuevoEstado) {
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        guardarCotizacion();
-      }
-    });
-
-    function aplicarLogicaCodigo(tr, valor){
+      const nuevoEstado = !activo;
+      tr.dataset.modoManual = nuevoEstado ? 'true' : 'false';
 
       const input = tr.querySelector('.codigo-input');
       const nombreEl = tr.querySelector('.nombre-valor');
       const varianteEl = tr.querySelector('.variante-valor');
       const internalEl = tr.querySelector('.internal-valor');
 
-      const normalizedValue = String(valor || '').trim().toUpperCase();
+      if (nuevoEstado) {
 
-      const matchUnico = buscarPorReferenciaInterna(normalizedValue);
-
-      const modoManual = tr.dataset.modoManual === 'true';
-
-      if (matchUnico && !modoManual) {
-
-        // 🔥 setea barcode
-        input.value = matchUnico.barcode;
-
-        // 🔥 setea referencia interna visible
-        const internal = matchUnico.default_code || '';
-        const partes = internal.split('/');
-        const codigoInterno = partes.length > 1 ? partes[1] : internal;
-
-        internalEl.textContent = codigoInterno;
-
-        nombreEl.textContent = matchUnico.name || '';
-        varianteEl.textContent = matchUnico.variant || '';
-
-      } else {
-
-        // fallback (por si ya es barcode)
-        input.value = normalizedValue;
-
-        const info = variantesCache.find(v => v.barcode === normalizedValue);
-
-        nombreEl.textContent = info?.name || '';
-        varianteEl.textContent = info?.variant || '';
-        internalEl.textContent = '';
-      }
-
-      if (matchUnico && modoManual) {
-
-        nombreEl.textContent = '⚠ Producto ya existe';
-        varianteEl.textContent = matchUnico.name || '';
-
-        tr.classList.add('fila-warning');
-
-      } else {
-        tr.classList.remove('fila-warning');
-      }
-    }
-
-    function buscarPorReferenciaInterna(valor){
-
-      const v = valor.toUpperCase();
-
-      const matches = variantesCache.filter(item => {
-
-        const internal = item.default_code || '';
-        const barcode = item.barcode || '';
-
-        return (
-          internal.includes(v) ||
-          v.includes(internal) ||
-          barcode === v
-        );
-
-      });
-
-      if(matches.length === 1){
-        return matches[0];
-      }
-
-      return null;
-    }
-
-    async function loadJumpsellerPriceMap(){
-
-      if (jumpsellerPriceMapCache) return jumpsellerPriceMapCache;
-
-      const res = await fetch('/api/jumpseller/productos/ultimo', { cache:'no-store' });
-
-      if(!res.ok){
-        return new Map();
-      }
-
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf,{ type:'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-
-      const rows = XLSX.utils.sheet_to_json(ws,{
-        header:1,
-        defval:'',
-        raw:false
-      });
-
-      const map = new Map();
-
-      const header = rows[0].map(h =>
-        String(h || '').trim().toLowerCase()
-      );
-
-      const indiceSku = header.findIndex(h => h === 'sku');
-      const indicePrice = header.findIndex(h => h === 'price');
-
-      rows.slice(1).forEach(r => {
-
-        const sku = String(r[indiceSku] || '')
-          .replace(/^MLC/i,'')
-          .trim()
-          .toUpperCase();
-
-        const price = Math.round(Number(r[indicePrice] || 0));
-
-        if(sku){
-          map.set(sku, price);
-        }
-
-      });
-
-      jumpsellerPriceMapCache = map;
-
-      return map;
-    }
-    
-    const jumpsellerPriceMap = await loadJumpsellerPriceMap();
-
-    function pintarAlertaPrecioJumpseller(el, precioActual){
-
-      if(!el) return;
-
-      // evitar duplicados
-      el.querySelectorAll('.ml-alerta').forEach(e => e.remove());
-
-      if(precioActual === 0){
-        el.innerHTML += `
-          <span class="ml-alerta" title="Precio Jumpseller no encontrado" style="margin-left:6px;cursor:help;">
-            ⚠️
-          </span>
-        `;
-      }
-    }
-
-    function pintarAlertaPrecioML(el, precioActual){
-
-      if(!el) return;
-
-      // evitar duplicados
-      el.querySelectorAll('.ml-alerta').forEach(e => e.remove());
-
-      if(precioActual === 0){
-        el.innerHTML += `
-          <span class="ml-alerta" title="Precio ML no encontrado" style="margin-left:6px;cursor:help;">
-            ⚠️
-          </span>
-        `;
-      }
-
-    }
-
-    function pintarComparacionPrecio(el, calculado, actual){
-
-      if (!actual) return;
-
-      if (calculado > actual){
-        el.style.color = 'red';
-        el.style.fontWeight = '700';
-      }
-      else if (actual > calculado){
-        el.style.color = '#0a8f2f';
-        el.style.fontWeight = '700';
-      }
-      else{
-        el.style.color = '';
-        el.style.fontWeight = '';
-      }
-    }
-    
-    document.addEventListener('click', e => {
-      // 🔥 limpiar input
-      if (e.target.classList.contains('clear-icon')) {
-
-        const row = e.target.closest('.codigo-row');
-        if (!row) return;
-
-        const tr = e.target.closest('tr');
-
-        const input = row.querySelector('.codigo-input');
-        const nombreEl = tr.querySelector('.nombre-valor');
-        const varianteEl = tr.querySelector('.variante-valor');
-        const internalEl = tr.querySelector('.internal-valor');
-        const suggestions = tr.querySelector('.odoo-suggestions');
-
-        // 🔥 limpiar todo
-        input.value = '';
         nombreEl.textContent = '';
         varianteEl.textContent = '';
         internalEl.textContent = '';
 
-        suggestions.innerHTML = '';
-        suggestions.classList.add('hidden');
+        // 🔥 CLAVE: ejecutar lógica con lo que ya está escrito
+        const valor = input.value.trim();
 
-        // 🔥 limpiar ML también (muy importante)
-        tr.querySelector('.porcentaje-comision').textContent = '0%';
-        tr.querySelector('.numero-publicacion').innerHTML = '';
-        tr.querySelector('.publicacion-jumpseller').innerHTML = '';
-
-        guardarCotizacion();
-
-        input.focus();
-
-        document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`).forEach(r => r.remove());
-
-        tr.dataset.modoManual = 'false';
-        tr.querySelector('.nuevo-icon').style.opacity = '0.5';
-        tr.querySelector('.nuevo-icon').style.color = '';
-      }
-
-      if (!e.target.classList.contains('copiar-icon')) return;
-
-      let valor = '';
-
-      // 🔥 PRIORIDAD: data-copy
-      valor = e.target.dataset.copy || '';
-
-      // 🔹 fallback input (codigo)
-      if (!valor) {
-        const codigoRow = e.target.closest('.codigo-row');
-        if (codigoRow) {
-          const input = codigoRow.querySelector('.codigo-input');
-          valor = input?.value || '';
+        if (valor) {
+          aplicarLogicaCodigo(tr, valor);
         }
       }
 
-      // 🔹 fallback legacy
-      if (!valor) {
-        const copiableCell = e.target.closest('.copiable-cell');
-        if (copiableCell) {
-          const el = copiableCell.querySelector('.copiable-value');
+      // 🎨 UI
+      e.target.style.opacity = nuevoEstado ? '1' : '0.5';
+      e.target.style.color = nuevoEstado ? '#0a8f2f' : '';
 
-          if (el) {
-            valor = el.tagName === 'INPUT'
-              ? el.value
-              : el.textContent;
-          }
-        }
+      // 🔥 DESACTIVAR → ejecutar lógica
+      if (!nuevoEstado) {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
-      copiarAlPortapapeles(valor.trim());
+      guardarCotizacion();
+    }
+  });
+
+  function aplicarBloqueo(estado){
+
+    bloqueado = estado;
+
+    const trs = document.querySelectorAll('#comprasBody tr');
+
+    trs.forEach(tr => {
+
+      // 🔥 todos los inputs excepto costo envío
+      tr.querySelectorAll('input').forEach(input => {
+
+        if (input.classList.contains('costo-envio-input')) {
+          input.disabled = false; // 👈 siempre editable
+        } else {
+          input.disabled = estado;
+        }
+
+      });
+
+      // 🔥 botones (delete, copiar, etc)
+      tr.querySelectorAll('button').forEach(btn => {
+        btn.disabled = estado;
+      });
+
+      // 🔥 iconos (opcional pero recomendable)
+      tr.querySelectorAll('.nuevo-icon, .clear-icon').forEach(icon => {
+        icon.style.pointerEvents = estado ? 'none' : '';
+        icon.style.opacity = estado ? '0.3' : '';
+      });
 
     });
 
-    function formatearPedido(numero) {
-      const n = Number(numero) || 0;
-      return 'P' + String(n).padStart(5, '0');
+    // 🔥 también bloquear controles superiores
+    document.querySelectorAll(
+      '#cotizacionInput, #descuentoGlobal, #addRowBtn, #exportarExcelBtn'
+    ).forEach(el => {
+      if(el) el.disabled = estado;
+    });
+
+    // texto botón
+    const btn = document.getElementById('toggleLockBtn');
+    btn.textContent = estado ? '🔓 Desbloquear' : '🔒 Bloquear';
+
+  }
+
+  document.getElementById('toggleLockBtn').addEventListener('click', () => {
+
+    if (!bloqueado) {
+      aplicarBloqueo(true);
+      return;
     }
 
-    function obtenerFechaActual() {
-      const now = new Date();
+    // 🔓 pedir clave para desbloquear
+    const clave = prompt('Ingrese clave para desbloquear');
 
-      const d = String(now.getDate()).padStart(2,'0');
-      const m = String(now.getMonth()+1).padStart(2,'0');
-      const y = now.getFullYear();
-
-      const h = String(now.getHours()).padStart(2,'0');
-      const min = String(now.getMinutes()).padStart(2,'0');
-      const s = String(now.getSeconds()).padStart(2,'0');
-
-      return `${d}-${m}-${y} ${h}:${min}:${s}`;
+    if (clave === '4744') {
+      aplicarBloqueo(false);
+    } else {
+      alert('Clave incorrecta');
     }
 
-    async function exportarPedidoExcel(){
+  });
 
-      const resPedido = await fetch('/api/pedidos/siguiente');
-      const dataPedido = await resPedido.json();
+  function aplicarLogicaCodigo(tr, valor){
 
-      const refOrden = dataPedido.ref;
-      const cotizacion = document.getElementById('cotizacionInput').value.trim();
+    const input = tr.querySelector('.codigo-input');
+    const nombreEl = tr.querySelector('.nombre-valor');
+    const varianteEl = tr.querySelector('.variante-valor');
+    const internalEl = tr.querySelector('.internal-valor');
 
-      const now = new Date();
+    const normalizedValue = String(valor || '').trim().toUpperCase();
 
-      const fecha =
-        String(now.getDate()).padStart(2,'0') + '-' +
-        String(now.getMonth()+1).padStart(2,'0') + '-' +
-        now.getFullYear() + ' ' +
-        String(now.getHours()).padStart(2,'0') + ':' +
-        String(now.getMinutes()).padStart(2,'0') + ':' +
-        String(now.getSeconds()).padStart(2,'0');
+    const matchUnico = buscarPorReferenciaInterna(normalizedValue);
 
-      const rows = [];
+    const modoManual = tr.dataset.modoManual === 'true';
 
-      rows.push([
-        "Referencia de la orden",
-        "Proveedor",
-        "Fecha de confirmación",
-        "Fecha límite de la orden",
-        "Líneas del pedido/Cantidad",
-        "Líneas del pedido/Producto",
-        "Líneas del pedido/Precio unitario",
-        "Referencia de proveedor"
-      ]);
+    if (matchUnico && !modoManual) {
 
-      const lineas = [];
+      // 🔥 setea barcode
+      input.value = matchUnico.barcode;
 
-      document.querySelectorAll('#comprasBody tr').forEach(tr => {
+      // 🔥 setea referencia interna visible
+      const internal = matchUnico.default_code || '';
+      const partes = internal.split('/');
+      const codigoInterno = partes.length > 1 ? partes[1] : internal;
 
-        const producto = tr.querySelector('.codigo-input')?.value || '';
-        const cantidad = tr.querySelector('.cantidad-input')?.value || '';
-        const precio = tr.querySelector('.precio-odoo .copiar-icon')?.dataset.copy || '0'
+      internalEl.textContent = codigoInterno;
 
-        if(!producto) return;
+      nombreEl.textContent = matchUnico.name || '';
+      varianteEl.textContent = matchUnico.variant || '';
 
-        lineas.push({cantidad, producto, precio});
+    } else {
 
-      });
+      // fallback (por si ya es barcode)
+      input.value = normalizedValue;
 
-      lineas.forEach((l,i)=>{
+      const info = variantesCache.find(v => v.barcode === normalizedValue);
 
-        rows.push([
-          i === 0 ? refOrden : "",
-          i === 0 ? "Garage Online" : "",
-          i === 0 ? "" : "",
-          i === 0 ? fecha : "",
-          l.cantidad,
-          l.producto,
-          l.precio,
-          i === 0 ? cotizacion : ""
-        ]);
-
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-
-      XLSX.utils.book_append_sheet(wb, ws, "Pedido");
-
-      XLSX.writeFile(wb, `pedido_${refOrden}.xlsx`);
+      nombreEl.textContent = info?.name || '';
+      varianteEl.textContent = info?.variant || '';
+      internalEl.textContent = '';
     }
 
-    function copiarAlPortapapeles(texto) {
+    if (matchUnico && modoManual) {
 
-      if (!texto) return;
+      nombreEl.textContent = '⚠ Producto ya existe';
+      varianteEl.textContent = matchUnico.name || '';
 
-      navigator.clipboard.writeText(texto);
+      tr.classList.add('fila-warning');
 
-      const toast = document.getElementById('toast');
-      if (toast) {
-        toast.textContent = 'Copiado';
-        toast.classList.remove('hidden');
-        toast.classList.add('show');
+    } else {
+      tr.classList.remove('fila-warning');
+    }
+  }
 
-        setTimeout(() => {
-          toast.classList.remove('show');
-        }, 1200);
+  function buscarPorReferenciaInterna(valor){
+
+    const v = valor.toUpperCase();
+
+    const matches = variantesCache.filter(item => {
+
+      const internal = item.default_code || '';
+      const barcode = item.barcode || '';
+
+      return (
+        internal.includes(v) ||
+        v.includes(internal) ||
+        barcode === v
+      );
+
+    });
+
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
+  }
+
+  async function loadJumpsellerPriceMap(){
+
+    if (jumpsellerPriceMapCache) return jumpsellerPriceMapCache;
+
+    const res = await fetch('/api/jumpseller/productos/ultimo', { cache:'no-store' });
+
+    if(!res.ok){
+      return new Map();
+    }
+
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf,{ type:'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    const rows = XLSX.utils.sheet_to_json(ws,{
+      header:1,
+      defval:'',
+      raw:false
+    });
+
+    const map = new Map();
+
+    const header = rows[0].map(h =>
+      String(h || '').trim().toLowerCase()
+    );
+
+    const indiceSku = header.findIndex(h => h === 'sku');
+    const indicePrice = header.findIndex(h => h === 'price');
+
+    rows.slice(1).forEach(r => {
+
+      const sku = String(r[indiceSku] || '')
+        .replace(/^MLC/i,'')
+        .trim()
+        .toUpperCase();
+
+      const price = Math.round(Number(r[indicePrice] || 0));
+
+      if(sku){
+        map.set(sku, price);
       }
+
+    });
+
+    jumpsellerPriceMapCache = map;
+
+    return map;
+  }
+  
+  const jumpsellerPriceMap = await loadJumpsellerPriceMap();
+
+  function pintarAlertaPrecioJumpseller(el, precioActual){
+
+    if(!el) return;
+
+    // evitar duplicados
+    el.querySelectorAll('.ml-alerta').forEach(e => e.remove());
+
+    if(precioActual === 0){
+      el.innerHTML += `
+        <span class="ml-alerta" title="Precio Jumpseller no encontrado" style="margin-left:6px;cursor:help;">
+          ⚠️
+        </span>
+      `;
     }
+  }
 
-    function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
+  function pintarAlertaPrecioML(el, precioActual){
 
-      const link = isLink && isLinkMl
-        ? `https://articulo.mercadolibre.cl/MLC-${valor}`
-        : isLink && !isLinkMl
-          ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
-          : null;
+    if(!el) return;
 
-      return `
-        <div class="copiable-cell">
-          ${
-            isLink
-              ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
-              : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span>`
-          }
+    // evitar duplicados
+    el.querySelectorAll('.ml-alerta').forEach(e => e.remove());
 
-          <!-- 🔥 botón copiar separado -->
-          <span class="copiar-icon" data-copy="${valor}">📋</span>
-        </div>
+    if(precioActual === 0){
+      el.innerHTML += `
+        <span class="ml-alerta" title="Precio ML no encontrado" style="margin-left:6px;cursor:help;">
+          ⚠️
+        </span>
       `;
     }
 
-    function findIndiceComision(headerRow) {
-      const header = headerRow.map(h => normalizeHeader(h || ''));
+  }
 
-      // palabras clave que pueden indicar comisión
-      const keywords = ['cargo por venta'];
+  function pintarComparacionPrecio(el, calculado, actual){
 
-      // recorremos columnas y buscamos la primera que contenga todas las claves
-      for (let i = 0; i < header.length; i++) {
-        const cell = header[i];
+    if (!actual) return;
 
-        // si el encabezado contiene todas estas palabras en cualquier parte
-        const contiene = keywords.every(kw => cell.includes(kw));
-        if (contiene) {
-          return i;
-        }
-      }
+    if (calculado > actual){
+      el.style.color = 'red';
+      el.style.fontWeight = '700';
+    }
+    else if (actual > calculado){
+      el.style.color = '#0a8f2f';
+      el.style.fontWeight = '700';
+    }
+    else{
+      el.style.color = '';
+      el.style.fontWeight = '';
+    }
+  }
+  
+  document.addEventListener('click', e => {
+    // 🔥 limpiar input
+    if (e.target.classList.contains('clear-icon')) {
 
-      // si no se encontró nada, devolvemos -1
-      return -1;
+      const row = e.target.closest('.codigo-row');
+      if (!row) return;
+
+      const tr = e.target.closest('tr');
+
+      const input = row.querySelector('.codigo-input');
+      const nombreEl = tr.querySelector('.nombre-valor');
+      const varianteEl = tr.querySelector('.variante-valor');
+      const internalEl = tr.querySelector('.internal-valor');
+      const suggestions = tr.querySelector('.odoo-suggestions');
+
+      // 🔥 limpiar todo
+      input.value = '';
+      nombreEl.textContent = '';
+      varianteEl.textContent = '';
+      internalEl.textContent = '';
+
+      suggestions.innerHTML = '';
+      suggestions.classList.add('hidden');
+
+      // 🔥 limpiar ML también (muy importante)
+      tr.querySelector('.porcentaje-comision').textContent = '0%';
+      tr.querySelector('.numero-publicacion').innerHTML = '';
+      tr.querySelector('.publicacion-jumpseller').innerHTML = '';
+
+      guardarCotizacion();
+
+      input.focus();
+
+      document.querySelectorAll(`tr[data-parent="${tr.dataset.rowid}"]`).forEach(r => r.remove());
+
+      tr.dataset.modoManual = 'false';
+      tr.querySelector('.nuevo-icon').style.opacity = '0.5';
+      tr.querySelector('.nuevo-icon').style.color = '';
     }
 
-    async function loadPackSet() {
-      if (packSetCache) return packSetCache;
+    if (!e.target.classList.contains('copiar-icon')) return;
 
-      const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
+    let valor = '';
 
-      const sheetName =
-        wb.SheetNames.find(n => n.toLowerCase().includes('pack'));
+    // 🔥 PRIORIDAD: data-copy
+    valor = e.target.dataset.copy || '';
 
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    // 🔹 fallback input (codigo)
+    if (!valor) {
+      const codigoRow = e.target.closest('.codigo-row');
+      if (codigoRow) {
+        const input = codigoRow.querySelector('.codigo-input');
+        valor = input?.value || '';
+      }
+    }
 
-      const set = new Set();
+    // 🔹 fallback legacy
+    if (!valor) {
+      const copiableCell = e.target.closest('.copiable-cell');
+      if (copiableCell) {
+        const el = copiableCell.querySelector('.copiable-value');
 
-      rows.forEach(r => {
-        const keys = Object.values(r);
-        keys.forEach(v => {
-          if (v) {
-            set.add(String(v).replace(/^MLC/i, '').trim());
-          }
+        if (el) {
+          valor = el.tagName === 'INPUT'
+            ? el.value
+            : el.textContent;
+        }
+      }
+    }
+
+    copiarAlPortapapeles(valor.trim());
+
+  });
+
+  function formatearPedido(numero) {
+    const n = Number(numero) || 0;
+    return 'P' + String(n).padStart(5, '0');
+  }
+
+  function obtenerFechaActual() {
+    const now = new Date();
+
+    const d = String(now.getDate()).padStart(2,'0');
+    const m = String(now.getMonth()+1).padStart(2,'0');
+    const y = now.getFullYear();
+
+    const h = String(now.getHours()).padStart(2,'0');
+    const min = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+
+    return `${d}-${m}-${y} ${h}:${min}:${s}`;
+  }
+
+  async function exportarPedidoExcel(){
+
+    const resPedido = await fetch('/api/pedidos/siguiente');
+    const dataPedido = await resPedido.json();
+
+    const refOrden = dataPedido.ref;
+    const cotizacion = document.getElementById('cotizacionInput').value.trim();
+
+    const now = new Date();
+
+    const fecha =
+      String(now.getDate()).padStart(2,'0') + '-' +
+      String(now.getMonth()+1).padStart(2,'0') + '-' +
+      now.getFullYear() + ' ' +
+      String(now.getHours()).padStart(2,'0') + ':' +
+      String(now.getMinutes()).padStart(2,'0') + ':' +
+      String(now.getSeconds()).padStart(2,'0');
+
+    const rows = [];
+
+    rows.push([
+      "Referencia de la orden",
+      "Proveedor",
+      "Fecha de confirmación",
+      "Fecha límite de la orden",
+      "Líneas del pedido/Cantidad",
+      "Líneas del pedido/Producto",
+      "Líneas del pedido/Precio unitario",
+      "Referencia de proveedor"
+    ]);
+
+    const lineas = [];
+
+    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+      const producto = tr.querySelector('.codigo-input')?.value || '';
+      const cantidad = tr.querySelector('.cantidad-input')?.value || '';
+      const precio = tr.querySelector('.precio-odoo .copiar-icon')?.dataset.copy || '0'
+
+      if(!producto) return;
+
+      lineas.push({cantidad, producto, precio});
+
+    });
+
+    lineas.forEach((l,i)=>{
+
+      rows.push([
+        i === 0 ? refOrden : "",
+        i === 0 ? "Garage Online" : "",
+        i === 0 ? "" : "",
+        i === 0 ? fecha : "",
+        l.cantidad,
+        l.producto,
+        l.precio,
+        i === 0 ? cotizacion : ""
+      ]);
+
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Pedido");
+
+    XLSX.writeFile(wb, `pedido_${refOrden}.xlsx`);
+  }
+
+  function copiarAlPortapapeles(texto) {
+
+    if (!texto) return;
+
+    navigator.clipboard.writeText(texto);
+
+    const toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = 'Copiado';
+      toast.classList.remove('hidden');
+      toast.classList.add('show');
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1200);
+    }
+  }
+
+  function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
+
+    const link = isLink && isLinkMl
+      ? `https://articulo.mercadolibre.cl/MLC-${valor}`
+      : isLink && !isLinkMl
+        ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
+        : null;
+
+    return `
+      <div class="copiable-cell">
+        ${
+          isLink
+            ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+            : `<span>${isPrice ? '$' + Math.round(valor).toLocaleString('es-CL') : valor}</span>`
+        }
+
+        <!-- 🔥 botón copiar separado -->
+        <span class="copiar-icon" data-copy="${valor}">📋</span>
+      </div>
+    `;
+  }
+
+  function findIndiceComision(headerRow) {
+    const header = headerRow.map(h => normalizeHeader(h || ''));
+
+    // palabras clave que pueden indicar comisión
+    const keywords = ['cargo por venta'];
+
+    // recorremos columnas y buscamos la primera que contenga todas las claves
+    for (let i = 0; i < header.length; i++) {
+      const cell = header[i];
+
+      // si el encabezado contiene todas estas palabras en cualquier parte
+      const contiene = keywords.every(kw => cell.includes(kw));
+      if (contiene) {
+        return i;
+      }
+    }
+
+    // si no se encontró nada, devolvemos -1
+    return -1;
+  }
+
+  async function loadPackSet() {
+    if (packSetCache) return packSetCache;
+
+    const res = await fetch('/validar-ml/configuracion.xlsx', { cache: 'no-store' });
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    const sheetName =
+      wb.SheetNames.find(n => n.toLowerCase().includes('pack'));
+
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    const set = new Set();
+
+    rows.forEach(r => {
+      const keys = Object.values(r);
+      keys.forEach(v => {
+        if (v) {
+          set.add(String(v).replace(/^MLC/i, '').trim());
+        }
+      });
+    });
+
+    packSetCache = set;
+    return set;
+  }
+
+  let comisionMapCache = null;
+
+  async function loadComisionMap() {
+
+    if (comisionMapCache) return comisionMapCache;
+
+    const res = await fetch('/api/ml/comisiones/ultimo', { cache: 'no-store' });
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    const sheetName =
+      wb.SheetNames.find(n => n.toLowerCase().includes('publicaciones')) ||
+      wb.SheetNames[0];
+
+    const ws = wb.Sheets[sheetName];
+
+    // 🔥 Leer como matriz completa
+    const rows = XLSX.utils.sheet_to_json(ws, {
+      header: 1,
+      defval: ''
+    });
+
+    if (!rows.length) return new Map();
+
+    // 🔥 Detectar encabezado (normalmente fila 2 o 3 en ML)
+    const headerRow = rows[2] || rows[1] || rows[0];
+
+    function normalizeHeader(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    }
+
+    const headerNormalized = headerRow.map(h => normalizeHeader(h));
+
+    // 🔥 Buscar columna de Número de publicación
+    const indicePublicacion = headerNormalized.findIndex(h =>
+      h.includes('numero') && h.includes('publicacion')
+    );
+
+    // 🔥 Buscar columna Cargo por venta dinámicamente
+    const indiceComision = headerNormalized.findIndex(h =>
+      h.includes('cargo') && h.includes('venta')
+    );
+
+    // 🔥 Buscar columna Precio dinámicamente
+    const indicePrecio = headerNormalized.findIndex(h =>
+      h.includes('precio')
+    );
+
+    const indiceEstado = headerNormalized.findIndex(h =>
+      h.includes('estado')
+    );
+
+    if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
+      console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
+      return new Map();
+    }
+
+    const map = new Map();
+
+    // 🔥 Iterar desde fila siguiente al header
+    rows.slice(3).forEach(r => {
+
+      const pub = String(r[indicePublicacion] || '')
+        .replace(/^MLC/i, '')
+        .trim()
+        .toUpperCase();
+
+      const comision = parseFloat(
+        String(r[indiceComision] || '').replace('%', '')
+      ) || 0;
+
+      const precioMLActual = parseFloat(
+        String(r[indicePrecio] || '')
+          .replace(/\./g,'')
+          .replace(',','.')
+      ) || 0;
+
+      const estado = String(r[indiceEstado] || '').trim();
+
+      if (pub) {
+        map.set(pub, {
+          comision,
+          precio: precioMLActual,
+          estado
         });
-      });
+      }
+    });
 
-      packSetCache = set;
-      return set;
+    comisionMapCache = map;
+    return map;
+  }
+
+  async function obtenerComisionDesdeBarcode(barcodeRaw) {
+
+    const packSet = await loadPackSet();
+    const comisionMap = await loadComisionMap();
+
+    const partes = String(barcodeRaw || '')
+    .split('/')
+    .map(p =>
+      p
+        .replace(/^MLC/i,'')
+        .split('-')[0]        // 🔥 elimina -1, -2, etc
+        .trim()
+        .toUpperCase()
+    )
+    .filter(Boolean);
+
+    // Buscar cuál existe en publicaciones ML
+    const candidatos = partes.filter(p => comisionMap.has(p));
+
+    //console.log(comisionMap);
+    //console.log(candidatos);
+
+    if (!candidatos.length) {
+      return { comision: 0, publicacion: '' };
     }
 
-    let comisionMapCache = null;
+    // Quitar los que son pack
+    const individuales = candidatos.filter(p => !packSet.has(p));
 
-    async function loadComisionMap() {
+    const final = individuales.length ? individuales[0] : candidatos[0];
 
-      if (comisionMapCache) return comisionMapCache;
+    const data = comisionMap.get(final);
 
-      const res = await fetch('/api/ml/comisiones/ultimo', { cache: 'no-store' });
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-
-      const sheetName =
-        wb.SheetNames.find(n => n.toLowerCase().includes('publicaciones')) ||
-        wb.SheetNames[0];
-
-      const ws = wb.Sheets[sheetName];
-
-      // 🔥 Leer como matriz completa
-      const rows = XLSX.utils.sheet_to_json(ws, {
-        header: 1,
-        defval: ''
-      });
-
-      if (!rows.length) return new Map();
-
-      // 🔥 Detectar encabezado (normalmente fila 2 o 3 en ML)
-      const headerRow = rows[2] || rows[1] || rows[0];
-
-      function normalizeHeader(str) {
-        return String(str || '')
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase()
-          .trim();
-      }
-
-      const headerNormalized = headerRow.map(h => normalizeHeader(h));
-
-      // 🔥 Buscar columna de Número de publicación
-      const indicePublicacion = headerNormalized.findIndex(h =>
-        h.includes('numero') && h.includes('publicacion')
-      );
-
-      // 🔥 Buscar columna Cargo por venta dinámicamente
-      const indiceComision = headerNormalized.findIndex(h =>
-        h.includes('cargo') && h.includes('venta')
-      );
-
-      // 🔥 Buscar columna Precio dinámicamente
-      const indicePrecio = headerNormalized.findIndex(h =>
-        h.includes('precio')
-      );
-
-      const indiceEstado = headerNormalized.findIndex(h =>
-        h.includes('estado')
-      );
-
-      if (indicePublicacion === -1 || indiceComision === -1 || indicePrecio === -1) {
-        console.warn('⚠ No se encontraron columnas necesarias en planilla ML');
-        return new Map();
-      }
-
-      const map = new Map();
-
-      // 🔥 Iterar desde fila siguiente al header
-      rows.slice(3).forEach(r => {
-
-        const pub = String(r[indicePublicacion] || '')
-          .replace(/^MLC/i, '')
-          .trim()
-          .toUpperCase();
-
-        const comision = parseFloat(
-          String(r[indiceComision] || '').replace('%', '')
-        ) || 0;
-
-        const precioMLActual = parseFloat(
-          String(r[indicePrecio] || '')
-            .replace(/\./g,'')
-            .replace(',','.')
-        ) || 0;
-
-        const estado = String(r[indiceEstado] || '').trim();
-
-        if (pub) {
-          map.set(pub, {
-            comision,
-            precio: precioMLActual,
-            estado
-          });
-        }
-      });
-
-      comisionMapCache = map;
-      return map;
+    if (data?.comision === 0 && final) {
+      alert(`⚠ La publicación ${final} tiene comisión 0%. Verifique carga del archivo publicaciones.`);
     }
 
-    async function obtenerComisionDesdeBarcode(barcodeRaw) {
+    return {
+      comision: data?.comision || 0,
+      publicacion: final || '',
+      precioActual: data?.precio || 0
+    };
+  }
 
-      const packSet = await loadPackSet();
-      const comisionMap = await loadComisionMap();
+  async function loadVariantes() {
+    if (variantesCache.length) return;
 
-      const partes = String(barcodeRaw || '')
-      .split('/')
-      .map(p =>
-        p
-          .replace(/^MLC/i,'')
-          .split('-')[0]        // 🔥 elimina -1, -2, etc
-          .trim()
-          .toUpperCase()
-      )
-      .filter(Boolean);
+    const res = await fetch('/api/odoo/variantes/ultimo');
+    if (!res.ok) return;
 
-      // Buscar cuál existe en publicaciones ML
-      const candidatos = partes.filter(p => comisionMap.has(p));
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-      //console.log(comisionMap);
-      //console.log(candidatos);
-
-      if (!candidatos.length) {
-        return { comision: 0, publicacion: '' };
-      }
-
-      // Quitar los que son pack
-      const individuales = candidatos.filter(p => !packSet.has(p));
-
-      const final = individuales.length ? individuales[0] : candidatos[0];
-
-      const data = comisionMap.get(final);
-
-      if (data?.comision === 0 && final) {
-        alert(`⚠ La publicación ${final} tiene comisión 0%. Verifique carga del archivo publicaciones.`);
-      }
-
-      return {
-        comision: data?.comision || 0,
-        publicacion: final || '',
-        precioActual: data?.precio || 0
-      };
-    }
-
-    async function loadVariantes() {
-      if (variantesCache.length) return;
-
-      const res = await fetch('/api/odoo/variantes/ultimo');
-      if (!res.ok) return;
-
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
-      variantesCache = rows.slice(1).map(r => ({
-        barcode: String(r[1] || '').trim().toUpperCase(),
-        default_code: String(r[0] || '').trim().toUpperCase(),
-        name: String(r[2] || '').trim(),
-        variant: String(r[5] || '').trim()
-      })).filter(v => v.barcode || v.default_code);
-    }
-    
-    function addRow() {
+    variantesCache = rows.slice(1).map(r => ({
+      barcode: String(r[1] || '').trim().toUpperCase(),
+      default_code: String(r[0] || '').trim().toUpperCase(),
+      name: String(r[2] || '').trim(),
+      variant: String(r[5] || '').trim()
+    })).filter(v => v.barcode || v.default_code);
+  }
+  
+  function addRow() {
     const tr = document.createElement('tr');
     const descuentoGlobal = document.getElementById('descuentoGlobal').value || 30;
 
