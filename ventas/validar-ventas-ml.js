@@ -1252,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const estadoRes = await fetch('/api/estado/odoo-ventas');
     const estado = await estadoRes.json();
 
-    if (estado.pendienteVentasOdoo && !modoSupervisor)
+    if (estado.pendienteVentasOdoo && !modoSupervisor){
 
       exportBtn.disabled = true;
 
@@ -1265,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (faltantes.length && !esLocal && !modoSupervisor)
+    if (faltantes.length && !esLocal && !modoSupervisor){
 
       statusEl.textContent = '';
 
