@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const clave = prompt("Ingrese clave supervisor");
 
-      if (clave === "1234") { // 👈 cambia esto
+      if (clave === "4744") {
         modoSupervisor = true;
 
         showToast("Modo supervisor activado ⚠️", 2000);
