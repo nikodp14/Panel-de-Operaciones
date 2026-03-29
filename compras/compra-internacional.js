@@ -1798,12 +1798,24 @@
     }).join('');
   }
 
+  function recalcularTodasLasFilas(){
+    document.querySelectorAll('#comprasBody tr').forEach(tr=>{
+      const parent = tr.classList.contains('sub-publicacion')
+        ? document.querySelector(`tr[data-rowid="${tr.dataset.parent}"]`)
+        : null;
+
+      calcularFila(tr, parent);
+    });
+  }
+
   gananciaIndividualInput.addEventListener('input', ()=>{
+    recalcularTodasLasFilas();   // 🔥 clave
     recalcularTotales();
     guardarCotizacion();
   });
 
   gananciaPackInput.addEventListener('input', ()=>{
+    recalcularTodasLasFilas();   // 🔥 clave
     recalcularTotales();
     guardarCotizacion();
   });
