@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!bloqueado) {
       aplicarBloqueo(true);
+      guardarCotizacion(); // 🔒 guardar estado
       return;
     }
 
@@ -120,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (clave === '4744') {
       aplicarBloqueo(false);
+      guardarCotizacion(); // 🔓 guardar estado
     } else {
       alert('Clave incorrecta');
     }
@@ -810,7 +812,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ?.trim()
         ?.toUpperCase() || '';
 
-      console.log(numeroPub);
+      //console.log(numeroPub);
 
       const precioActualJumpseller = jumpsellerPriceMap?.get(numeroPub) || 0;
 
@@ -1163,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         descuentoGlobal,
+        bloqueado,
         lineas
       })
     });
@@ -1175,6 +1178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const res = await fetch(`/api/cotizaciones-nacional/${cot}`);
     const cotData = await res.json();
+    const estabaBloqueado = !!cotData?.bloqueado;
 
     body.innerHTML = '';
 
@@ -1185,6 +1189,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       descuentoInput.value = 30;
 
       addRow();
+      aplicarBloqueo(estabaBloqueado);
+
       return;
     }
 
@@ -1233,6 +1239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
 
     recalcularTotales();
+    aplicarBloqueo(estabaBloqueado);
     guardarCotizacion();
   }
 
