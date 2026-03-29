@@ -143,12 +143,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     statusEl.textContent = "Modo supervisor activo ⚠️";
 
-    // limpiar bloqueo visual
     resultsSection.classList.remove("hidden");
     countersEl.classList.remove("hidden");
 
-    // 🔥 cargar sistema aunque no haya archivos
     await recargarSistema();
+
+    // 🔥 ESTA ES LA CLAVE
+    await cargarVentasServer();
   }
 
   function esArchivoDeHoy(file) {
