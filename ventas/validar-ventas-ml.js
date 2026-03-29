@@ -40,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById("modalImagen");
   const cerrarModal = document.getElementById("cerrarModal");
   const selectAll = document.getElementById("selectAll");
+  
+  let modoSupervisor = false;
 
   selectAll.addEventListener("change", () => {
     const checks = document.querySelectorAll(".row-check");
@@ -106,6 +108,27 @@ document.addEventListener('DOMContentLoaded', () => {
       modal.classList.remove("hidden");
 
     });
+
+  });
+
+  document.addEventListener("keydown", async (e) => {
+
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "p") {
+
+      const clave = prompt("Ingrese clave supervisor");
+
+      if (clave === "1234") { // 👈 cambia esto
+        modoSupervisor = true;
+
+        showToast("Modo supervisor activado ⚠️", 2000);
+
+        // 🔥 volver a correr validación SIN restricciones
+        await runValidacionVentas();
+
+      } else {
+        showToast("Clave incorrecta ❌", 2000, "error");
+      }
+    }
 
   });
 
@@ -1229,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const estadoRes = await fetch('/api/estado/odoo-ventas');
     const estado = await estadoRes.json();
 
-    if (estado.pendienteVentasOdoo) {
+    if (estado.pendienteVentasOdoo && !modoSupervisor)
 
       exportBtn.disabled = true;
 
@@ -1242,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (faltantes.length && !esLocal) {
+    if (faltantes.length && !esLocal && !modoSupervisor)
 
       statusEl.textContent = '';
 
