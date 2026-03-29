@@ -39,6 +39,7 @@ input{
   const input = document.getElementById("barcodeInput");
   const status = document.getElementById("status");
   const esLocal = location.hostname === "localhost";
+  let modoSupervisor = false;
 
   let scanBuffer = "";
   let scanTimer = null;
@@ -46,8 +47,21 @@ input{
 
   document.addEventListener("keydown", (e) => {
 
+    // 🔐 activar modo supervisor
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "p") {
+
+      const clave = prompt("Ingrese clave supervisor:");
+
+      if (clave === "4744") {
+        modoSupervisor = true;
+        status.textContent = "🟢 Modo supervisor activado";
+      } else {
+        status.textContent = "❌ Clave incorrecta";
+      }
+    }
+
     // 🔥 SOLO EN LOCAL
-    if (esLocal && e.key === "Enter") {
+    if ((esLocal || modoSupervisor) && e.key === "Enter") {
 
       const code = input.value.trim();
 
@@ -83,10 +97,10 @@ input{
       const duration = Date.now() - startTime;
 
       // 🔥 VALIDAR QUE ES SCANNER (rápido)
-      if (esLocal || (scanBuffer.length >= 6 && duration < 150)) {
+      if ((!esLocal && !modoSupervisor) && (scanBuffer.length >= 6 && duration < 150)) {
         enviarCodigo(scanBuffer);
         status.textContent = "✅ Escaneado: " + scanBuffer;
-      } else {
+      } else if ((!esLocal && !modoSupervisor)){
         input
         status.textContent = "❌ Entrada manual bloqueada";
         input.value = "";

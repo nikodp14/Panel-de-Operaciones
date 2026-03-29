@@ -1068,32 +1068,23 @@ filesInput.addEventListener("change", async () => {
     }
   }
 
-  // 🔥 actualizar info en pantalla
-  try {
-    if (variantesCargadas) {
-      const odoo = await fetch('/api/odoo/variantes/info').then(r => r.json());
-      document.getElementById('odooInfo').innerText =
-        `Variantes Odoo cargadas el: ${new Date(odoo.uploadedAt).toLocaleString()}`;
-    }
-
-    if (publicacionesCargadas) {
-      const ml = await fetch('/api/ml/publicaciones/info').then(r => r.json());
-      document.getElementById('mlInfo').innerText =
-        `Publicaciones ML cargadas el: ${new Date(ml.uploadedAt).toLocaleString()}`;
-    }
-
-  } catch (e) {
-    console.warn("Error actualizando info", e);
-  }
-
   // 🔥 habilitar análisis
   //analyzeBtn.disabled = !(variantesCargadas && publicacionesCargadas);
 
   showToast("Carga finalizada 🚀", 1500);
 
-  // 🔥 auto ejecutar si ambos están
-  if (variantesCargadas && publicacionesCargadas) {
-    runAnalysis();
+  try {
+    const [odooRes, mlRes] = await Promise.all([
+      fetch('/api/odoo/variantes/info'),
+      fetch('/api/ml/publicaciones/info')
+    ]);
+
+    if (odooRes.ok && mlRes.ok) {
+      runAnalysis();
+    }
+
+  } catch (e) {
+    console.warn("Auto-run post upload falló", e);
   }
 });
 
