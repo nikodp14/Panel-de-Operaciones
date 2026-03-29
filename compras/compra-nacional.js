@@ -189,6 +189,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const jumpsellerPriceMap = await loadJumpsellerPriceMap();
 
+    function pintarAlertaPrecioJumpseller(el, precioActual){
+
+      if(!el) return;
+
+      // evitar duplicados
+      el.querySelectorAll('.ml-alerta').forEach(e => e.remove());
+
+      if(precioActual === 0){
+        el.innerHTML += `
+          <span class="ml-alerta" title="Precio Jumpseller no encontrado" style="margin-left:6px;cursor:help;">
+            ⚠️
+          </span>
+        `;
+      }
+    }
+
+    function pintarAlertaPrecioML(el, precioActual){
+
+      if(!el) return;
+
+      // evitar duplicados
+      el.querySelectorAll('.ml-alerta').forEach(e => e.remove());
+
+      if(precioActual === 0){
+        el.innerHTML += `
+          <span class="ml-alerta" title="Precio ML no encontrado" style="margin-left:6px;cursor:help;">
+            ⚠️
+          </span>
+        `;
+      }
+
+    }
+
     function pintarComparacionPrecio(el, calculado, actual){
 
       if (!actual) return;
@@ -709,9 +742,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.querySelector('.precio-odoo').innerHTML = renderCopiable(precioSinIva.toFixed(0), false, true);
       tr.querySelector('.total-odoo').textContent = '$ ' + Math.round(totalOdooLinea.toFixed(0)).toLocaleString('es-CL');
       const numeroPub =
-        tr.querySelector('.numero-publicacion .copiable-value')?.textContent
+        tr.querySelector('.numero-publicacion .copiar-icon')?.dataset.copy
         ?.trim()
         ?.toUpperCase() || '';
+
+      console.log(numeroPub);
 
       const precioActualJumpseller = jumpsellerPriceMap?.get(numeroPub) || 0;
 
@@ -720,6 +755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       elJumpseller.innerHTML = renderCopiable(precioJumpseller.toFixed(0), false, true);
 
       pintarComparacionPrecio(elJumpseller, precioJumpseller, precioActualJumpseller);
+      pintarAlertaPrecioJumpseller(elJumpseller, precioActualJumpseller);
 
       totalCompra += totalLinea;
       totalOdoo += totalOdooLinea;
@@ -750,27 +786,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const precioMLEl = tr.querySelector('.precio-ml');
 
-      precioMLEl.innerHTML = renderCopiable(precioML.toFixed(0), false, true);
+      if (envio <= 0 || comision <= 0){
+        precioMLEl.innerHTML =
+          '<span style="color:#999;font-style:italic;">Complete costos ML</span>';
+
+      } else {
+        precioMLEl.innerHTML =
+          renderCopiable(precioML.toFixed(0), false, true);
+
+      }
 
       if (precioActualML) {
 
-      if (precioML > precioActualML) {
-        // 🔴 estamos más caros que ML
-        precioMLEl.style.color = 'red';
-        precioMLEl.style.fontWeight = '700';
+        if (precioML > precioActualML) {
+          // 🔴 estamos más caros que ML
+          precioMLEl.style.color = 'red';
+          precioMLEl.style.fontWeight = '700';
 
-      } else if (precioActualML > precioML) {
-        // 🟢 ML está más caro que nuestro cálculo
-        precioMLEl.style.color = '#1dbe4b';
-        precioMLEl.style.fontWeight = '700';
+        } else if (precioActualML > precioML) {
+          // 🟢 ML está más caro que nuestro cálculo
+          precioMLEl.style.color = '#1dbe4b';
+          precioMLEl.style.fontWeight = '700';
 
-      } else {
-        // normal
-        precioMLEl.style.color = '';
-        precioMLEl.style.fontWeight = '';
+        } else {
+          // normal
+          precioMLEl.style.color = '';
+          precioMLEl.style.fontWeight = '';
+        }
       }
 
-    }
+      pintarAlertaPrecioML(precioMLEl, precioActualML);
     });
 
     totalCompraFooter.textContent = '$ ' + Math.round(totalCompra.toFixed(0)).toLocaleString('es-CL');
