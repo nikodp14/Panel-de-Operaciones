@@ -952,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function includesCancelOrReturn(estadoML) {
     const s = String(estadoML || '').toLowerCase();
     //console.log(s);
-    return s.includes('cancel') || s.includes('devol');
+    return s.includes('cancel') || (s.includes('devol') && !s.includes('habilitada') && !s.includes('camino'));
   }
 
   async function updateAnalyzeAvailability() {
