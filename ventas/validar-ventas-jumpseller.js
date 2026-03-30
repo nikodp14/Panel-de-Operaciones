@@ -332,6 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    await esperarProcesamiento();
+
     await runValidacionVentas();
 
   });
@@ -1268,7 +1270,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 }
 
+  async function esperarProcesamiento() {
+    for (let i = 0; i < 5; i++) {
+      const faltantes = await validarArchivosDelDiaJumpseller();
+      if (!faltantes.length) return;
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
   async function runValidacionVentas() {
+
+    validacionEnCurso = true;
+
+    // 🔥 LIMPIEZA TOTAL
+    variantesOdooCache = [];
+    stockOdooCache = [];
+    odooQtyByVentaCodigo = new Map();
+    jumpsellerProductosCache = [];
+    variantesValidarSet = new Set();
+
     if (validacionEnCurso) return;
     validacionEnCurso = true;
     codigosPorVenta = {};
