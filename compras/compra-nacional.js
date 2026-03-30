@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       rows.push([
         i === 0 ? refOrden : "",
-        i === 0 ? "Garage Online" : "",
+        i === 0 ? "Yamaimport S.A." : "",
         i === 0 ? "" : "",
         i === 0 ? fecha : "",
         l.cantidad,
