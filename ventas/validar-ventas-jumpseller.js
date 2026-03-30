@@ -100,6 +100,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  async function esperarProcesamiento() {
+    for (let i = 0; i < 5; i++) {
+      const faltantes = await validarArchivosDelDiaJumpseller();
+      if (!faltantes.length) return;
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
   async function archivosSonDeHoy() {
 
     const endpoints = [
@@ -319,6 +327,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     showToast("Archivos cargados ✅", 1500);
+
+    await esperarProcesamiento();
 
     faltantes = await validarArchivosDelDiaJumpseller();
 
@@ -1801,7 +1811,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           if (esPack && idx > 0) {
-            precioMostradoFinal = 0;
+            precioMostradoFinal = 33;
             precioUnitarioFinal = 0;
             
             if(mlData[i+1]){
@@ -1849,16 +1859,17 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           let obsRender = obsFinal;
-
-            // 🔒 Nunca permitir OK sin escaneo válido
-          if (!obsRender) {
-
-            const requiereEnvio =
+          console.log('aca');
+          const requiereEnvio =
               !esLineaHijaPaquete &&
               !(metodoEnvio || '').toLowerCase().includes('demoto') &&
               !((metodoEnvio || '').toLowerCase().includes('santiago') &&
                 (metodoEnvio || '').toLowerCase().includes('colina') &&
-                (metodoEnvio || '').toLowerCase().includes('padre'));
+                (metodoEnvio || '').toLowerCase().includes('padre')) &&
+              !(esPack && idx > 0);
+
+            // 🔒 Nunca permitir OK sin escaneo válido
+          if (!obsRender) {
 
             const envioGuardado =
               codigosPorVenta[keyPersistencia]?.envioManual || 0;
@@ -1889,7 +1900,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pubProcesar,
             fechaMostrada: fechaMostrada,
             estadopagoMostrado : estadoML,
-            metodoEnvio
+            metodoEnvio,
+            requiereEnvio : requiereEnvio
           };
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
@@ -1925,7 +1937,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pubMLSinMLC = String(item.r[ML_COL_PUBML] || '')
           .replace(/^MLC/i, '')
           .trim();
-          console.log(pubMLSinMLC);
+          //console.log(pubMLSinMLC);
 
         let unidadesDespachar = await calcularCantidadDespacho(
           pubMLSinMLC,
@@ -2150,11 +2162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${qtyRegistradaOdoo}
           </td>
           <td>
-              ${!item.esLineaHijaPaquete &&
-              !(item.metodoEnvio || '').toLowerCase().includes('demoto') &&
-              !((item.metodoEnvio || '').toLowerCase().includes('santiago') &&
-                (item.metodoEnvio || '').toLowerCase().includes('colina') &&
-                (item.metodoEnvio || '').toLowerCase().includes('padre')) ? `
+              ${item.requiereEnvio ? `
                 <div class="envio-input-wrapper">
                   <input 
                     type="number"
@@ -2166,8 +2174,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   />
                 </div>
               ` : ''}
+            ${item.requiereEnvio && codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual > 0 ? `
             <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
             <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            ` : ''}
           </td>
           <td class="obs-cell error-cell">
             ${item.obs}
