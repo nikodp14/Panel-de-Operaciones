@@ -169,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===============================
 
   function mostrarResultado(ok) {
-    document.body.style.background = ok ? "#022c22" : "#7f1d1d";
+    document.body.style.background = ok ? "#06b741" : "#c90000";
   }
 
   function resetUI() {
