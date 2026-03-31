@@ -309,7 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           dataExcel.push({
             "Referencia de la orden": index === 0 ? v.referencia : "",
-            "Cliente": index === 0 ? "MercadoLibre" : "",
+            "Cliente": index === 0 ? "Consumidor Final Anónimo" : "",
             "Líneas de la orden/Cantidad": l.cantidad,
             "Líneas de la orden/Producto": l.codigo,
             "Líneas de la orden/Precio unitario": l.precio,
@@ -336,7 +336,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         dataExcel.push({
           "Referencia de la orden": v.referencia,
-          "Cliente": "MercadoLibre",
+          "Cliente": "Consumidor Final Anónimo",
           "Líneas de la orden/Cantidad": l.cantidad,
           "Líneas de la orden/Producto": l.codigo,
           "Líneas de la orden/Precio unitario": l.precio,

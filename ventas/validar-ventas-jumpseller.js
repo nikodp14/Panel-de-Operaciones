@@ -3315,7 +3315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dataExcel.push({
           "Referencia de la orden": v.referencia,
-          "Cliente": "MercadoLibre",
+          "Cliente": "Jumpseller",
           "Líneas de la orden/Cantidad": l.cantidad,
           "Líneas de la orden/Producto": l.codigo,
           "Líneas de la orden/Precio unitario": l.precio,
