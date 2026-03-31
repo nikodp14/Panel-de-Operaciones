@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tr.querySelector(".valor-text")?.textContent.replace(/\./g, '') || 0
       );
 
-      console.log(venta, precio);
+      //console.log(venta, precio);
 
       if (!venta) return;
 
@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (!resumenPedidos[numeropedidoCasam]){
             resumenPedidos[numeropedidoCasam] = 0;
           }
-          console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
+          //console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
           resumenPedidos[numeropedidoCasam] += (l.precio * l.cantidad) * 1.19;
         });
 
@@ -687,7 +687,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const estadoRes = await fetch('/api/estado/odoo-ventas');
     const estado = await estadoRes.json();
 
-    console.log(estado);
+    //console.log(estado);
 
     if (estado.pendienteVentasOdoo && !modoSupervisor){
 
@@ -839,6 +839,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     variantesOdooCache = rows.slice(1)
     .map(r=>({
         barcode:String(r[1]||"").trim(),
+        default_code:String(r[0]||"").trim(),
         name:String(r[2]||"").trim(),
         variant:String(r[5]||"").trim()
     }))
@@ -895,10 +896,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
 
     rows.forEach(r=>{
-
       const venta = String(r[6]||"").trim();
       const codigo = String(r[8]||"").trim();
       const qty = Number(r[7]||0);
+
+      if (r[0] == "MLDESPCASAMSTOCK00013")
+        console.log(venta, codigo, qty);
 
       if(!venta || !codigo) return;
 
@@ -1266,6 +1269,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     actualizarCheckboxSegunObs(tr, obs);
   }
 
+  function getCodigoOriginalConLetras(default_code = '') {
+
+    const partes = String(default_code).split('/');
+
+    return partes
+      .map(p => p.replace(/[^A-Z0-9]/gi, ''))
+      .find(p => /[A-Z]/i.test(p)) || '';
+  }
+
   function toggleLockVenta(tr){
 
     const venta = tr.dataset.venta;
@@ -1388,7 +1400,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const matches = variantesOdooCache
           .filter(v =>
             v.barcode.toLowerCase().includes(value) ||
-            v.name.toLowerCase().includes(value)
+            v.name.toLowerCase().includes(value) ||
+            v.default_code.toLowerCase().includes(value)
           )
           .slice(0,200);
 
@@ -1403,6 +1416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${matches.map(v => `
               <div class="odoo-option" data-barcode="${v.barcode}">
                 <span class="odoo-barcode">${v.barcode}</span>
+                <span class="odoo-default_code">${v.default_code}</span>
                 <span class="odoo-name">${v.name}</span>
                 <span class="odoo-variant">${v.variant}</span>
               </div>
@@ -1776,7 +1790,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if(info){
 
-          tr.querySelector(".nombre-valor").textContent = info.name;
+          const codigoOriginal = getCodigoOriginalConLetras(info.default_code);
+
+          const nombreEl = tr.querySelector(".nombre-valor");
+
+          nombreEl.innerHTML = `
+            ${codigoOriginal ? `
+              <div class="codigo-original-line">
+                <span class="codigo-original-label">Código original:</span>
+                <span lass="codigo-original-valor">${codigoOriginal}</span>
+              </div>
+            ` : ''}
+
+            <div>
+              ${info.name || ''}
+            </div>
+          `;
+
           tr.querySelector(".variante-valor").textContent = info.variant;
 
           renderUbicaciones(tr, code);
@@ -1989,6 +2019,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           variantesOdooCache = rows.slice(1)
             .map(r=>({
               barcode:String(r[1]||"").trim(),
+              default_code:String(r[0]||"").trim(),
               name:String(r[2]||"").trim(),
               variant:String(r[5]||"").trim()
             }))
@@ -2054,7 +2085,23 @@ document.addEventListener("DOMContentLoaded", async () => {
           const info = getVarianteOdooFlexible(code);
 
           if(info){
-            tr.querySelector(".nombre-valor").textContent = info.name;
+            const codigoOriginal = getCodigoOriginalConLetras(info.default_code);
+
+            const nombreEl = tr.querySelector(".nombre-valor");
+
+            nombreEl.innerHTML = `
+              ${codigoOriginal ? `
+                <div class="codigo-original-line">
+                  <span class="codigo-original-label">Código original:</span>
+                  <span lass="codigo-original-valor">${codigoOriginal}</span>
+                </div>
+              ` : ''}
+
+              <div>
+                ${info.name || ''}
+              </div>
+            `;
+
             tr.querySelector(".variante-valor").textContent = info.variant;
             renderUbicaciones(tr, code);
           }

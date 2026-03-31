@@ -795,6 +795,31 @@ document.addEventListener('DOMContentLoaded', () => {
     .sort((a,b)=>b.cantidad-a.cantidad);
   }
 
+  function buscarVariantesOdoo(input){
+
+    const q = normCodigo(input);
+
+    if (!q) return [];
+
+    const results = variantesOdooCache.filter(v => {
+
+      const barcode = normCodigo(v.barcode);
+      const internal = normCodigo(v.default_code);
+      const name = (v.name || '').toLowerCase();
+      const variant = (v.variant || '').toLowerCase();
+
+      return (
+        (barcode && barcode.includes(q)) ||
+        (internal && internal.includes(q)) ||
+        name.includes(q.toLowerCase()) ||
+        variant.includes(q.toLowerCase())
+      );
+
+    });
+
+    return results.slice(0, 10); // limitar
+  }
+
   function getVarianteOdooFlexible(barcode){
 
     if (!barcode) return null;
@@ -1993,12 +2018,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const info = getVarianteOdooFlexible(codigoFinal);
 
+                    const codigoOriginalRaw = info?.default_code || '';
+
+                    // 🔥 separar por / (por si viene combinado)
+                    const partes = codigoOriginalRaw.split('/');
+
+                    // 🔥 buscar la parte que tenga letras
+                    const codigoConLetras = partes.find(p => /[A-Z]/i.test(p)) || '';
+
+                    // 🔥 validación final
+                    const tieneLetras = !!codigoConLetras;
+
                     return `
+                      <div class="linea-codigo-original">
+                        ${tieneLetras ? `
+                          <span class="codigo-original-label">Código prod. original:</span>
+                          <span class="codigo-original-valor">${codigoConLetras}</span>
+                        ` : ''}
+                      </div>
                       <div class="linea-nombre">
                         <span class="codigo-label">Nombre prod. a despachar:</span>
                         <span class="nombre-valor">${info?.name || '—'}</span>
                       </div>
-
                       <div class="linea-variante">
                         <span class="codigo-label">Variante prod. a despachar:</span>
                         <span class="variante-valor">${info?.variant || '—'}</span>
@@ -2408,7 +2449,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const matches = variantesOdooCache
       .filter(v =>
         v.barcode.toLowerCase().includes(value) ||
-        v.name.toLowerCase().includes(value)
+        v.name.toLowerCase().includes(value) ||
+        v.default_code.toLowerCase().includes(value)
       )
       .slice(0, 500);
 
@@ -2427,6 +2469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ${matches.map(v => `
           <div class="odoo-option" data-barcode="${v.barcode}">
             <span class="odoo-barcode">${v.barcode}</span>
+            <span class="odoo-default_code">${v.default_code}</span>
             <span class="odoo-name">${v.name}</span>
             <span class="odoo-variant">${v.variant}</span>
           </div>
@@ -3026,7 +3069,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!resumenPedidos[numeropedidoCasam]){
             resumenPedidos[numeropedidoCasam] = 0;
           }
-          console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
+          //console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
           resumenPedidos[numeropedidoCasam] += (l.precio * l.cantidad) * 1.19;
         });
 

@@ -250,6 +250,12 @@ body.sidebar-collapsed .container {
   color: #555;
 }
 
+.codigo-original-label {
+  font-weight: 600;
+  margin-right: 6px;
+  color: #555;
+}
+
 .codigo-valor {
   font-family: monospace;
   background: #f5f5f5;
@@ -381,6 +387,14 @@ body.sidebar-collapsed .container {
   line-height:1.2;
 }
 
+.odoo-default_code{
+  font-weight:700;
+  color:#2563eb;
+
+  word-break: break-all;     /* 👈 rompe códigos largos */
+  line-height:1.2;
+}
+
 .odoo-name{
   font-size:13px;
   color:#334155;
@@ -417,7 +431,7 @@ body.sidebar-collapsed .container {
   top:35px;      /* altura del input */
   left:0;
 
-  width:700px;
+  width:900px;
   max-width:90vw;
 
   background:#fff;
@@ -458,7 +472,7 @@ body.sidebar-collapsed .container {
 /* 🔥 GRID ESTABLE */
 .odoo-option {
   display: grid;
-  grid-template-columns: 220px 1fr 200px;
+  grid-template-columns: 120px 220px 1fr 200px;
   align-items: center;
   gap: 16px;
 
@@ -474,6 +488,7 @@ body.sidebar-collapsed .container {
 /* Columnas */
 .odoo-barcode,
 .odoo-name,
+.odoo-default_code,
 .odoo-variant {
   font-size:13px;
 
@@ -483,12 +498,14 @@ body.sidebar-collapsed .container {
 }
 
 .linea-nombre,
+.linea-codigo-original,
 .linea-variante {
   font-size: 12px;
   margin-top: 2px;
 }
 
-.nombre-valor {
+.nombre-valor,
+.codigo-original-valor {
   color: #1e293b;
 }
 
@@ -528,7 +545,8 @@ body.sidebar-collapsed .container {
   font-size: 12px;
 }
 
-.nombre-valor {
+.nombre-valor,
+.codigo-original-valor {
   color: #1e293b;
   font-weight: 600;
 }

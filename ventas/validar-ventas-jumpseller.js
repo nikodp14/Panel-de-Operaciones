@@ -74,6 +74,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
+  function getVarianteOdooFlexible(barcode){
+
+    if (!barcode) return null;
+
+    const code = normCodigo(barcode);
+
+    // exacto
+    let exact = variantesOdooCache.find(v =>
+      normCodigo(v.barcode) === code
+    );
+
+    if(exact) return exact;
+
+    // contenido
+    const matches = variantesOdooCache.filter(v => {
+
+      const b = normCodigo(v.barcode);
+
+      return b.includes(code) || code.includes(b);
+    });
+
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
+  }
+
+  function resolverCodigoEquivalente(ventaKey, codigo){
+
+    if(!codigo) return null;
+
+    const code = normCodigo(codigo);
+
+    // 1. exacto
+    const keyExact = `${ventaKey}|${code}`;
+    if(odooQtyByVentaCodigo.has(keyExact)){
+      return code;
+    }
+
+    // 2. buscar coincidencias
+    const matches = [];
+
+    odooQtyByVentaCodigo.forEach((_, key) => {
+
+      const [v, cod] = key.split("|");
+
+      if(v !== ventaKey) return;
+
+      const codNorm = normCodigo(cod);
+
+      if(
+        codNorm.includes(code) ||
+        code.includes(codNorm)
+      ){
+        matches.push(cod);
+      }
+
+    });
+
+    // 3. solo una → válida
+    if(matches.length === 1){
+      return matches[0];
+    }
+
+    return null;
+  }
+
   function actualizarSelectAll() {
 
     const checks = document.querySelectorAll(".row-check");
@@ -2305,9 +2373,33 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
 
                   ${(() => {
-                    const info = getVarianteOdooPorCodigo(codigoEfectivo);
+                    const codigoEquivalente = resolverCodigoEquivalente(
+                      ventaKey,
+                      codigoEfectivo
+                    );
+
+                    const codigoFinal = codigoEquivalente || codigoEfectivo;
+
+                    const info = getVarianteOdooFlexible(codigoFinal);
+
+                    const codigoOriginalRaw = info?.default_code || '';
+
+                    // 🔥 separar por / (por si viene combinado)
+                    const partes = codigoOriginalRaw.split('/');
+
+                    // 🔥 buscar la parte que tenga letras
+                    const codigoConLetras = partes.find(p => /[A-Z]/i.test(p)) || '';
+
+                    // 🔥 validación final
+                    const tieneLetras = !!codigoConLetras;
 
                     return `
+                      <div class="linea-codigo-original">
+                        ${tieneLetras ? `
+                          <span class="codigo-original-label">Código prod. original:</span>
+                          <span class="codigo-original-valor">${codigoConLetras}</span>
+                        ` : ''}
+                      </div>
                       <div class="linea-nombre">
                         <span class="codigo-label">Nombre prod. a despachar:</span>
                         <span class="nombre-valor">${info?.name || '—'}</span>
@@ -2636,6 +2728,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let saveTimeout;
 
+  function buscarVariantesOdoo(input){
+
+    const q = normCodigo(input);
+
+    if (!q) return [];
+
+    const results = variantesOdooCache
+      .map(v => {
+
+        const rawBarcode = String(v.barcode || '').toUpperCase();
+        const rawInternal = String(v.default_code || '').toUpperCase();
+
+        const barcode = normCodigo(v.barcode);
+        const internal = normCodigo(v.default_code);
+
+        const barcodeParts = rawBarcode.split(/[\/\-]/);
+        const internalParts = rawInternal.split(/[\/\-]/);
+
+        let score = 0;
+
+        if (barcode === q || internal === q) score += 100;
+        if (barcode.startsWith(q) || internal.startsWith(q)) score += 50;
+        if (barcode.includes(q) || internal.includes(q)) score += 30;
+
+        if (
+          barcodeParts.some(p => p.startsWith(q)) ||
+          internalParts.some(p => p.startsWith(q))
+        ) score += 40;
+
+        if ((v.name || '').toLowerCase().includes(q.toLowerCase())) score += 10;
+        if ((v.variant || '').toLowerCase().includes(q.toLowerCase())) score += 5;
+
+        return { v, score };
+      })
+      .filter(r => r.score > 0)
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 10)
+      .map(r => r.v);
+
+    return results;
+  }
+
   resultsBody.addEventListener('input', async (e) => {
     if (!e.target.classList.contains('codigo-input')) return;
 
@@ -2717,11 +2851,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     await loadUltimasVariantesOdooParaBusqueda();
 
-    const matches = variantesOdooCache
-      .filter(v =>
-        v.barcode.toLowerCase().includes(value) ||
-        v.name.toLowerCase().includes(value)
-      )
+    const matches = buscarVariantesOdoo(input.value)
       .slice(0, 500);
 
     if (!matches.length) {
@@ -2739,6 +2869,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ${matches.map(v => `
           <div class="odoo-option" data-barcode="${v.barcode}">
             <span class="odoo-barcode">${v.barcode}</span>
+            <span class="odoo-default_code">${v.default_code}</span>
             <span class="odoo-name">${v.name}</span>
             <span class="odoo-variant">${v.variant}</span>
           </div>
