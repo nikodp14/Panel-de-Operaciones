@@ -47,6 +47,7 @@
           <p class="muted">- Quants (stock.quant)</p>
           <p class="muted">- Orden de venta (sale.order)</p>
           <p id="statusVentas" class="status"></p>
+          <button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>
         </div>
 
         <div id="actionCounters" class="action-counters hidden"></div>
@@ -59,7 +60,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th style="display: none;"></th>
+                    <th><input type="checkbox" id="selectAll"></th>
                     <th># Venta</th>
                     <th>Fecha venta</th>
                     <th style="display: none;"></th>

@@ -68,6 +68,7 @@
             Actualizar todo desde Carpeta
           </button>-->
           <button id="analyzeVentasBtn" class="primary-btn" disabled style="display: none;">Validar ventas</button>
+          <button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>
           <p id="statusVentas" class="status"></p>
         </div>
 
@@ -78,7 +79,9 @@
             <table>
               <thead>
                 <tr>
-                  <th></th>
+                  <th>
+                    <input type="checkbox" id="selectAll">
+                  </th>
                   <th># Venta Jumpseller</th>
                   <th>Fecha de venta</th>
                   <th>Estado Pago</th>

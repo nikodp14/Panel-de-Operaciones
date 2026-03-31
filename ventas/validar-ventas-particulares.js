@@ -9,7 +9,396 @@ document.addEventListener("DOMContentLoaded", async () => {
   const modalContainer = document.getElementById("modalImagesContainer");
   const modal = document.getElementById("modalImagen");
   const cerrarModal = document.getElementById("cerrarModal");
+  const selectAll = document.getElementById("selectAll");
+  const exportBtn = document.getElementById("exportVentasBtn");
+  const formatCLP = (n) => new Intl.NumberFormat("es-CL").format(n);
   let modoSupervisor = false;
+  let toastTimer = null;
+
+  selectAll.addEventListener("change", () => {
+    const checks = document.querySelectorAll(".row-check");
+
+    checks.forEach(ch => {
+        ch.checked = selectAll.checked;
+    });
+  });
+
+  function mostrarValidacionTotales(resumen) {
+    return new Promise(resolve => {
+
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      let html = `
+        <div class="confirm-box" style="min-width:400px;">
+          <h3>Verifique la importación en Odoo</h3>
+          <table style="width:100%; margin-top:10px; color:white;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Número Pedido</th>
+                <th style="text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      Object.entries(resumen)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .forEach(([orden, total]) => {
+        html += `
+          <tr>
+            <td>${orden}</td>
+            <td style="text-align:right;">${formatCLP(Math.round(total))}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+
+          <p style="margin-top:10px;">
+            Confirma que los montos coinciden en Odoo
+          </p>
+
+          <div style="margin-top:15px;">
+            <button id="confirm2">Confirmar</button>
+            <button id="cancel2">Cancelar</button>
+          </div>
+        </div>
+      `;
+
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+
+      modal.querySelector("#confirm2").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancel2").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+
+  function showToast(message, duration = 3000, type = 'success') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.style.background =
+      type === 'success' ? '#16a34a' :
+      type === 'error'   ? '#dc2626' :
+      '#1f2937';
+
+    toast.classList.remove('hidden');
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.classList.add('hidden'), 250);
+    }, duration);
+  }
+
+  function mostrarResumenExportacion(resumen) {
+
+    return new Promise(resolve => {
+
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      let html = `
+        <div class="confirm-box" style="min-width:400px;">
+          <h3>Ventas a procesar</h3>
+          <table style="width:100%; margin-top:10px; color:white;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Número</th>
+                <th style="text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      Object.entries(resumen).forEach(([orden, total]) => {
+        html += `
+          <tr>
+            <td>${orden}</td>
+            <td style="text-align:right;">${formatCLP(total)}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+
+          <div style="margin-top:15px;">
+            <button id="confirmExport">Confirmar</button>
+            <button id="cancelExport">Cancelar</button>
+          </div>
+        </div>
+      `;
+
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+
+      modal.querySelector("#confirmExport").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancelExport").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+
+  function actualizarSelectAll() {
+
+    const checks = document.querySelectorAll(".row-check");
+    const total = checks.length;
+    const activos = Array.from(checks).filter(c => c.checked).length;
+
+    const selectAll = document.getElementById("selectAll");
+
+    selectAll.checked = total > 0 && total === activos;
+    selectAll.indeterminate = activos > 0 && activos < total;
+  }
+
+  async function exportarVentasOdoo() {
+    const resumenPedidos = {};
+    /*const rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
+        .filter(tr => tr.querySelector(".row-check")?.checked);*/
+
+    const rows = Array.from(document.querySelectorAll(".row-check"))
+      .filter(ch => ch.checked)
+      .map(ch => ch.closest("tr"));
+
+    const resumen = {};
+
+    rows.forEach(tr => {
+      const checkbox = tr.querySelector(".row-check");
+      if (!checkbox || !checkbox.checked) return;
+      const venta = tr.dataset.venta;
+      const precio = Number(
+        tr.querySelector(".valor-text")?.textContent.replace(/\./g, '') || 0
+      );
+
+      console.log(venta, precio);
+
+      if (!venta) return;
+
+      if (!resumen[venta]) resumen[venta] = 0;
+      resumen[venta] += precio;
+    });
+
+    let confirmado = await mostrarResumenExportacion(resumen);
+
+    if (!confirmado) {
+      showToast("Carga cancelada", 1500, "error");
+      return;
+    }
+
+    //resultsSection.classList.add("hidden");
+    //resultsBody.innerHTML = "";
+    
+    // 🔹 SOLO filas con observación específica
+    const filas = rows.filter(tr => {
+      const obs = tr.querySelector(".obs-cell")?.textContent.trim();
+      return obs === "REGISTRAR VENTA EN ODOO";
+    });
+
+    if(!filas.length){
+      showToast("No hay ventas para exportar", 2000, "error");
+      return;
+    }
+
+    try {
+      // 🔹 pedir correlativo al backend
+      const res = await fetch("/api/ml/ventas/correlativo");
+
+      if(!res.ok){
+        console.error("Error backend correlativo", await res.text());
+        throw new Error("No se pudo obtener el correlativo");
+      }
+
+      const data = await res.json();
+      const correlativo = data.correlativo;
+
+      let correlativoActual = correlativo;
+
+      const dataExcel = [];
+
+      const ventasAgrupadas = new Map();   // 🟢 CASAMSTOCK
+      const ordenesIndividuales = [];      // 🔵 UBICACIONES
+
+      filas.forEach(tr => {
+        const orden = tr.dataset.orden;
+        const venta = tr.dataset.venta;
+        const codigo = tr.querySelector(".codigo-input")?.value.trim();
+        const cantidad = Number(
+          tr.querySelector(".unidades-vendidas")?.value || 0
+        );
+
+        const precio = Number(
+          (tr.querySelector(".valor-text")?.textContent || "0").replace(/\./g, '')
+        );
+
+        tr.dataset.orden = venta.referencia;
+
+        const ubicaciones = getUbicacionesPorCodigo(codigo);
+        const multi = ubicaciones.length > 1;
+
+        if (multi) {
+
+          // 🔵 MLDESPUBICACIONES → 1 producto = 1 orden
+          correlativoActual++;
+
+          const correlativoStr = String(correlativoActual).padStart(5,'0');
+
+          ordenesIndividuales.push({
+            referencia: `MLDESPUBICACIONES${correlativoStr}`,
+            lineas: [{
+              codigo,
+              cantidad,
+              precio,
+              venta
+            }]
+          });
+
+        } else {
+
+          const KEY_CASAMSTOCK = "GLOBAL";
+
+          if(!ventasAgrupadas.has(KEY_CASAMSTOCK)){
+
+            correlativoActual++;
+
+            const correlativoStr = String(correlativoActual).padStart(5,'0');
+
+            ventasAgrupadas.set(KEY_CASAMSTOCK, {
+              referencia: `MLDESPCASAMSTOCK${correlativoStr}`,
+              lineas: []
+            });
+          }
+
+          ventasAgrupadas.get(KEY_CASAMSTOCK).lineas.push({
+            codigo,
+            cantidad,
+            precio,
+            venta
+          });
+        }
+
+      });
+
+      let numeropedidoCasam = ' ';
+
+      // 🔹 construir excel
+      // 🟢 CASAMSTOCK (por venta)
+      ventasAgrupadas.forEach(v => {
+
+        v.lineas.forEach((l, index) => {
+
+          dataExcel.push({
+            "Referencia de la orden": index === 0 ? v.referencia : "",
+            "Cliente": index === 0 ? "MercadoLibre" : "",
+            "Líneas de la orden/Cantidad": l.cantidad,
+            "Líneas de la orden/Producto": l.codigo,
+            "Líneas de la orden/Precio unitario": l.precio,
+            "Líneas de la orden/Nro. Vta.": l.venta
+          });
+
+          if (index === 0){
+            numeropedidoCasam = v.referencia;
+          }
+          
+          if (!resumenPedidos[numeropedidoCasam]){
+            resumenPedidos[numeropedidoCasam] = 0;
+          }
+          console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
+          resumenPedidos[numeropedidoCasam] += (l.precio * l.cantidad) * 1.19;
+        });
+
+      });
+
+      // 🔵 UBICACIONES (1 producto = 1 orden)
+      ordenesIndividuales.forEach(v => {
+
+        const l = v.lineas[0];
+
+        dataExcel.push({
+          "Referencia de la orden": v.referencia,
+          "Cliente": "MercadoLibre",
+          "Líneas de la orden/Cantidad": l.cantidad,
+          "Líneas de la orden/Producto": l.codigo,
+          "Líneas de la orden/Precio unitario": l.precio,
+          "Líneas de la orden/Nro. Vta.": l.venta
+        });
+
+        if (!resumenPedidos[v.referencia]){
+            resumenPedidos[v.referencia] = 0;
+          }
+            
+          resumenPedidos[v.referencia] += Math.round((l.precio * 1.19) * l.cantidad);
+
+      });
+
+      // 🔹 generar archivo
+      const ws = XLSX.utils.json_to_sheet(dataExcel);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+
+      XLSX.writeFile(wb, "ventas_odoo.xlsx");
+
+      let confirmado = await mostrarValidacionTotales(resumenPedidos);
+
+      if (!confirmado) {
+        showToast("Carga cancelada", 1500, "error");
+        return;
+      }
+
+      await fetch('/api/estado/odoo-ventas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendienteVentasOdoo: true })
+      });
+
+      // 🔹 guardar nuevo correlativo
+      await fetch("/api/ml/ventas/correlativo", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ correlativo: correlativoActual })
+      });
+
+      // limpiar UI
+      resultsBody.innerHTML = '';
+      resultsSection.classList.add('hidden');
+
+      // bloquear botón
+      exportBtn.disabled = true;
+
+      // mensaje
+      statusEl.innerHTML = `
+      ⚠️ Debes cargar nuevamente el archivo <b>Ventas Odoo</b> actualizado
+      `;
+
+      showToast("Excel exportado correctamente 🚀");
+    } catch (err) {
+      console.error(err);
+      showToast("Error al exportar ventas", 2000, "error");
+    }
+  }
+
+  exportBtn.addEventListener("click", exportarVentasOdoo);
+
   const ayudas = {
     verVariantesOdoo: [
       "/imagenes/variantes-odoo0.jpg",
@@ -66,6 +455,45 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resultsSection.classList.add("hidden");
   countersEl.classList.add("hidden");
+
+  function actualizarCheckboxSegunObs(tr, obsTexto) {
+
+    const firstCell = tr.children[0];
+    let existingCheck = firstCell.querySelector(".row-check");
+
+    if (obsTexto === 'REGISTRAR VENTA EN ODOO') {
+
+      if (!existingCheck) {
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.className = "row-check";
+
+        check.addEventListener("change", actualizarSelectAll);
+
+        firstCell.innerHTML = "";
+        firstCell.appendChild(check);
+      }
+
+    } else {
+      if (existingCheck) {
+        firstCell.innerHTML = "";
+      }
+    }
+
+    actualizarSelectAll();
+  }
+
+  function actualizarSelectAll() {
+
+    const checks = document.querySelectorAll(".row-check");
+    const total = checks.length;
+    const activos = Array.from(checks).filter(c => c.checked).length;
+
+    const selectAll = document.getElementById("selectAll");
+
+    selectAll.checked = total > 0 && total === activos;
+    selectAll.indeterminate = activos > 0 && activos < total;
+  }
 
   async function cargarVentasServer(){
 
@@ -252,6 +680,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       resultsSection.classList.add("hidden");
       countersEl.classList.add("hidden");
+
+      return false;
+    }
+
+    const estadoRes = await fetch('/api/estado/odoo-ventas');
+    const estado = await estadoRes.json();
+
+    if (estado.pendienteVentasOdoo && !modoSupervisor){
+
+      exportBtn.disabled = true;
+
+      showToast("Debes cargar el Excel de Ventas Odoo actualizado", 3000, "error");
+
+      statusEl.innerHTML = `
+        ⚠️ Debes cargar el archivo de Ventas Odoo antes de continuar.
+      `;
 
       return false;
     }
@@ -539,7 +983,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     tr.dataset.venta = venta;
 
     tr.innerHTML = `
-    <td style="display: none;"></td>
+    <td class="check-cell"></td>
     <td>
       ${venta}
       <span class="copy-btn" data-copy="${venta}">📋</span>
@@ -816,6 +1260,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     cell.classList.toggle("error-cell",obs!=="OK");
 
     construirCapsulas();
+
+    actualizarCheckboxSegunObs(tr, obs);
   }
 
   function toggleLockVenta(tr){
