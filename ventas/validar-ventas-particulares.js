@@ -623,7 +623,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await Promise.all([
       check('/api/odoo/ventas/info', 'Ventas Odoo'),
-      check('/api/odoo/stock/info', 'Stock Odoo'),
+      check('/api/odoo/stock/info', 'Stock Ubicaciones Odoo'),
       check('/api/odoo/variantes/info', 'Variantes Odoo')
     ]);
 
@@ -686,6 +686,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const estadoRes = await fetch('/api/estado/odoo-ventas');
     const estado = await estadoRes.json();
+
+    console.log(estado);
 
     if (estado.pendienteVentasOdoo && !modoSupervisor){
 
@@ -1509,6 +1511,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         body: formData
       });
 
+      if (name.includes("sale.order")) {
+        await fetch('/api/estado/odoo-ventas', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pendienteVentasOdoo: false })
+            });
+      }
+
     }
 
     const faltantes = await validarArchivosDelDia();
@@ -1527,6 +1537,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 🔥 RECARGAR TODO
     await recargarSistema();
+
+    await cargarVentasServer();
 
   });
 
