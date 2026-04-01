@@ -189,7 +189,7 @@
       el.style.fontWeight = '700';
     }
     else if (actual > calculado){
-      el.style.color = '#0a8f2f';
+      el.style.color = '#88ef43';
       el.style.fontWeight = '700';
     }
     else{
