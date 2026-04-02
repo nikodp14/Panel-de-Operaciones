@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const totalCompraFooter = document.getElementById('totalCompraFooter');
   const totalConIvaFooter = document.getElementById('totalConIvaFooter');
 
+  const buscarProductoCot = document.getElementById('buscarProductoCot');
+  const buscarProductoSug = document.getElementById('buscarProductoSug');
+
+  let cacheCotizaciones = {};
+  let filtroBusquedaCot = '';
+
   const DESCUENTO = 0.25;
   const IVA = 1.19;
 
@@ -1285,23 +1291,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch('/api/cotizaciones-nacional');
     const data = await res.json();
 
-    const cotizaciones = Object.keys(data || {})
-      .filter(c => (data[c]?.lineas?.length || 0) > 0)
-      .sort((a,b)=> Number(b) - Number(a));
+    cacheCotizaciones = data || {};
 
-    cotizacionesLista.innerHTML = cotizaciones.map(c => {
+    const cotizaciones = Object.entries(cacheCotizaciones);
 
-      const lineas = data[c]?.lineas?.length || 0;
+    const filtradas = cotizaciones.filter(([c,v]) => {
+      return (v?.lineas?.length || 0) > 0;
+    });
 
-      return `
-        <div class="cotizacion-item" data-cot="${c}">
-          <span class="cot-num">Cotización ${c}</span>
-          <span class="cot-lineas">${lineas} líneas</span>
-        </div>
-      `;
+    // 🔥 ORDEN DESCENDENTE POR NÚMERO
+    filtradas.sort((a,b)=> {
+      const na = parseInt(a[0], 10);
+      const nb = parseInt(b[0], 10);
 
-    }).join('');
+      if (!isNaN(na) && !isNaN(nb)){
+        return nb - na; // 🔥 descendente real
+      }
 
+      // fallback si algo no es número
+      return String(b[0]).localeCompare(String(a[0]));
+    });
+
+    cotizacionesLista.innerHTML = filtradas.map(([c,v]) => `
+      <div class="cotizacion-item" data-cot="${c}">
+        <span class="cot-num">Cotización ${c}</span>
+        <span class="cot-lineas">(${v?.lineas?.length || 0} líneas)</span>
+      </div>
+    `).join('');
   }
 
   verCotizacionesBtn.addEventListener('click', async () => {
@@ -1382,6 +1398,74 @@ document.addEventListener('DOMContentLoaded', async () => {
       actualizarEstadoIngresado(tr);
 
     }
+
+  });
+
+  buscarProductoCot.addEventListener('input', () => {
+
+    const valor = buscarProductoCot.value.trim().toUpperCase();
+
+    if (!valor){
+      buscarProductoSug.classList.add('hidden');
+      buscarProductoSug.innerHTML = '';
+      return;
+    }
+
+    const resultados = [];
+
+    Object.entries(cacheCotizaciones).forEach(([cot, data]) => {
+
+      (data.lineas || []).forEach(linea => {
+
+        const barcode = String(linea.barcode || '').toUpperCase();
+        const internal = String(linea.internal || '').toUpperCase();
+
+        if (
+          barcode.includes(valor) ||
+          internal.includes(valor)
+        ){
+          resultados.push({
+            cotizacion: cot,
+            linea
+          });
+        }
+
+      });
+
+    });
+
+    if (!resultados.length){
+      buscarProductoSug.classList.add('hidden');
+      buscarProductoSug.innerHTML = '';
+      return;
+    }
+
+    buscarProductoSug.innerHTML = resultados.slice(0,20).map(r => `
+      <div class="suggestion-item" data-cot="${r.cotizacion}">
+        <div><strong>Cot ${r.cotizacion}</strong></div>
+        <div>${r.linea.internal || ''}</div>
+        <div style="font-size:12px;color:#666;">
+          ${r.linea.barcode || ''}
+        </div>
+      </div>
+    `).join('');
+
+    buscarProductoSug.classList.remove('hidden');
+
+  });
+
+  buscarProductoSug.addEventListener('click', async (e) => {
+
+    const item = e.target.closest('.suggestion-item');
+    if (!item) return;
+
+    const cot = item.dataset.cot;
+
+    cotizacionInput.value = cot;
+
+    buscarProductoSug.classList.add('hidden');
+
+    await cargarCotizacion();
 
   });
 });
