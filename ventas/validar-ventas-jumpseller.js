@@ -1228,13 +1228,41 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/\s+/g, '');  // quita espacios internos
   }
 
-  function contienePubML(codigoIngresado, pubML) {
+  /*function contienePubML(codigoIngresado, pubML) {
     if (!codigoIngresado || !pubML) return false;
 
     const a = String(codigoIngresado).toUpperCase().replace(/\s+/g, '');
     const b = String(pubML).toUpperCase().replace(/\s+/g, '').replace(/^MLC/, '');
 
     return a.includes(b);
+  }*/
+
+  function contienePubML(codigoIngresado, pubML) {
+    if (!codigoIngresado || !pubML) return false;
+
+    const codigo = normCodigo(codigoIngresado);
+    const pub = String(pubML).toUpperCase().replace(/\s+/g, '').replace(/^MLC/, '');
+
+    // ✅ 1. Validación original (no romper nada)
+    if (codigo.includes(pub)) return true;
+
+    // ✅ 2. NUEVO: buscar en variantes Odoo
+    const variante = variantesOdooCache.find(v => {
+      const barcode = normCodigo(v.barcode);
+      const internal = normCodigo(v.default_code);
+
+      return (
+        (barcode && (barcode === codigo || barcode.includes(codigo) || codigo.includes(barcode))) ||
+        (internal && (internal === codigo || internal.includes(codigo) || codigo.includes(internal)))
+      );
+    });
+
+    if (!variante) return false;
+
+    const internalFull = normCodigo(variante.default_code);
+
+    // ✅ 3. Validar publicación dentro del default_code
+    return internalFull.includes(pub);
   }
 
   async function loadOdooInfo() {
