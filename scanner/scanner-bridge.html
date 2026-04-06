@@ -100,6 +100,7 @@ input{
       if ((!esLocal && !modoSupervisor) && (scanBuffer.length >= 6 && duration < 150)) {
         enviarCodigo(scanBuffer);
         status.textContent = "✅ Escaneado: " + scanBuffer;
+        input.value = "";
       } else if ((!esLocal && !modoSupervisor)){
         input
         status.textContent = "❌ Entrada manual bloqueada";
