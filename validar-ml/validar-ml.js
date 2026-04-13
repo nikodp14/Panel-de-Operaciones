@@ -663,19 +663,26 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
   const odooBarcodeCol = detectColumn(odooHeaders, ['codigo de barras', 'barcode']);
   const odooStockCol = detectColumn(odooHeaders, ['cantidad a mano']);
   const odooNameCol = detectColumn(odooHeaders, ['nombre', 'name']);
+  //cambio lectura referencia interna
+  const odooDefaultCodeCol = detectColumn(odooHeaders, [
+    'referencia interna'
+  ]);
 
   if (!odooVariantCol || !odooBarcodeCol || !odooStockCol || !odooNameCol) {
     throw new Error('En STOCK ODOO faltan columnas requeridas.');
   }
-
+//console.log(odooDefaultCodeCol);
   const odooNormalized = odooRows
     .map((row) => ({
       barcode: normalizeBarcode(row[odooBarcodeCol]),
+      //cambio lectura referencia interna
+      defaultCode: normalizeBarcode(row[odooDefaultCodeCol]),
       variant: normalizeVariantColor(row[odooVariantCol]),
       name: normalizeVariantColor(row[odooNameCol] || ''),
       stock: Math.max(0, toNumber(row[odooStockCol])),
     }))
-    .filter(p => p.barcode);
+    //cambio lectura referencia interna
+    .filter(p => p.barcode || p.defaultCode);;
 
   const filteredMlRows = mlRows; // no eliminar filas aquí
 
@@ -746,8 +753,16 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     const cleanPub = normalizedPublication.replace(/[^0-9A-Z]/g, '');
 
     const allMatchesByCode = odooNormalized.filter((o) => {
-      const baseCodes = extractBaseCodes(o.barcode);
-      return baseCodes.some((code) => code.includes(cleanPub));
+      //cambio lectura referencia interna
+      /*const baseCodes = extractBaseCodes(o.barcode);
+      return baseCodes.some((code) => code.includes(cleanPub));*/
+      const barcodeCodes = extractBaseCodes(o.barcode || '');
+      const defaultCodes = extractBaseCodes(o.defaultCode || '');
+      
+
+      return [...barcodeCodes, ...defaultCodes].some(code =>
+        code.includes(cleanPub)
+      );
     });
 
     // Si hay variante ML, filtrar por variante/nombre; si no, usar todos
@@ -756,15 +771,23 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
       publication: normalizedPublication,
       mlVariantRaw,
       mlTitle,
-      odooProducts: odooNormalized,
+      //cambio lectura referencia interna
+      //odooProducts: odooNormalized,
+      odooProducts: allMatchesByCode,
       variantesValidarSet
     });
+
+    if (!matches.length && allMatchesByCode.length === 1) {
+      matches = allMatchesByCode;
+    }
 
     /*if (normalizedPublication == 2823789240){
       console.log(normalizedPublication, mlVariantRaw, mlTitle, odooNormalized, variantesValidarSet, matches);
     }*/
 
-    let hasMatchInOdoo = matches.length > 0;
+    //cambio lectura referencia interna
+    //let hasMatchInOdoo = matches.length > 0;
+    let hasMatchInOdoo = allMatchesByCode.length > 0;
 
     const cfg = {
       ...(stockMlConfigMap.get(normalizedPublication) || {}),
@@ -936,7 +959,7 @@ function renderObservations(observations) {
     mlInfoEl.innerText =
       `Utilizando Publicaciones ML cargadas el: ${new Date(info.uploadedAt).toLocaleString()}`;
 
-    analyzeBtn.disabled = false;
+    //analyzeBtn.disabled = false;
   } catch {}
 })();
 

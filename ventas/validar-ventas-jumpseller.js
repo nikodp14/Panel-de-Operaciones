@@ -2511,7 +2511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   />
                 </div>
               ` : ''}
-            ${item.requiereEnvio && codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual > 0 ? `
+            ${(item.requiereEnvio && codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual > 0) || !item.requiereEnvio ? `
             <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
             <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
             ` : ''}
