@@ -2017,7 +2017,6 @@ document.addEventListener('DOMContentLoaded', () => {
           let obsFinal = obs; // copiamos el obs base
 
           if (metodo.includes('demoto')) {
-
             // retiro → no descontar nada
             baseTotal = precioMostrado;
 
@@ -2037,8 +2036,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const envioInput =
               codigosPorVenta[keyPersistencia]?.envioManual || 0;
-
-            if (idx == 0 && (!envioInput || Number(envioInput) == 0) && !includesCancelOrReturn(estadoML)) {
+            console.log(ventaKey + codigoKey + esLineaHijaPaquete)
+            if ((idx == 0 && !esLineaHijaPaquete) && (!envioInput || Number(envioInput) == 0) && !includesCancelOrReturn(estadoML)) {
               obsFinal = 'INGRESE COSTO DE ENVÍO';
             }
 
@@ -2146,6 +2145,8 @@ document.addEventListener('DOMContentLoaded', () => {
           escaneado &&
           codigoCoincideConEscaneo(codigoEfectivo, escaneado);
 
+          const esPagoPendiente = estadoML.toLowerCase().includes('pendiente');
+
           // 🔴 Primero validar producto correcto
           if (
           codigoEfectivo &&
@@ -2154,7 +2155,9 @@ document.addEventListener('DOMContentLoaded', () => {
           ) {
             obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
-
+          else if (esPagoPendiente) {
+            obsFinal = 'ESPERANDO PAGO';
+          }
           else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
             obsFinal = 'ESCANEE EL PRODUCTO';
           }
@@ -2189,6 +2192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
               obsRender = 'ESCANEE EL PRODUCTO';
             }
+
             else {
               obsRender = 'OK';
             }
@@ -2206,6 +2210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cambioProducto: cambioProductoPersistido,
             esPack,
             esLineaHijaPaquete,
+            esPagoPendiente,
             pubProcesar,
             fechaMostrada: fechaMostrada,
             estadopagoMostrado : estadoML,
@@ -2286,6 +2291,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (highlightDespacho) {
           tr.classList.add('kit-row');
+        }
+
+        if (item.esPagoPendiente) {
+          tr.classList.add('pago-pendiente');
         }
 
         const tituloReal = tituloPorPublicacion.get(pubMLSinMLC);

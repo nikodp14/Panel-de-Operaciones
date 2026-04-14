@@ -1511,3 +1511,7 @@ tr.locked .lock-btn {
 .nuevo-icon {
   cursor: pointer;
 }
+
+.pago-pendiente td {
+  text-decoration: line-through;
+}
