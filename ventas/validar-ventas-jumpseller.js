@@ -1822,8 +1822,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         //const totalCLPraw = r[13];         // Col M
         const totalCLPraw = r[ML_COL_TOTAL];
-        const ingresoEnvioCLP = r[9]; // Col J
-        const costoEnvioCLP = 0;//r[10];  // Col K
+        const ingresoEnvioCLP = r[7]; // Col H
+        const costoEnvioCLP = r[9];  // Col J
         const cantidadRaw = r[ML_COL_UNIDADES]; // Col G (Unidades)
         const cantidad = Number(cantidadRaw) || 0;
         const totalCLP = typeof totalCLPraw === 'number'
@@ -1833,7 +1833,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let esLineaHijaPaquete = !totalCLP;
    
         primeraLineaPaquete = false;
-		
+
         const precioMostrado = calcularPrecioMostrado(
           totalCLP,
           ingresoEnvioCLP,
@@ -2019,24 +2019,12 @@ document.addEventListener('DOMContentLoaded', () => {
           if (metodo.includes('demoto')) {
             // retiro → no descontar nada
             baseTotal = precioMostrado;
-
-          }
-          else if (metodo.includes('santiago') &&
-                  metodo.includes('colina') &&
-                  metodo.includes('padre')) {
-
-            // despacho propio
-            /*if(ventaKey == 3062){
-              console.log(precioMostrado);
-            }*/
-            baseTotal = precioMostrado - (3000);
-
           }
           else {
 
             const envioInput =
               codigosPorVenta[keyPersistencia]?.envioManual || 0;
-            console.log(ventaKey + codigoKey + esLineaHijaPaquete)
+
             if ((idx == 0 && !esLineaHijaPaquete) && (!envioInput || Number(envioInput) == 0) && !includesCancelOrReturn(estadoML)) {
               obsFinal = 'INGRESE COSTO DE ENVÍO';
             }
