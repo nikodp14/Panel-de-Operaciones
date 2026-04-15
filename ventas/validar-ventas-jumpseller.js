@@ -1353,10 +1353,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Caso A: con envío válido y (ingreso + costo) > 0
-    if ((ingreso + costo) > 0) {
+    /*if ((ingreso + costo) > 0) {
       const base = total - (3000 * 1.19);
       return Math.round(base / 1.19);
-    }
+    }*/
 
     // Fallback
     return Math.round(total / 1.19);
@@ -2020,8 +2020,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // retiro → no descontar nada
             baseTotal = precioMostrado;
           }
-          else {
+          else if (metodo.includes('santiago') &&
+                  metodo.includes('colina') &&
+                  metodo.includes('padre')) {
 
+            baseTotal = precioMostrado - 3000;
+          }
+          else {
             const envioInput =
               codigosPorVenta[keyPersistencia]?.envioManual || 0;
 
