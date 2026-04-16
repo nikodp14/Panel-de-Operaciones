@@ -1468,4 +1468,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarCotizacion();
 
   });
+
+  function exportarNoMatchExcel(){
+
+    const headers = [
+      "Nombre",
+      "Código de barras",
+      "Referencia interna",
+      "Coste",
+      "Precio de venta",
+      "Impuestos del cliente",
+      "Impuestos del proveedor",
+      "Categoría de producto",
+      "Tipo de producto",
+      "Cuenta de ingresos",
+      "Cuenta de gastos",
+      "Rastrear inventario"
+    ];
+
+    const rows = [headers];
+
+    document.querySelectorAll('#comprasBody tr').forEach(tr => {
+
+      const codigo = (tr.querySelector('.codigo-input')?.value || '').trim().toUpperCase();
+
+      if (!codigo || codigo.length <= 4) return;
+
+      const match = buscarPorReferenciaInterna(codigo);
+
+      // 🔥 SOLO LOS QUE NO HACEN MATCH
+      if (match) return;
+
+      rows.push([
+        codigo, // Nombre
+        codigo, // Código de barras
+        codigo, // Referencia interna
+        0,      // Coste
+        0,      // Precio venta
+
+        // 🔥 estos deben ir EXACTOS como tu excel base
+        "IVA 19% Venta",          // Impuestos cliente
+        "IVA 19% Compra",         // Impuestos proveedor
+        "All / Vendibles / Repuestos de Moto / Códigos Originales",             // Categoría producto
+        "Consumible",               // Tipo producto
+        "",       // Cuenta ingresos
+        "",           // Cuenta gastos
+        "VERDADERO"               // Rastrear inventario
+      ]);
+
+    });
+
+    if (rows.length === 1){
+      alert('No hay códigos sin match');
+      return;
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Productos");
+
+    XLSX.writeFile(wb, `productos_nuevos.xlsx`);
+  }
+
+  document.getElementById('exportarNoMatchBtn').addEventListener('click', exportarNoMatchExcel);
 });
