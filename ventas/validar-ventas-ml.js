@@ -1005,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function includesCancelOrReturn(estadoML) {
     const s = String(estadoML || '').toLowerCase();
     //console.log(s);
-    return s.includes('cancel') || (s.includes('devol') && !s.includes('habilitada') && !s.includes('camino'));
+    return s.includes('cancel') || (s.includes('devol') && !s.includes('habilitada') && !s.includes('camino') && !s.includes('respuesta') && !s.includes('quiere'));
   }
 
   async function updateAnalyzeAvailability() {
@@ -1858,7 +1858,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
-          console.log(itemBase.ventaMLFinal, obsRender);
+          //console.log(itemBase.ventaMLFinal, obsRender);
 
           if (obsRender === 'OK') {
             observacionesOK.push(itemBase);

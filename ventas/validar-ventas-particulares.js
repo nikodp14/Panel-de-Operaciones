@@ -900,8 +900,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const codigo = String(r[8]||"").trim();
       const qty = Number(r[7]||0);
 
-      if (r[0] == "MLDESPCASAMSTOCK00013")
-        console.log(venta, codigo, qty);
+      //if (r[0] == "MLDESPCASAMSTOCK00013")
+        //console.log(venta, codigo, qty);
 
       if(!venta || !codigo) return;
 
