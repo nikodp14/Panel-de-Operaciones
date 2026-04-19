@@ -456,12 +456,44 @@ document.addEventListener("DOMContentLoaded", async () => {
   resultsSection.classList.add("hidden");
   countersEl.classList.add("hidden");
 
-  function actualizarCheckboxSegunObs(tr, obsTexto) {
+  /*function actualizarCheckboxSegunObs(tr, obsTexto) {
 
     const firstCell = tr.children[0];
     let existingCheck = firstCell.querySelector(".row-check");
 
     if (obsTexto === 'REGISTRAR VENTA EN ODOO') {
+
+      if (!existingCheck) {
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.className = "row-check";
+
+        check.addEventListener("change", actualizarSelectAll);
+
+        firstCell.innerHTML = "";
+        firstCell.appendChild(check);
+      }
+
+    } else {
+      if (existingCheck) {
+        firstCell.innerHTML = "";
+      }
+    }
+
+    actualizarSelectAll();
+  }*/
+
+  function actualizarCheckboxSegunMatch(tr) {
+
+    const firstCell = tr.children[0];
+    let existingCheck = firstCell.querySelector(".row-check");
+
+    const codigo = tr.querySelector(".codigo-input")?.value.trim();
+    const info = getVarianteOdooFlexible(codigo);
+
+    const hayMatch = !!info;
+
+    if (hayMatch) {
 
       if (!existingCheck) {
         const check = document.createElement("input");
@@ -1224,6 +1256,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function validarLinea(tr){
 
+    const firstCell = tr.children[0];
+    firstCell.innerHTML = "";
+
     const venta = tr.dataset.venta;
 
     const codigo = tr.querySelector(".codigo-input").value.trim();
@@ -1266,7 +1301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     construirCapsulas();
 
-    actualizarCheckboxSegunObs(tr, obs);
+    actualizarCheckboxSegunMatch(tr);
   }
 
   function getCodigoOriginalConLetras(default_code = '') {
