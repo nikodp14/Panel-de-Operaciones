@@ -28,8 +28,10 @@ function extractColorFromMlVariant(variantRaw) {
 function extractBaseCodes(value) {
   const s = String(value || '').toUpperCase();
 
-  const noSuffix = s.split('-')[0];
-  const parts = noSuffix.split('/');
+  //const noSuffix = s.split('-')[0];
+  //const parts = noSuffix.split('/');
+
+  const parts = s.split('/').map(p => p.split('-')[0]);
 
   return parts
     .map(p => p.replace(/[^0-9A-Z]/g, ''))

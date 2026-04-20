@@ -676,13 +676,13 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
     .map((row) => ({
       barcode: normalizeBarcode(row[odooBarcodeCol]),
       //cambio lectura referencia interna
-      defaultCode: normalizeBarcode(row[odooDefaultCodeCol]),
+      default_code: normalizeBarcode(row[odooDefaultCodeCol]),
       variant: normalizeVariantColor(row[odooVariantCol]),
       name: normalizeVariantColor(row[odooNameCol] || ''),
       stock: Math.max(0, toNumber(row[odooStockCol])),
     }))
     //cambio lectura referencia interna
-    .filter(p => p.barcode || p.defaultCode);;
+    .filter(p => p.barcode || p.default_code);;
 
   const filteredMlRows = mlRows; // no eliminar filas aquí
 
@@ -757,9 +757,8 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
       /*const baseCodes = extractBaseCodes(o.barcode);
       return baseCodes.some((code) => code.includes(cleanPub));*/
       const barcodeCodes = extractBaseCodes(o.barcode || '');
-      const defaultCodes = extractBaseCodes(o.defaultCode || '');
+      const defaultCodes = extractBaseCodes(o.default_code || '');
       
-
       return [...barcodeCodes, ...defaultCodes].some(code =>
         code.includes(cleanPub)
       );
@@ -812,9 +811,8 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
 
         const odooMatch = odooNormalized.filter((o) => {
           const barcodeCodes = extractBaseCodes(o.barcode || '');
-          const defaultCodes = extractBaseCodes(o.defaultCode || '');
+          const defaultCodes = extractBaseCodes(o.default_code || '');
           
-
           return [...barcodeCodes, ...defaultCodes].some(code =>
             code.includes(sku)
           );
@@ -893,7 +891,7 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
 
     if (!hasMatchInOdoo) {
       action = 'NO ENCONTRADO';
-      detail = 'La publicación no existe en STOCK ODOO.';
+      detail = 'La publicación no existe en VARIANTES ODOO.';
     } else if (mlStock < suggestedStock) {
       action = 'SUBIR';
       detail = `Subir ${suggestedStock - mlStock} unidad(es).`;
