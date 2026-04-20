@@ -806,9 +806,19 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
 
       for (const sku of packSkus) {
 
-        const odooMatch = odooNormalized.filter(o =>
+        /*const odooMatch = odooNormalized.filter(o =>
           extractBaseCodes(o.barcode).some(code => code.includes(sku))
-        );
+        );*/
+
+        const odooMatch = odooNormalized.filter((o) => {
+          const barcodeCodes = extractBaseCodes(o.barcode || '');
+          const defaultCodes = extractBaseCodes(o.defaultCode || '');
+          
+
+          return [...barcodeCodes, ...defaultCodes].some(code =>
+            code.includes(sku)
+          );
+        });
 
         if (!odooMatch.length) {
           packCapacity = [0];
