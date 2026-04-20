@@ -80,13 +80,24 @@ function resolveMlVariant({
   }
 
   const cleanPub = String(publication)
-    .replace(/[^0-9A-Z]/g, '');
-
-  const allMatchesByCode = odooProducts.filter(o =>
+  .replace(/[^0-9A-Z]/g, '');
+  
+  /*const allMatchesByCode = odooProducts.filter(o =>
     extractBaseCodes(o.barcode).some(code =>
       code.includes(cleanPub)
     )
-  );
+  );*/
+  
+  const allMatchesByCode = odooProducts.filter(o => {
+
+    const barcodeCodes = extractBaseCodes(o.barcode || '');
+    const defaultCodes = extractBaseCodes(o.default_code || '');
+
+    return [...barcodeCodes, ...defaultCodes].some(code =>
+      code.includes(cleanPub)
+    );
+
+  });
 
   let matches = allMatchesByCode;
 
