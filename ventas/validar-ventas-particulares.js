@@ -483,7 +483,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     actualizarSelectAll();
   }*/
 
-  function actualizarCheckboxSegunMatch(tr) {
+  function actualizarCheckboxSegunObsYMatch(tr) {
 
     const firstCell = tr.children[0];
     let existingCheck = firstCell.querySelector(".row-check");
@@ -491,9 +491,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const codigo = tr.querySelector(".codigo-input")?.value.trim();
     const info = getVarianteOdooFlexible(codigo);
 
-    const hayMatch = !!info;
+    const obs = tr.querySelector(".obs-cell")?.textContent?.trim();
 
-    if (hayMatch) {
+    const hayMatch = !!info;
+    const esRegistrar = obs === "REGISTRAR VENTA EN ODOO";
+
+    if (hayMatch && esRegistrar) {
 
       if (!existingCheck) {
         const check = document.createElement("input");
@@ -1301,7 +1304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     construirCapsulas();
 
-    actualizarCheckboxSegunMatch(tr);
+    actualizarCheckboxSegunObsYMatch(tr);
   }
 
   function getCodigoOriginalConLetras(default_code = '') {
