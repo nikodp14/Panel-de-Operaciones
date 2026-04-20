@@ -1661,11 +1661,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   });
 
+  document.addEventListener("click", (e) => {
+
+    if (!e.target.closest(".codigo-wrapper")) {
+
+      document.querySelectorAll(".odoo-suggestions")
+        .forEach(el => {
+          el.classList.add("hidden");
+          el.innerHTML = "";
+        });
+
+    }
+
+  });
+
   resultsBody.addEventListener("click", (e) => {
 
     if(e.target.classList.contains("lock-btn")){
       const tr = e.target.closest("tr");
       toggleLockVenta(tr);
+      return;
+    }
+
+    if (e.target.classList.contains("odoo-close")) {
+
+      const tr = e.target.closest("tr");
+      const suggestionsEl = tr.querySelector(".odoo-suggestions");
+
+      suggestionsEl.classList.add("hidden");
+      suggestionsEl.innerHTML = "";
+
       return;
     }
 
