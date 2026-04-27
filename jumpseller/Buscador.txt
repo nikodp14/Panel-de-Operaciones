@@ -1,0 +1,49 @@
+<div>
+<label>Marca:</label>
+<select id="marca" class="col-md-2 col-xs-2">
+  <option value="">SELECCIONAR MARCA</option>
+  <option value="yamaha">YAMAHA</option>
+</select>
+
+<label>Modelo:</label>
+<select id="modelo" class="col-md-2 col-xs-2">
+  <option value="">SELECCIONAR MODELO</option>
+  <option value="mt03">MT03</option>
+  <option value="mt03a">MT03A</option>
+  <option value="r3">R3</option>
+  <option value="r3a">R3A</option>
+</select>
+
+<label>Componente:</label>
+<select id="componente" class="col-md-2 col-xs-2">
+  <option value="">TODOS LOS COMPONENTES</option>
+  <option value="accesorios">ACCESORIOS</option>
+  <option value="embrague">EMBRAGUE</option>
+  <option value="transmisionyruedas">TRANSMISIÓN Y RUEDAS</option>
+</select>
+
+<button id="buscar" class="button button--standard button--main button--circular product-form__button--visible">Buscar</button>
+</div>
+
+<script>
+const rutas = {
+  "yamaha-mt03": "https://www.demoto.cl/repuestos-y-accesorios-de-moto/yamaha/mt03",
+  "yamaha-r3": "https://www.demoto.cl/repuestos-y-accesorios-de-moto/yamaha/r3",
+  /*componentes*/
+  "yamaha-mt03-embrague": "https://www.demoto.cl/repuestos-y-accesorios-de-moto/yamaha/mt03/repuestos-originales/embrague",
+};
+
+document.getElementById("buscar").addEventListener("click", function() {
+  const marca = document.getElementById("marca").value;
+  const modelo = document.getElementById("modelo").value;
+  const componente = document.getElementById("componente").value;
+
+  const key = `${marca}-${modelo}-${componente}`;
+
+  if (rutas[key]) {
+    window.location.href = rutas[key];
+  } else {
+    alert("No hay resultados para esa combinación");
+  }
+});
+</script>
