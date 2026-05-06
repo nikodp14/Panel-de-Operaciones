@@ -1701,6 +1701,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
           let obsFinal = obs; // copiamos el obs base
 
+          if (includesCancelOrReturn(estadoML)) {
+
+            const codigoEquivalente = resolverCodigoEquivalente(
+              ventaKey,
+              codigoKey
+            );
+
+            const codigoFinal = codigoEquivalente || codigoKey;
+
+            const qtyOdoo =
+              odooQtyByVentaCodigo.get(`${ventaKey}|${codigoFinal}`) || 0;
+
+            if (qtyOdoo > 0) {
+              obsFinal = 'DEVUELVA LAS UNIDADES ENTREGADAS.';
+            } else {
+              obsFinal = null; // OK
+            }
+          }
+
           // 🔹 VALIDACIÓN ODOO AQUÍ DENTRO
           if (existeEnOdoo && !includesCancelOrReturn(estadoML)) {
 

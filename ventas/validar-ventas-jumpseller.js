@@ -74,6 +74,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
+  function confirmarCantidad(cantidad) {
+    return new Promise((resolve) => {
+
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      modal.innerHTML = `
+        <div class="confirm-box">
+          <p>¿Confirma que está despachando ${cantidad} unidades?</p>
+          <button id="okBtn">Confirmar</button>
+          <button id="cancelBtn">Cancelar</button>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      modal.querySelector("#okBtn").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancelBtn").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+
   function getVarianteOdooFlexible(barcode){
 
     if (!barcode) return null;
@@ -756,6 +785,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (copyBtn) copyBtn.dataset.scan = code;
 
     try {
+
+      const cantidad = Number(
+        tr.querySelector('.qty-valor')?.textContent || 0
+      );
+      
+      if (cantidad > 1) {
+
+        const ok = await confirmarCantidad(cantidad);
+
+        if (!ok) {
+          showToast("Despacho cancelado ❌", 1500, "error");
+
+          // limpiar UI
+          scanResultEl.textContent = "—";
+          lastScannedCode = null;
+
+          return; // 🚫 CRÍTICO
+        }
+      }
 
       // Persistir escaneo
       await fetch('/api/jumpseller/ventas/codigos', {
