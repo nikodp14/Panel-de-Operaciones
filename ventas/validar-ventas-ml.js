@@ -1537,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cantidad = Number(cantidadRaw) || 0;
         const totalCLP = typeof totalCLPraw === 'number'
           ? totalCLPraw
-          : parseFloat(String(totalCLPraw || '').replace(/\./g, '').replace(',', '.'));
+          : parseFloat(String(totalCLPraw || '')/*.replace(/\./g, '')*/.replace(',', '.'));
 
         const precioMostrado = calcularPrecioMostrado(
           totalCLP,
