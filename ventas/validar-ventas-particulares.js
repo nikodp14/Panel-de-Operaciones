@@ -685,7 +685,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 2. buscar por contenido
     const matches = variantesOdooCache.filter(v =>
-      v.barcode.includes(code) || code.includes(v.barcode)
+      v.barcode.includes(code) ||
+      code.includes(v.barcode) ||
+      v.default_code.includes(code) ||
+      code.includes(v.default_code)
     );
 
     // 3. solo una coincidencia → usarla
