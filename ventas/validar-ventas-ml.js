@@ -274,9 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
         else if (name.includes("product.product")) {
+          variantesOdooCache = [];
           endpoint = "/api/odoo/variantes";
         }
         else if (name.includes("stock.quant")) {
+          stockOdooCache = [];
           endpoint = "/api/odoo/stock";
         } 
         else {
