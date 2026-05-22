@@ -1509,6 +1509,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       odooQtyByVentaCodigo = buildOdooQtyIndex(odooRows);
 
+      const mlQtyByVentaCodigo = new Map();
+
       for (const row of odooData) {
         const v = normVentaKey(row[6]); // 🔥 usar SIEMPRE normVentaKey Col G
         const q = Number(row[7]) || 0; // Col H
@@ -1523,6 +1525,127 @@ document.addEventListener('DOMContentLoaded', () => {
       let primeraLineaPaquete = false;
       let ventaPaqueteActiva = null;
       let ventaLinkPaqueteActivo = null;
+      let paqueteActivoAcum = false;
+      let ventaPaqueteActivaAcum = null
+
+      for (let i = 0; i < mlData.length; i++) {
+
+        const r = mlData[i];
+
+        const ventaML = String(r[ML_COL_VENTA] || '').trim();
+
+        const totalCLPraw = r[ML_COL_TOTAL];
+
+        const totalCLP = typeof totalCLPraw === 'number'
+          ? totalCLPraw
+          : parseFloat(
+              String(totalCLPraw || '')
+                .replace(',', '.')
+            );
+
+        const estadoML = String(r[2] || '').toLowerCase();
+
+        let esLineaHijaPaquete = false;
+
+        // detectar header paquete
+        if (estadoML.includes('paquete de')) {
+
+          paqueteActivoAcum = true;
+          ventaPaqueteActivaAcum = ventaML;
+
+          continue;
+        }
+
+        // detectar líneas hijas
+        if (paqueteActivoAcum) {
+
+          if (!isNaN(totalCLP)) {
+
+            paqueteActivoAcum = false;
+
+          } else {
+
+            esLineaHijaPaquete = true;
+          }
+        }
+
+        let ventaMLFinal = ventaML;
+
+        if (esLineaHijaPaquete && ventaPaqueteActivaAcum) {
+          ventaMLFinal = ventaPaqueteActivaAcum;
+        }
+
+        const ventaKey = normVentaKey(ventaMLFinal);
+
+        const unidadesML = Number(r[ML_COL_UNIDADES] || 0);
+
+        const pubOriginal = String(r[ML_COL_PUBML] || '')
+          .replace(/^MLC/i, '')
+          .trim();
+
+        const publicacionesPack = packMap.get(pubOriginal);
+
+        const publicacionesAProcesar =
+          (publicacionesPack && publicacionesPack.length)
+            ? publicacionesPack
+            : [pubOriginal];
+
+        for (const pubProcesar of publicacionesAProcesar) {
+
+          const cantidadADespachar =
+            await calcularCantidadDespacho(
+              pubProcesar,
+              unidadesML
+            );
+
+          let codigoSugeridoTemp = '';
+
+          try {
+
+            const varianteML = String(r[ML_COL_VARIANTE] || '')
+              .replace(/color\s*:/i, '')
+              .trim();
+
+            const matches = resolveMlVariant({
+              publication: pubProcesar,
+              mlVariantRaw: varianteML,
+              mlTitle: String(r[ML_COL_TITULO] || ''),
+              odooProducts: variantesOdooCache,
+              variantesValidarSet
+            });
+
+            if (matches?.length) {
+              codigoSugeridoTemp = matches[0].barcode;
+            }
+
+          } catch (err) {}
+
+          const codigoKey = normCodigo(codigoSugeridoTemp);
+
+          if (!codigoKey) continue;
+
+          const codigoEquivalente = resolverCodigoEquivalente(
+            ventaKey,
+            codigoKey
+          );
+
+          const codigoFinal =
+            normCodigo(codigoEquivalente || codigoKey);
+
+          const keyML = `${ventaKey}|${codigoFinal}`;
+
+          if (ventaML == 2000015739868288)
+            console.log(keyML, cantidadADespachar);
+
+          mlQtyByVentaCodigo.set(
+            keyML,
+            (mlQtyByVentaCodigo.get(keyML) || 0)
+              + cantidadADespachar
+          );
+
+          //console.log(keyML, cantidadADespachar);
+        }
+      }
 
       for (let i = 0; i < mlData.length; i++) {
         const r = mlData[i];
@@ -1754,7 +1877,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const qtyOdoo =
                 odooQtyByVentaCodigo.get(`${ventaKey}|${codigoFinal}`) || 0;
 
-              if (qtyOdoo < cantidadADespachar) {
+              /*if (qtyOdoo < cantidadADespachar) {
                 obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
 
               } else if (qtyOdoo > cantidadADespachar) {
@@ -1762,7 +1885,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
               } else {
                 obsFinal = null;
+              }*/
+
+              let codigoBuscarML = codigoFinal;
+              
+              if (cambioProductoPersistido && codigoSugeridoTemp) {
+
+                codigoBuscarML = normCodigo(codigoSugeridoTemp);
               }
+
+              const qtyMLTotal =
+                mlQtyByVentaCodigo.get(
+                  `${ventaKey}|${codigoBuscarML}`
+                ) || 0;
+
+              if (qtyOdoo < qtyMLTotal) {
+
+                obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
+
+              } else if (qtyOdoo > qtyMLTotal) {
+                
+                obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
+
+              } else {
+
+                obsFinal = null;
+              }
+
+              if (ventaKey == 2000015739868288)
+                console.log(codigoFinal, qtyMLTotal, qtyOdoo);
             }
           }
 
