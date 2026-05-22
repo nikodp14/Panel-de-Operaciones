@@ -1855,6 +1855,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const info = getVarianteOdooFlexible(code);
 
         if(info){
+         tr.querySelector(".codigo-input").value = info.barcode;
 
           const codigoOriginal = getCodigoOriginalConLetras(info.default_code);
 
@@ -1875,7 +1876,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           tr.querySelector(".variante-valor").textContent = info.variant;
 
-          renderUbicaciones(tr, code);
+          renderUbicaciones(tr, info.barcode);
 
           /* copiar código producto */
 
@@ -1890,7 +1891,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             tr.querySelector(".codigo-wrapper").appendChild(copyBtn);
           }
 
-          copyBtn.dataset.copy = code;
+          copyBtn.dataset.copy = info.barcode;
         }
 
       }
