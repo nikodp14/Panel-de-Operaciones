@@ -1714,7 +1714,7 @@ document.addEventListener('DOMContentLoaded', () => {
               odooQtyByVentaCodigo.get(`${ventaKey}|${codigoFinal}`) || 0;
 
             if (qtyOdoo > 0) {
-              obsFinal = 'DEVUELVA LAS UNIDADES ENTREGADAS.';
+              obsFinal = 'DEVUELVA LAS UNIDADES ENTREGADAS Y DETERMINE QUE HACER CON EL STOCK.';
             } else {
               obsFinal = null; // OK
             }
