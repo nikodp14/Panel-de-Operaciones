@@ -23,6 +23,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
+
+    const link = isLink && isLinkMl
+      ? `https://articulo.mercadolibre.cl/MLC-${valor}`
+      : isLink && !isLinkMl
+        ? `https://demoto.jumpseller.com/admin/cl/products/?name=${valor}`
+        : null;
+
+    return `
+      <div class="copiable-cell">
+        ${
+          isLink
+            ? `<a href="${link}" target="_blank" class="copiable-link">${valor}</a>`
+            : `<span>${valor}</span>`
+        }
+        <!--<span class="copiar-icon" data-copy="${valor}">📋</span>-->
+      </div>
+    `;
+  }
+
   function mostrarValidacionTotales(resumen) {
     return new Promise(resolve => {
 
@@ -491,6 +511,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const codigo = tr.querySelector(".codigo-input")?.value.trim();
     const info = getVarianteOdooFlexible(codigo);
 
+    const pub = info?.barcode || '';
+
     const obs = tr.querySelector(".obs-cell")?.textContent?.trim();
 
     const hayMatch = !!info;
@@ -507,11 +529,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         firstCell.innerHTML = "";
         firstCell.appendChild(check);
+
+        tr.querySelector(".links-col").innerHTML = pub ? `
+          <div><strong>JS:</strong> ${renderCopiable(pub, true, false, false)}</div>
+          <div><strong>ML:</strong> ${renderCopiable(pub, true)}</div>
+        ` : '';
       }
 
     } else {
       if (existingCheck) {
         firstCell.innerHTML = "";
+        tr.querySelector(".links-col").innerHTML = "";
       }
     }
 
@@ -1056,7 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     </div>
 
     </td>
-
+    <td class="links-col"></td>
     <td class="ubicaciones-col"></td>
     <td>
       <input type="number" class="unidades-vendidas" value="1">
@@ -1433,6 +1461,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           tr.querySelector(".nombre-valor").textContent = "";
           tr.querySelector(".variante-valor").textContent = "";
           tr.querySelector(".ubicaciones-col").innerHTML = "";
+          tr.querySelector(".links-col").innerHTML = "";
 
           const copyBtn = tr.querySelector(".copy-codigo");
           if(copyBtn) copyBtn.remove();
@@ -1507,6 +1536,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tr.querySelector(".nombre-valor").textContent = "";
         tr.querySelector(".variante-valor").textContent = "";
         tr.querySelector(".ubicaciones-col").innerHTML = "";
+        tr.querySelector(".links-col").innerHTML = "";
 
         const copyBtn = tr.querySelector(".copy-codigo");
         if(copyBtn) copyBtn.remove();
