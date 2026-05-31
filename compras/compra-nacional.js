@@ -407,26 +407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function exportarPedidoExcel(){
 
-    const lineasSinCodigo = [];
-
-    document.querySelectorAll('#comprasBody tr').forEach((tr, index) => {
-
-      const codigo = (
-        tr.querySelector('.codigo-input')?.value || ''
-      ).trim();
-
-      if (!codigo) {
-        lineasSinCodigo.push(index + 1);
-      }
-
-    });
-
-    if (lineasSinCodigo.length) {
-
-      alert(
-        `Líneas sin código ingresado: ${lineasSinCodigo.join(', ')}`
-      );
-
+    if (!validarLineasSinCodigo()) {
       return;
     }
 
@@ -966,7 +947,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           // 🔥 mostrar referencia interna (parte después del /)
           const internal = matchUnico.default_code || '';
           const partes = internal.split('/');
-          const codigoInterno = partes.length > 1 ? partes[1] : internal;
+          const codigoInterno = partes.length > 1 ? partes[0] : internal;
 
           internalEl.textContent = codigoInterno;
 
@@ -1494,6 +1475,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function exportarNoMatchExcel(){
 
+    if (!validarLineasSinCodigo()) {
+      return;
+    }
+
     const headers = [
       "Nombre",
       "Código de barras",
@@ -1552,6 +1537,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     XLSX.utils.book_append_sheet(wb, ws, "Productos");
 
     XLSX.writeFile(wb, `productos_nuevos.xlsx`);
+  }
+
+  function validarLineasSinCodigo(){
+
+    const lineasSinCodigo = [];
+
+    document.querySelectorAll('#comprasBody tr').forEach((tr, index) => {
+
+      const codigo = (
+        tr.querySelector('.codigo-input')?.value || ''
+      ).trim();
+
+      if (!codigo) {
+        lineasSinCodigo.push(index + 1);
+      }
+
+    });
+
+    if (lineasSinCodigo.length) {
+
+      alert(
+        `Líneas sin código ingresado: ${lineasSinCodigo.join(', ')}`
+      );
+
+      return false;
+    }
+
+    return true;
   }
 
   document.getElementById('exportarNoMatchBtn').addEventListener('click', exportarNoMatchExcel);
