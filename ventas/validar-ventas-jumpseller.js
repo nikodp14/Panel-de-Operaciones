@@ -2779,6 +2779,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     finally{
       validacionEnCurso = false;
+      exportBtn.disabled = false;
     }
   };
 
