@@ -1492,9 +1492,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
+      let fechaActual = new Date();
+      fechaActual.setMonth(fechaActual.getMonth() - 2);
       const cutoff = location.hostname === 'localhost'
         ? new Date('2026-01-01')   // entorno local
-        : new Date('2026-03-06');  // producción
+        : fechaActual;//new Date('2026-03-06');  // producción
       const observaciones = [];
       const observacionesOK = [];
       window._ventasProcesadas = [];
