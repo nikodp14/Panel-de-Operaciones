@@ -1007,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function includesCancelOrReturn(estadoML) {
     const s = String(estadoML || '').toLowerCase();
     //console.log(s);
-    return s.includes('cancel') || (s.includes('devol') && !s.includes('habilitada') && !s.includes('camino') && !s.includes('respuesta') && !s.includes('quiere') && !s.includes('preparaci') && !s.includes('revisi') && !s.includes('domicilio'));
+    return s.includes('cancel') || ((s.includes('devol') || s.includes('mediación finalizada con reembolso al comprador')) && !s.includes('habilitada') && !s.includes('camino') && !s.includes('respuesta') && !s.includes('quiere') && !s.includes('preparaci') && !s.includes('revisi') && !s.includes('domicilio'));
   }
 
   async function updateAnalyzeAvailability() {
