@@ -2196,24 +2196,31 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
             </div>
+            <br>
+            <div>${item.r[1]}</div>
+            <br>
+            <div>${item.r[2]}</div>
           </td>
-          <td>${item.r[1]}</td>
-          <td>${item.r[2]}</td>
+          <td style="display:none;">${item.r[1]}</td>
+          <td style="display:none;">${item.r[2]}</td>
           <td>
+            <div><strong>Compra</strong></div>
             ${mostrarInfoProducto
               ? `
                 <div class="producto-despachar">
                   <div class="linea-pubml">
                     <span class="pubml-tag">${pubMLSinMLC}</span>
+                    <span class="titulo-pub">${tituloPub}</span>
+                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
                   </div>
 
-                  <div class="linea-titulo">
+                  <!--<div class="linea-titulo">
                     <span class="titulo-pub">${tituloPub}</span>
                   </div>
                   <div>
                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
-                  </div>
-
+                  </div>-->
+                  <div><strong>Despacho</strong></div>
                   <!-- 👇 Input SIEMPRE visible en NO OK -->
                   <div class="codigo-wrapper">
                     <input
@@ -2256,18 +2263,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         ` : ''}
                       </div>
                       <div class="linea-nombre">
-                        <span class="codigo-label">Nombre prod. a despachar:</span>
+                        <!--<span class="codigo-label">Nombre prod. a despachar:</span>-->
                         <span class="nombre-valor">${info?.name || '—'}</span>
-                      </div>
-                      <div class="linea-variante">
-                        <span class="codigo-label">Variante prod. a despachar:</span>
                         <span class="variante-valor">${info?.variant || '—'}</span>
                       </div>
+                      <!--<div class="linea-variante">
+                        <span class="codigo-label">Variante prod. a despachar:</span>
+                      </div>-->
                     `;
                   })()}
                   <div class="scan-area">
-                    <button class="scan-btn">Escanear celular</button>
-                    <button class="scan-gun-btn">Escanear pistola</button>
+                    <button class="scan-gun-btn">Escanear</button>
 
                     <div class="scan-result-wrapper">
                       <span class="scan-result">
@@ -2280,6 +2286,9 @@ document.addEventListener('DOMContentLoaded', () => {
                       >📋</span>
                     </div>
 
+                  </div>
+                  <div class="obs-cell error-cell">
+                    ${item.obs}
                   </div>
               `
               : `—`}
@@ -2337,7 +2346,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
             </div>
           </td>
-          <td class="obs-cell error-cell">
+          <td class="obs-cell error-cell" style="display:none;">
             ${item.obs}
           </td>
         `;
@@ -2410,19 +2419,19 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
             </div>
+            <br>
+            <div>${item.r[1]}</div>
+            <br>
+            <div>${item.r[2]}</div>
           </td>
-          <td>${item.r[1]}</td>
-          <td>${item.r[2]}</td>
+          <td style="display:none;">${item.r[1]}</td>
+          <td style="display:none;">${item.r[2]}</td>
           <td>
+            <div><strong>Compra</strong></div>
             <div class="producto-despachar">
               <div class="linea-pubml">
                 <span class="pubml-tag">${String(item.r[ML_COL_PUBML] || '').replace(/^MLC/i, '')}</span>
-              </div>
-
-              <div class="linea-titulo">
                 <span class="titulo-pub">${String(item.r[ML_COL_TITULO] || '').trim()}</span>
-              </div>
-              <div>
                 ${(() => {
                   const v = String(item.r[ML_COL_VARIANTE] || '').trim();
                   const t = String(item.r[ML_COL_TITULO] || '').trim().toLowerCase();
@@ -2434,6 +2443,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 })()}
               </div>
 
+              <!--<div class="linea-titulo">
+                <span class="titulo-pub">${String(item.r[ML_COL_TITULO] || '').trim()}</span>
+              </div>-->
+              <!--<div>
+                ${(() => {
+                  const v = String(item.r[ML_COL_VARIANTE] || '').trim();
+                  const t = String(item.r[ML_COL_TITULO] || '').trim().toLowerCase();
+                  const vn = v.toLowerCase();
+                  const ign = ['original', 'aluminio', 'ambos lados'];
+                  return v && vn !== t && !ign.includes(vn)
+                    ? `<span class="variante-pub">(${v.replace(/color:/i, '').trim()})</span>`
+                    : ``;
+                })()}
+              </div>-->
+              <div><strong>Despacho</strong></div>
               <!-- 👇 SOLO en OK -->
               ${(() => {
                 const codigo = item.codigoPersistido || '';
@@ -2447,14 +2471,16 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
 
                   <div class="linea-nombre">
-                    <span class="codigo-label">Nombre prod. despachado:</span>
+                    <!--<span class="codigo-label">Nombre prod. despachado:</span>-->
                     <span class="nombre-valor">${info?.name || '—'}</span>
-                  </div>
-
-                  <div class="linea-variante">
-                    <span class="codigo-label">Variante prod. despachado:</span>
                     <span class="variante-valor">${info?.variant || '—'}</span>
                   </div>
+
+                  <!--<div class="linea-variante">
+                    <span class="codigo-label">Variante prod. despachado:</span>
+                    <span class="variante-valor">${info?.variant || '—'}</span>
+                  </div>-->
+                  <div class="obs-cell ok-cell">OK</div>
                 `;
               })()}
             </div>
@@ -2505,7 +2531,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </td>
 
-          <td class="obs-cell ok-cell">OK</td>
+          <!--<td class="obs-cell ok-cell">OK</td>-->
         `;
 
         resultsBody.appendChild(tr);

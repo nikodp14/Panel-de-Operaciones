@@ -18,3 +18,17 @@
     }
   });
 })();
+
+const topbar = document.querySelector('.topbar');
+
+topbar?.addEventListener('mouseenter', () => {
+  topbar.classList.add('show');
+});
+
+topbar?.addEventListener('mouseleave', () => {
+  topbar.classList.remove('show');
+});
+
+topbar?.addEventListener('click', () => {
+  topbar.classList.toggle('show');
+});
