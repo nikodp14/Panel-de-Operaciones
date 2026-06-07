@@ -1518,3 +1518,15 @@ tr.locked .lock-btn {
 .pago-pendiente td {
   text-decoration: line-through;
 }
+
+.acciones-superior{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.acciones-superior .action-counters{
+  margin:0;
+  flex-wrap:wrap;
+}
