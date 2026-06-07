@@ -184,6 +184,13 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAll.indeterminate = activos > 0 && activos < total;
   }
 
+  function actualizarBotonExportar() {
+
+    const hayExportables = document.querySelectorAll(".row-check").length > 0;
+
+    exportBtn.disabled = !hayExportables;
+  }
+
   function mostrarResumenExportacion(resumen) {
 
     return new Promise(resolve => {
@@ -571,6 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     actualizarSelectAll();
+    actualizarBotonExportar();
   }
 
   async function validarLineaDespacho(tr, input) {
@@ -2494,6 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
       buildPills([...observaciones, ...observacionesOK]);
       restaurarEstadoDespachoUI();
       actualizarSelectAll();
+      actualizarBotonExportar();
 
       resultsSection.classList.remove('hidden');
       statusEl.textContent = `Se encontraron ${observaciones.length} observaciones.`;
