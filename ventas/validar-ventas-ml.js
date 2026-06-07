@@ -49,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     checks.forEach(ch => {
         ch.checked = selectAll.checked;
     });
+
+    actualizarBotonExportar();
   });
 
   tituloVentas.addEventListener("click", () => {
@@ -186,9 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function actualizarBotonExportar() {
 
-    const hayExportables = document.querySelectorAll(".row-check").length > 0;
+    /*const hayExportables = document.querySelectorAll(".row-check").length > 0;
 
-    exportBtn.disabled = !hayExportables;
+    exportBtn.disabled = !hayExportables;*/
+    const checksSeleccionados =
+      document.querySelectorAll(".row-check:checked").length;
+
+    exportBtn.disabled = checksSeleccionados === 0;
   }
 
   function mostrarResumenExportacion(resumen) {
@@ -565,7 +571,10 @@ document.addEventListener('DOMContentLoaded', () => {
         check.type = "checkbox";
         check.className = "row-check";
 
-        check.addEventListener("change", actualizarSelectAll);
+        check.addEventListener("change", () => {
+          actualizarSelectAll();
+          actualizarBotonExportar();
+        });
 
         firstCell.innerHTML = "";
         firstCell.appendChild(check);
@@ -2336,7 +2345,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const check = tr.querySelector(".row-check");
 
         if (check) {
-          check.addEventListener("change", actualizarSelectAll);
+          check.addEventListener("change", () => {
+            actualizarSelectAll();
+            actualizarBotonExportar();
+          });
         }
 
         resultsBody.appendChild(tr);
