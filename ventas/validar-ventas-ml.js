@@ -35,6 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeGun = document.getElementById("closeGunScanner");
   const exportBtn = document.getElementById("exportVentasBtn");
 
+  const nominaBtn = document.getElementById("nominaProductosBtn");
+
+  nominaBtn.addEventListener("click", mostrarNominaProductos);
+
   const autoUpdateBtn = document.getElementById("autoUpdateBtn");
   const tituloVentas = document.getElementById("verVentasOdoo");
   const modal = document.getElementById("modalImagen");
@@ -133,6 +137,153 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
   });
+
+  async function mostrarNominaProductos() {
+
+    const nomina = construirNominaProductos();
+
+    if (!nomina.length) {
+      showToast("No hay productos pendientes de escaneo", 2000);
+      return;
+    }
+
+    nomina.sort((a,b)=>
+      claveUbicacion(a.ubicacion)
+        .localeCompare(
+          claveUbicacion(b.ubicacion),
+          undefined,
+          { numeric:true }
+        )
+    );
+
+    const modal = document.createElement("div");
+    modal.className = "confirm-modal";
+
+    let html = `
+      <div class="confirm-box" style="min-width:900px; max-height:80vh; overflow:auto;">
+        <h3>Nómina de productos</h3>
+
+        <table style="width:100%; margin-top:10px; color:white;">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Código</th>
+              <th style="text-align:left;">Producto</th>
+              <th style="text-align:right;">Cantidad</th>
+              <th style="text-align:left;">Ubicación</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    nomina.forEach(item => {
+
+      html += `
+        <tr>
+          <td>${item.codigo}</td>
+          <td>${item.nombre}</td>
+          <td style="text-align:right;">${item.cantidad}</td>
+          <td>${item.ubicacion || '-'}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+
+        <div style="margin-top:15px;">
+          <button id="cerrarNomina">Cerrar</button>
+        </div>
+      </div>
+    `;
+
+    modal.innerHTML = html;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector("#cerrarNomina").onclick = () => {
+      modal.remove();
+    };
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+  }
+
+  function construirNominaProductos() {
+
+    const resumen = new Map();
+
+    const rows = resultsBody.querySelectorAll("tr");
+
+    rows.forEach(tr => {
+
+      const obs =
+        tr.querySelector(".obs-cell")?.textContent?.trim();
+
+      if (obs !== "ESCANEE EL PRODUCTO") return;
+
+      const codigo =
+        tr.querySelector(".codigo-input")?.value?.trim();
+
+      if (!codigo) return;
+
+      const qty =
+        Number(
+          tr.querySelector(".qty-valor")?.textContent || 0
+        );
+
+      const variante =
+        getVarianteOdooFlexible(codigo);
+
+      const nombre =
+        variante
+          ? `${variante.name} ${variante.variant}`.trim()
+          : codigo;
+
+      const ubicaciones =
+        getUbicacionesPorCodigo(codigo);
+
+      const ubicacion =
+        ubicaciones
+          .map(u => u.ubicacion)
+          .join(" | ");
+
+      if (!resumen.has(codigo)) {
+
+        resumen.set(codigo,{
+          codigo,
+          nombre,
+          cantidad:0,
+          ubicacion
+        });
+      }
+
+      resumen.get(codigo).cantidad += qty;
+
+    });
+
+    return [...resumen.values()];
+  }
+
+  function claveUbicacion(ubicacion){
+
+    const u = String(ubicacion || '');
+
+    const idxPasillo = u.indexOf('PASILLO/');
+    if (idxPasillo >= 0) {
+      return u.substring(idxPasillo + 8);
+    }
+
+    const idxSala = u.indexOf('SALA/');
+    if (idxSala >= 0) {
+      return 'ZZZ-' + u.substring(idxSala + 5);
+    }
+
+    return u;
+  }
 
   function resolverCodigoEquivalente(ventaKey, codigo){
 
@@ -2599,9 +2750,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const ubicacionesCell = tr.querySelector('.ubicaciones-col');
 
     if (ubicacionesCell) {
-
+	  
       const codigo = normCodigo(input.value);
-      const ubicaciones = getUbicacionesPorCodigo(codigo);
+	  /*const ubicaciones = getUbicacionesPorCodigo(codigo);*/
+      const variante = getVarianteOdooFlexible(codigo);
+
+      const ubicaciones =
+        variante
+          ? getUbicacionesPorCodigo(variante.barcode)
+          : [];/***/
 
       if (!ubicaciones.length) {
         ubicacionesCell.innerHTML = '—';
@@ -2792,8 +2949,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btn = e.target.closest('.copy-ubicacion');
     if (!btn) return;
-
-    const ubicacion = btn.dataset.ubicacion;
+	/*const ubicacion = btn.dataset.ubicacion;*/
+	
+	/***/
+    const ubicacion =
+      ubicaciones
+        .map(u => u.ubicacion)
+        .join(" | ");7
+	/***/
 
     try {
       await navigator.clipboard.writeText(ubicacion);
