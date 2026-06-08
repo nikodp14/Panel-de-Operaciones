@@ -532,7 +532,7 @@ body.sidebar-collapsed .container {
   overflow-x: auto;
   overflow-y: auto;
   min-height: 70vh;
-  max-height: 83vh;
+  max-height: 84vh;
 }
 
 .producto-comprar .codigo-input {
@@ -749,7 +749,7 @@ body.sidebar-collapsed .container {
 .table-wrap{
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 83vh;
+  max-height: 84vh;
   margin-right: 12px;
 }
 
