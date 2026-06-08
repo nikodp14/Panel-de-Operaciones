@@ -1540,3 +1540,7 @@ tr.locked .lock-btn {
   margin:0;
   flex-wrap:wrap;
 }
+
+#ventasResultsBody tr:not(.pack-row):not(.pack-parent):not(.paquete-hija-row):not(.kit-row):hover {
+  background-color: #faffdb;
+}
