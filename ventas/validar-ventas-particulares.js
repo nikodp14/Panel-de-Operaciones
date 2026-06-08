@@ -16,11 +16,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   let toastTimer = null;
 
   selectAll.addEventListener("change", () => {
+
     const checks = document.querySelectorAll(".row-check");
 
     checks.forEach(ch => {
-        ch.checked = selectAll.checked;
+      ch.checked = selectAll.checked;
     });
+
+    actualizarBotonExportar();
   });
 
   function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
@@ -97,6 +100,43 @@ document.addEventListener("DOMContentLoaded", async () => {
       };
 
       modal.querySelector("#cancel2").onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+    });
+  }
+
+  function confirmarEliminarVenta(mensaje) {
+
+    return new Promise(resolve => {
+
+      const modal = document.createElement("div");
+      modal.className = "confirm-modal";
+
+      modal.innerHTML = `
+        <div class="confirm-box">
+          <h3>Confirmar eliminación</h3>
+
+          <p style="margin-top:10px;">
+            ${mensaje}
+          </p>
+
+          <div style="margin-top:15px;">
+            <button id="confirmDelete">Confirmar</button>
+            <button id="cancelDelete">Cancelar</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      modal.querySelector("#confirmDelete").onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+
+      modal.querySelector("#cancelDelete").onclick = () => {
         modal.remove();
         resolve(false);
       };
@@ -190,6 +230,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     selectAll.checked = total > 0 && total === activos;
     selectAll.indeterminate = activos > 0 && activos < total;
+  }
+
+  function actualizarBotonExportar() {
+
+    const checksSeleccionados =
+      document.querySelectorAll(".row-check:checked").length;
+
+    exportBtn.disabled = checksSeleccionados === 0;
   }
 
   async function exportarVentasOdoo() {
@@ -525,7 +573,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         check.type = "checkbox";
         check.className = "row-check";
 
-        check.addEventListener("change", actualizarSelectAll);
+        check.addEventListener("change", () => {
+          actualizarSelectAll();
+          actualizarBotonExportar();
+        });
 
         firstCell.innerHTML = "";
         firstCell.appendChild(check);
@@ -544,6 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     actualizarSelectAll();
+    actualizarBotonExportar();
   }
 
   function actualizarSelectAll() {
@@ -1056,8 +1108,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     tr.innerHTML = `
     <td class="check-cell"></td>
     <td>
-      ${venta}
-      <span class="copy-btn" data-copy="${venta}">📋</span>
+      <div>${venta}
+      <span class="copy-btn" data-copy="${venta}">📋</span></div>
+      <br>
+      <div class="links-col"></div>
     </td>
 
     <td>
@@ -1081,10 +1135,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         <span class="variante-valor"></span>
       </div>
 
+      <div class="obs-cell"></div>
+
     </div>
 
     </td>
-    <td class="links-col"></td>
+    <!--<td class="links-col"></td>-->
     <td class="ubicaciones-col"></td>
     <td>
       <input type="number" class="unidades-vendidas" value="1">
@@ -1115,7 +1171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <span class="copy-btn copy-precio">📋</span>
     </td>
 
-    <td class="obs-cell"></td>
+    <!--<td class="obs-cell"></td>-->
 
     <td>
       <button class="lock-btn" title="Bloquear venta">🔒</button>
@@ -1144,9 +1200,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     ordenarTablaDesc();
   });
 
-  resultsBody.addEventListener("click",e=>{
+  resultsBody.addEventListener("click", async e => {
 
-    if(!e.target.classList.contains("delete-btn")) return;
+   if(!e.target.classList.contains("delete-btn")) return;
 
     const tr = e.target.closest("tr");
 
@@ -1156,14 +1212,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const venta = tr.dataset.venta;
 
-    tr.remove();
+    let mensaje;
+
+    if(tr.classList.contains("pack-parent")){
+
+      mensaje = `
+        Se eliminará el paquete completo de la venta <b>${venta}</b>.<br><br>
+        ¿Desea continuar?
+      `;
+
+    }else{
+
+      mensaje = `
+        ¿Está seguro que quiere eliminar la venta <b>${venta}</b>?
+      `;
+    }
+
+    const confirmado = await confirmarEliminarVenta(mensaje);
+
+    if(!confirmado){
+      return;
+    }
+
+    if(tr.classList.contains("pack-parent")){
+
+      const rows = resultsBody.querySelectorAll(
+        `tr[data-venta="${venta}"]`
+      );
+
+      rows.forEach(r => r.remove());
+
+    }else{
+
+      tr.remove();
+
+    }
+
+    await guardarVentasServer();
+
+    construirCapsulas();
 
     const parent = resultsBody.querySelector(
       `tr[data-venta="${venta}"]:not(.pack-row)`
     );
 
     const hijas = resultsBody.querySelectorAll(
-      `tr.pack-row[data-venta="${venta}"]`
+      /*`tr.pack-row[data-venta="${venta}"]`*/
+      `tr.paquete-hija-row[data-venta="${venta}"]`
     );
 
     if(parent && hijas.length === 0){
@@ -1248,7 +1343,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function calcularValorOdoo(tr){
 
-    if(tr.classList.contains("pack-row")) return;
+    //if(tr.classList.contains("pack-row")) return;
+    if(tr.classList.contains("paquete-hija-row")) return;
 
     const totalInput = tr.querySelector(".precio-total");
     const unidadesInput = tr.querySelector(".unidades-vendidas");
@@ -1290,8 +1386,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function validarLinea(tr){
 
-    const firstCell = tr.children[0];
-    firstCell.innerHTML = "";
+    //const firstCell = tr.children[0];
+    //firstCell.innerHTML = "";
 
     const venta = tr.dataset.venta;
 
@@ -2003,11 +2099,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const rows = [...resultsBody.querySelectorAll(`tr[data-venta="${venta}"]`)];
 
-      const hasPack = rows.some(r => r.classList.contains("pack-row"));
+      //const hasPack = rows.some(r => r.classList.contains("pack-row"));
+      const hasPack = rows.some(r => r.classList.contains("paquete-hija-row"));
 
       if(hasPack){
 
-        const parent = rows.find(r => !r.classList.contains("pack-row"));
+        //const parent = rows.find(r => !r.classList.contains("pack-row"));
+        const parent = rows.find(r => !r.classList.contains("paquete-hija-row"));
 
         if(parent){
           parent.classList.add("pack-parent");
@@ -2067,7 +2165,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   resultsBody.addEventListener("input", guardarVentasDebounced);
-  resultsBody.addEventListener("change", guardarVentasDebounced);
+  resultsBody.addEventListener("change", (e) => {
+
+    // No guardar cuando cambian checkboxes de exportación
+    if (e.target.classList.contains("row-check")) {
+      return;
+    }
+
+    guardarVentasDebounced();
+  });
   resultsBody.addEventListener("click", guardarVentasDebounced);
 
   /* ================================

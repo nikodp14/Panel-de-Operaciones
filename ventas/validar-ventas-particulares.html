@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Validar Ventas Particulares</title>
+  <title>Ventas Particulares</title>
 
   <!-- MISMO ORDEN que el resto del sistema -->
   <link rel="stylesheet" href="/css/menu.css" />
@@ -35,7 +35,7 @@
           </h2>
         </div>
         <div class="card">
-          <h2>Validar Ventas Particulares</h2>
+          <h2>Ventas Particulares</h2>
           <div class="upload-box">
             <label>Cargar archivos:</label>
             <input type="file" id="filesInput" multiple accept=".xlsx,.xls,.csv"/>
@@ -47,10 +47,24 @@
           <p class="muted">- Quants (stock.quant)</p>
           <p class="muted">- Orden de venta (sale.order)</p>
           <p id="statusVentas" class="status"></p>
-          <button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>
+          <!--<button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>-->
         </div>
 
-        <div id="actionCounters" class="action-counters hidden"></div>
+        <!--<div id="actionCounters" class="action-counters hidden"></div>-->
+
+        <div class="acciones-superior">
+
+          <button id="exportVentasBtn" class="primary-btn">
+            Exportar ventas
+          </button>
+
+          <button id="addVentaBtn" class="primary-btn">
+            Agregar venta
+          </button>
+
+          <div id="actionCounters" class="action-counters hidden"></div>
+
+        </div>
 
         <div class="container">
 
@@ -64,7 +78,7 @@
                     <th>Fecha venta</th>
                     <th style="display: none;"></th>
                     <th class="col-producto">Producto</th>
-                    <th>Links</th>
+                    <!--<th>Links</th>-->
                     <th>Ubicaciones</th>
                     <th>Unid. Venta</th>
                     <th>Unid. Odoo</th>
@@ -72,16 +86,16 @@
                     <th>Flex</th>
                     <th>Courrier</th>
                     <th>Precio</th>
-                    <th>Observación</th>
+                    <!--<th>Observación</th>-->
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="ventasResultsBody"></tbody>
               </table>
             </div>
-            <button id="addVentaBtn" class="primary-btn">
+            <!--<button id="addVentaBtn" class="primary-btn">
               Agregar venta
-            </button>
+            </button>-->
           </section>
         </div>
       </div>

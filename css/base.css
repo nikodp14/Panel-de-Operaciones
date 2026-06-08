@@ -532,7 +532,7 @@ body.sidebar-collapsed .container {
   overflow-x: auto;
   overflow-y: auto;
   min-height: 70vh;
-  max-height: 70vh;
+  max-height: 85vh;
 }
 
 .producto-comprar .codigo-input {
@@ -736,10 +736,20 @@ body.sidebar-collapsed .container {
   opacity: 1;
 }
 
+.copy-pubml {
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.copy-pubml:hover {
+  opacity: 1;
+}
+
 .table-wrap{
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 80vh;
+  max-height: 85vh;
   margin-right: 12px;
 }
 
@@ -942,7 +952,7 @@ body.sidebar-collapsed .container {
 }
 
 #ventasResults td:last-child{
-  display:flex;
+  /*display:flex;*/
   align-items:center;
   justify-content:center;
   gap:6px;
@@ -1149,7 +1159,7 @@ td:has(.unidades-vendidas){
 }
 
 .qty-wrapper{
-  display:flex;
+  /*display:flex;*/
   align-items:center;
   gap:6px;
 }

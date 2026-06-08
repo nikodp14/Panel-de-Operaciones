@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalContainer = document.getElementById("modalImagesContainer");
   const filesInput = document.getElementById("filesInput");
   const exportBtn = document.getElementById("exportVentasBtn");
+  exportBtn.disabled = true;
   const selectAll = document.getElementById("selectAll");
   let modoSupervisor = false;
   
@@ -49,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     checks.forEach(ch => {
         ch.checked = selectAll.checked;
     });
+
+    actualizarBotonExportar();
   });
   
   document.addEventListener("keydown", async (e) => {
@@ -183,6 +186,17 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAll.indeterminate = activos > 0 && activos < total;
   }
 
+  function actualizarBotonExportar() {
+
+    /*const hayExportables = document.querySelectorAll(".row-check").length > 0;
+
+    exportBtn.disabled = !hayExportables;*/
+    const checksSeleccionados =
+      document.querySelectorAll(".row-check:checked").length;
+
+    exportBtn.disabled = checksSeleccionados === 0;
+  }
+
   function actualizarCheckboxSegunObs(tr, obsTexto) {
 
     const firstCell = tr.children[0];
@@ -195,7 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
         check.type = "checkbox";
         check.className = "row-check";
 
-        check.addEventListener("change", actualizarSelectAll);
+        check.addEventListener("change", () => {
+          actualizarSelectAll();
+          actualizarBotonExportar();
+        });
 
         firstCell.innerHTML = "";
         firstCell.appendChild(check);
@@ -208,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     actualizarSelectAll();
+    actualizarBotonExportar();
   }
 
   // 🔥 mismas ayudas que ML + nueva
@@ -952,6 +970,9 @@ document.addEventListener('DOMContentLoaded', () => {
       obsCell.textContent = 'REGISTRAR VENTA EN ODOO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
+
+      actualizarCheckboxSegunObs(tr, obsCell.textContent);
+
       return false;
     }
 
@@ -2428,25 +2449,33 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
             </div>
+            <br>
+              <div>${item.fechaMostrada}</div>
+              <br>
+              <div>${item.estadopagoMostrado}</div>
           </td>
-          <td>${item.fechaMostrada}</td>
-          <td>${item.estadopagoMostrado}</td>
+          <td style="display:none;>${item.fechaMostrada}</td>
+          <td style="display:none;>${item.estadopagoMostrado}</td>
           <td>
+            <div><strong>Compra</strong></div>
             ${mostrarInfoProducto
               ? `
                 <div class="producto-despachar">
                   <div class="linea-pubml">
                     <span class="pubml-tag">${pubMLSinMLC}</span>
+                    <span class="titulo-pub">${tituloPub}</span>
+                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
                   </div>
 
-                  <div class="linea-titulo">
+                  <!--<div class="linea-titulo">
                     <span class="titulo-pub">${tituloPub}</span>
                   </div>
                   <div>
                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
-                  </div>
+                  </div>-->
 
                   <!-- 👇 Input SIEMPRE visible en NO OK -->
+                  <div><strong>Despacho</strong></div>
                   <div class="codigo-wrapper">
                     <input
                       type="text"
@@ -2488,19 +2517,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         ` : ''}
                       </div>
                       <div class="linea-nombre">
-                        <span class="codigo-label">Nombre prod. a despachar:</span>
+                        <!--<span class="codigo-label">Nombre prod. a despachar:</span>-->
                         <span class="nombre-valor">${info?.name || '—'}</span>
-                      </div>
-
-                      <div class="linea-variante">
-                        <span class="codigo-label">Variante prod. a despachar:</span>
                         <span class="variante-valor">${info?.variant || '—'}</span>
                       </div>
+
+                      <!--<div class="linea-variante">
+                        <span class="codigo-label">Variante prod. a despachar:</span>
+                        <span class="variante-valor">${info?.variant || '—'}</span>
+                      </div>-->
                     `;
                   })()}
                   <div class="scan-area">
-                    <button class="scan-btn">Escanear celular</button>
-                    <button class="scan-gun-btn">Escanear pistola</button>
+                    <button class="scan-gun-btn">Escanear</button>
 
                     <div class="scan-result-wrapper">
                       <span class="scan-result">
@@ -2512,10 +2541,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         title="Copiar código escaneado"
                       >📋</span>
                     </div>
-
                   </div>
               `
               : `—`}
+
+              <div class="obs-cell error-cell">
+                ${item.obs}
+              </div>
           </td>
           <td class="ubicaciones-col">
             ${(() => {
@@ -2575,7 +2607,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
             ` : ''}
           </td>
-          <td class="obs-cell error-cell">
+          <td class="obs-cell error-cell" style="display:none;>
             ${item.obs}
           </td>
         `;
@@ -2586,7 +2618,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const check = tr.querySelector(".row-check");
 
         if (check) {
-          check.addEventListener("change", actualizarSelectAll);
+          check.addEventListener("change", () => {
+            actualizarSelectAll();
+            actualizarBotonExportar();
+          });
         }
       }
 
@@ -2645,16 +2680,33 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
             </div>
+            <br>
+            <div>${item.fechaMostrada}</div>
+            <br>
+            <div>${item.estadopagoMostrado}</div>
           </td>
-          <td>${item.fechaMostrada}</td>
-          <td>${item.estadopagoMostrado}</td>
+          <td style="display:none;">${item.fechaMostrada}</td>
+          <td style="display:none;">${item.estadopagoMostrado}</td>
           <td>
+            <div><strong>Compra</strong></div>
             <div class="producto-despachar">
               <div class="linea-pubml">
                 <span class="pubml-tag">${String(item.r[ML_COL_PUBML] || '').replace(/^MLC/i, '')}</span>
+                <span class="titulo-pub">${String(item.r[ML_COL_TITULO] || '').trim()}</span>
+                <span>
+                  ${(() => {
+                    const v = String(item.r[ML_COL_VARIANTE] || '').trim();
+                    const t = String(item.r[ML_COL_TITULO] || '').trim().toLowerCase();
+                    const vn = v.toLowerCase();
+                    const ign = ['original', 'aluminio', 'ambos lados'];
+                    return v && vn !== t && !ign.includes(vn)
+                      ? `<span class="variante-pub">(${v.replace(/color:/i, '').trim()})</span>`
+                      : ``;
+                  })()}
+                </span>
               </div>
 
-              <div class="linea-titulo">
+              <!--<div class="linea-titulo">
                 <span class="titulo-pub">${String(item.r[ML_COL_TITULO] || '').trim()}</span>
               </div>
               <div>
@@ -2667,9 +2719,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? `<span class="variante-pub">(${v.replace(/color:/i, '').trim()})</span>`
                     : ``;
                 })()}
-              </div>
+              </div>-->
 
               <!-- 👇 SOLO en OK -->
+              <div><strong>Despacho</strong></div>
               ${(() => {
                 const info = getVarianteOdooPorCodigo(item.codigoPersistido);
 
@@ -2681,17 +2734,19 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
 
                   <div class="linea-nombre">
-                    <span class="codigo-label">Nombre prod. despachado:</span>
+                    <!--<span class="codigo-label">Nombre prod. despachado:</span>-->
                     <span class="nombre-valor">${info?.name || '—'}</span>
-                  </div>
-
-                  <div class="linea-variante">
-                    <span class="codigo-label">Variante prod. despachado:</span>
                     <span class="variante-valor">${info?.variant || '—'}</span>
                   </div>
+
+                  <!--<div class="linea-variante">
+                    <span class="codigo-label">Variante prod. despachado:</span>
+                    <span class="variante-valor">${info?.variant || '—'}</span>
+                  </div>-->
                 `;
               })()}
             </div>
+             <div class="obs-cell ok-cell">OK</div>
           </td>
           <!-- Modificar producto despachado -->
           <td class="ubicaciones-col">
@@ -2761,7 +2816,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         </td>
 
-          <td class="obs-cell ok-cell">OK</td>
+          <td class="obs-cell ok-cell" style="display:none;">OK</td>
         `;
 
         resultsBody.appendChild(tr);
@@ -2779,7 +2834,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     finally{
       validacionEnCurso = false;
-      exportBtn.disabled = false;
     }
   };
 

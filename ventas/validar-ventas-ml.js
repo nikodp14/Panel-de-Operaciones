@@ -2210,6 +2210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="producto-despachar">
                   <div class="linea-pubml">
                     <span class="pubml-tag">${pubMLSinMLC}</span>
+                    <span class="copy-pubml" data-pubml="${String(item.r[ML_COL_PUBML] || '').replace(/^MLC/i, '')}" title="Copiar número publicación">📋</span>
                     <span class="titulo-pub">${tituloPub}</span>
                      ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
                   </div>
@@ -2431,6 +2432,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="producto-despachar">
               <div class="linea-pubml">
                 <span class="pubml-tag">${String(item.r[ML_COL_PUBML] || '').replace(/^MLC/i, '')}</span>
+                <span class="copy-pubml" data-pubml="${String(item.r[ML_COL_PUBML] || '').replace(/^MLC/i, '')}" title="Copiar número publicación">📋</span>
                 <span class="titulo-pub">${String(item.r[ML_COL_TITULO] || '').trim()}</span>
                 ${(() => {
                   const v = String(item.r[ML_COL_VARIANTE] || '').trim();
@@ -2833,6 +2835,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const precio = precioBtn.dataset.precio;
       await navigator.clipboard.writeText(precio);
       showToast(`Precio copiado: ${Number(precio).toLocaleString('es-CL')}`, 1500);
+      return;
+    }
+
+    const pubBtn = e.target.closest('.copy-pubml');
+    if (pubBtn) {
+      const pub = pubBtn.dataset.pubml;
+      await navigator.clipboard.writeText(pub);
+      showToast(`Nro. Publicación copiado: ${Number(pub).toLocaleString('es-CL')}`, 1500);
       return;
     }
 

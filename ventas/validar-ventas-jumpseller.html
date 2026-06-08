@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Validar Ventas Jumpseller</title>
+  <title>Ventas Jumpseller</title>
 
   <!-- MISMO ORDEN que el resto del sistema -->
   <link rel="stylesheet" href="/css/menu.css" />
@@ -50,7 +50,7 @@
             <label>Archivo Ventas ML</label>
             <input type="file" id="mlVentasFile" accept=".xlsx,.xls" />
           </div>-->
-          <h2>Analizar Ventas Jumpseller</h2>
+          <h2>Ventas Jumpseller</h2>
           <!--<div id="archivosInfo" class="archivos-info"></div>-->
           <div class="upload-box">
             <label>Cargar archivos:</label>
@@ -68,11 +68,20 @@
             Actualizar todo desde Carpeta
           </button>-->
           <button id="analyzeVentasBtn" class="primary-btn" disabled style="display: none;">Validar ventas</button>
-          <button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>
+          <!--<button id="exportVentasBtn" class="primary-btn">Exportar ventas</button>-->
           <p id="statusVentas" class="status"></p>
         </div>
 
-        <div id="actionCounters" class="action-counters hidden"></div>
+        <!--<div id="actionCounters" class="action-counters hidden"></div>-->
+        <div class="acciones-superior">
+
+          <button id="exportVentasBtn" class="primary-btn">
+            Exportar ventas
+          </button>
+
+          <div id="actionCounters" class="action-counters hidden"></div>
+
+        </div>
 
         <section id="ventasResults" class="card hidden">
           <div class="table-wrap">
@@ -83,16 +92,16 @@
                     <input type="checkbox" id="selectAll">
                   </th>
                   <th># Venta Jumpseller</th>
-                  <th>Fecha de venta</th>
-                  <th>Estado Pago</th>
+                  <th style="display:none;">Fecha de venta</th>
+                  <th style="display:none;">Estado Pago</th>
                   <th>Producto despachar</th>
                   <th>Ubicaciones</th>
                   <th>Cambio Prod.</th>
-                  <th>Unid. Jumpseller</th>
+                  <th>Unid. JS</th>
                   <th>Unid. Desp.</th>
                   <th>Unid. Odoo</th>
                   <th>Precio</th>
-                  <th>Observación</th>
+                  <th style="display:none;">Observación</th>
                 </tr>
               </thead>
               <tbody id="ventasResultsBody"></tbody>
