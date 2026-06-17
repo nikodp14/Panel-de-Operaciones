@@ -2752,7 +2752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ubicacionesCell) {
 	  
       const codigo = normCodigo(input.value);
-	  /*const ubicaciones = getUbicacionesPorCodigo(codigo);*/
+	    /*const ubicaciones = getUbicacionesPorCodigo(codigo);*/
       const variante = getVarianteOdooFlexible(codigo);
 
       const ubicaciones =
