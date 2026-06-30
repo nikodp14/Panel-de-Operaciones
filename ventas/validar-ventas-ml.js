@@ -1833,7 +1833,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalCLP = typeof totalCLPraw === 'number'
           ? totalCLPraw
           : parseFloat(String(totalCLPraw || '')/*.replace(/\./g, '')*/.replace(',', '.'));
-        const ML_COL_FORMA_ENTREGA = 38; // Columna AM
+        const ML_COL_FORMA_ENTREGA = findColIndexByName([
+          'forma de entrega'
+        ]);
 
         const formaEntrega = String(r[ML_COL_FORMA_ENTREGA] || "").trim();
         
