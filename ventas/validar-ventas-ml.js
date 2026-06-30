@@ -1833,7 +1833,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalCLP = typeof totalCLPraw === 'number'
           ? totalCLPraw
           : parseFloat(String(totalCLPraw || '')/*.replace(/\./g, '')*/.replace(',', '.'));
+        const ML_COL_FORMA_ENTREGA = 38; // Columna AM
 
+        const formaEntrega = String(r[ML_COL_FORMA_ENTREGA] || "").trim();
+        
+        const esFull = formaEntrega.toLowerCase() === "mercado envíos full".toLowerCase();
+        
         const precioMostrado = calcularPrecioMostrado(
           totalCLP,
           ingresoEnvioCLP,
@@ -2195,7 +2200,8 @@ document.addEventListener('DOMContentLoaded', () => {
           cambioProducto: cambioProductoPersistido,
           esPack,
           esLineaHijaPaquete,
-          pubProcesar
+          pubProcesar,
+          esFull
         };
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
@@ -2230,6 +2236,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
 
         const tr = document.createElement('tr');
+
+        /*Full*/
+        if (item.esFull) {
+            tr.classList.add("full-row");
+        }
 
         const unidadesML = item.cantidad || 0;
         const pubMLSinMLC = String(item.r[ML_COL_PUBML] || '')

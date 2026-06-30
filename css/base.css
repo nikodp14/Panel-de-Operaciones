@@ -1544,3 +1544,8 @@ tr.locked .lock-btn {
 #ventasResultsBody tr:not(.pack-row):not(.pack-parent):not(.paquete-hija-row):not(.kit-row):hover {
   background-color: #f8fbe2;
 }
+
+.full-row td {
+    background: #23c260 !important;
+    color: white;
+}
