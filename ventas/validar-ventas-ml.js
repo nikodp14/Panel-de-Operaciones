@@ -3400,7 +3400,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Funcionamiento actual mediante checkboxes
       rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
-        .filter(tr => tr.querySelector(".row-check")?.checked);
+      .filter(tr => {
+        const checked = tr.querySelector(".row-check")?.checked;
+        const esFull = tr.querySelector(".codigo-input")?.dataset.esfull === "true";
+
+        return checked && !esFull;
+      });
 
     }
 
