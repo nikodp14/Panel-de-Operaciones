@@ -1479,6 +1479,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const estadoRes = await fetch('/api/estado/odoo-ventas');
     const estado = await estadoRes.json();
+    let esFull = null;
 
     if (estado.pendienteVentasOdoo && !modoSupervisor){
 
@@ -1701,7 +1702,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let ventaPaqueteActiva = null;
       let ventaLinkPaqueteActivo = null;
       let paqueteActivoAcum = false;
-      let ventaPaqueteActivaAcum = null
+      let ventaPaqueteActivaAcum = null;
+      let esFullPaqueteActivo = false;
 
       for (let i = 0; i < mlData.length; i++) {
 
@@ -1844,7 +1846,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formaEntrega = String(r[ML_COL_FORMA_ENTREGA] || "").trim();
         
-        const esFull = formaEntrega.toLowerCase() === "mercado envíos full".toLowerCase();
+        esFull = formaEntrega.toLowerCase() === "mercado envíos full".toLowerCase();
         
         const precioMostrado = calcularPrecioMostrado(
           totalCLP,
@@ -1866,6 +1868,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           ventaPaqueteActiva = ventaML;        // 👈 guardar venta principal
           ventaLinkPaqueteActivo = ventaLink;  // 👈 guardar link principal
+          esFullPaqueteActivo = esFull;
 
           continue;
         }
@@ -1884,10 +1887,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let ventaMLFinal = ventaML;
         let ventaLinkFinal = ventaLink;
+        let esFullFinal = esFull;
 
         if (esLineaHijaPaquete && ventaPaqueteActiva) {
           ventaMLFinal = ventaPaqueteActiva;
           ventaLinkFinal = ventaLinkPaqueteActivo;
+          esFull = esFullPaqueteActivo;
         }
 
         if (!ventaML || !fecha) continue;
@@ -2169,11 +2174,11 @@ document.addEventListener('DOMContentLoaded', () => {
           !cambioProducto &&
           !contienePubML(codigoEfectivo, pubProcesar)
           ) {
-          obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+            obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
           else if (!esFull && codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
-          obsFinal = 'ESCANEE EL PRODUCTO';
+            obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
           else if (
