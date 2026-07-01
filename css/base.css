@@ -1549,3 +1549,7 @@ tr.locked .lock-btn {
     background: #2dc768 !important;
     color: white;
 }
+
+.btn-full {
+    background: #2dc768 !important;
+}

@@ -34,6 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const gunModal = document.getElementById("gunScannerModal");
   const closeGun = document.getElementById("closeGunScanner");
   const exportBtn = document.getElementById("exportVentasBtn");
+  const exportFullBtn = document.getElementById("exportVentasFullBtn");
+
+  exportBtn.addEventListener("click", () => exportarVentasOdoo(false));
+  exportFullBtn.addEventListener("click", () => exportarVentasOdoo(true));
 
   const nominaBtn = document.getElementById("nominaProductosBtn");
 
@@ -749,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pubML = input.dataset.pubml;
     const ventaML = input.dataset.venta;
     const valor = input.value || '';
+    const esFull = input.dataset.esfull === "true";
 
     const keyPersistencia = `${ventaML}|${pubML}`;
 
@@ -781,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 🟡 Falta escaneo
-    if (!escaneado) {
+    if (!esFull && !escaneado) {
       obsCell.textContent = 'ESCANEE EL PRODUCTO';
       obsCell.classList.remove('ok-cell');
       obsCell.classList.add('error-cell');
@@ -2167,7 +2172,7 @@ document.addEventListener('DOMContentLoaded', () => {
           obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
-          else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
+          else if (!esFull && codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
           obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
@@ -2183,7 +2188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 🔒 Nunca permitir OK sin escaneo válido
           if (!obsRender) {
-            if (!escaneoValido && !includesCancelOrReturn(estadoML)) {
+            if (!esFull && !escaneoValido && !includesCancelOrReturn(estadoML)) {
               obsRender = 'ESCANEE EL PRODUCTO';
             } else {
               obsRender = 'OK';
@@ -2347,7 +2352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.innerHTML = `
           <td>
             ${
-              item.obs === "REGISTRAR VENTA EN ODOO"
+              item.obs === "REGISTRAR VENTA EN ODOO" && !item.esFull
                 ? `<input type="checkbox" class="row-check">`
                 : ``
             }
@@ -2394,6 +2399,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       placeholder="${item.codigoPersistido ? 'Modificar código' : 'Ingresar código'}"
                       data-venta="${ventaMLRow}"
                       data-pubml="${pubMLSinMLC}"
+                      data-esfull="${item.esFull}"
+                      ${item.esFull ? "readonly" : ""}
                       value="${codigoEfectivo}"
                     />
                     <div class="odoo-suggestions hidden"></div>
@@ -2437,6 +2444,10 @@ document.addEventListener('DOMContentLoaded', () => {
                       </div>-->
                     `;
                   })()}
+                  ${
+                  item.esFull
+                    ? ""
+                    : `
                   <div class="scan-area">
                     <button class="scan-gun-btn">Escanear</button>
 
@@ -2451,7 +2462,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       >📋</span>
                     </div>
 
-                  </div>
+                  </div>`
+                  }
                   <div class="obs-cell error-cell">
                     ${item.obs}
                   </div>
@@ -2532,6 +2544,11 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const item of observacionesOK) {
 
         const tr = document.createElement('tr');
+
+        /*Full*/
+        if (item.esFull) {
+            tr.classList.add("full-row");
+        }
 
         const unidadesML = item.cantidad || 0;
         const pubMLSinMLC = String(item.r[ML_COL_PUBML] || '')
@@ -3362,16 +3379,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  async function exportarVentasOdoo() {
+  async function exportarVentasOdoo(soloFull = false) {
     const resumenPedidos = {};
-    const rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
+    let rows;
+
+    if (soloFull) {
+
+      // Exportar TODAS las ventas Full con la observación correspondiente
+      rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
+        .filter(tr => {
+          const obs = tr.querySelector(".obs-cell")?.textContent.trim();
+
+          const input = tr.querySelector(".codigo-input");
+          const esFull = input?.dataset.esfull === "true";
+
+          return esFull && obs === "REGISTRAR VENTA EN ODOO";
+        });
+
+    } else {
+
+      // Funcionamiento actual mediante checkboxes
+      rows = Array.from(document.querySelectorAll("#ventasResultsBody tr"))
         .filter(tr => tr.querySelector(".row-check")?.checked);
+
+    }
 
     const resumen = {};
 
     rows.forEach(tr => {
-      const checkbox = tr.querySelector(".row-check");
-      if (!checkbox || !checkbox.checked) return;
+      
+      if (!soloFull) {
+        const checkbox = tr.querySelector(".row-check");
+        if (!checkbox || !checkbox.checked) return;
+      }
+
       const venta = tr.querySelector(".copy-venta")?.dataset?.venta;
       const precio = Number(
         tr.querySelector(".precio-valor")?.textContent.replace(/\./g, '') || 0
@@ -3434,50 +3475,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.dataset.orden = venta.referencia;
 
-        const ubicaciones = getUbicacionesPorCodigo(codigo);
-        const multi = ubicaciones.length > 1;
+        if (soloFull) {
 
-        if (multi) {
+            const KEY_FULL = "FULL";
 
-          // 🔵 MLDESPUBICACIONES → 1 producto = 1 orden
-          correlativoActual++;
+            if (!ventasAgrupadas.has(KEY_FULL)) {
 
-          const correlativoStr = String(correlativoActual).padStart(5,'0');
+                correlativoActual++;
 
-          ordenesIndividuales.push({
-            referencia: `MLDESPUBICACIONES${correlativoStr}`,
-            lineas: [{
-              codigo,
-              cantidad,
-              precio,
-              venta
-            }]
-          });
+                const correlativoStr = String(correlativoActual).padStart(5, "0");
+
+                ventasAgrupadas.set(KEY_FULL, {
+                    referencia: `MLDESPFULLSTOCK${correlativoStr}`,
+                    lineas: []
+                });
+            }
+
+            ventasAgrupadas.get(KEY_FULL).lineas.push({
+                codigo,
+                cantidad,
+                precio,
+                venta
+            });
 
         } else {
 
-          const KEY_CASAMSTOCK = "GLOBAL";
+          const ubicaciones = getUbicacionesPorCodigo(codigo);
+          const multi = ubicaciones.length > 1;
 
-          if(!ventasAgrupadas.has(KEY_CASAMSTOCK)){
+          if (multi) {
 
+            // 🔵 MLDESPUBICACIONES → 1 producto = 1 orden
             correlativoActual++;
 
             const correlativoStr = String(correlativoActual).padStart(5,'0');
 
-            ventasAgrupadas.set(KEY_CASAMSTOCK, {
-              referencia: `MLDESPCASAMSTOCK${correlativoStr}`,
-              lineas: []
+            ordenesIndividuales.push({
+              referencia: `MLDESPUBICACIONES${correlativoStr}`,
+              lineas: [{
+                codigo,
+                cantidad,
+                precio,
+                venta
+              }]
+            });
+
+          } else {
+
+            const KEY_CASAMSTOCK = "GLOBAL";
+
+            if(!ventasAgrupadas.has(KEY_CASAMSTOCK)){
+
+              correlativoActual++;
+
+              const correlativoStr = String(correlativoActual).padStart(5,'0');
+
+              ventasAgrupadas.set(KEY_CASAMSTOCK, {
+                referencia: `MLDESPCASAMSTOCK${correlativoStr}`,
+                lineas: []
+              });
+            }
+
+            ventasAgrupadas.get(KEY_CASAMSTOCK).lineas.push({
+              codigo,
+              cantidad,
+              precio,
+              venta
             });
           }
-
-          ventasAgrupadas.get(KEY_CASAMSTOCK).lineas.push({
-            codigo,
-            cantidad,
-            precio,
-            venta
-          });
         }
-
       });
 
       let numeropedidoCasam = ' ';
