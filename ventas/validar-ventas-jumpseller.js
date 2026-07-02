@@ -1881,7 +1881,6 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let i = 0; i < mlData.length; i++) {
         const r = mlData[i];
         const excelRowIndex = START_ROW + i;
-		    const ventaLink = '';
         const ML_COL_FECHA = findColIndexByName([
           'fecha'
         ]);
@@ -1894,6 +1893,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
         
         let ventaML = String(r[ML_COL_VENTA] || '').trim();
+        const ventaLink = 'https://demoto.jumpseller.com/admin/cl/orders/edit/'+ ventaML;
         let fecha = parseDate(r[ML_COL_FECHA]);
         let nombrePago = String(r[ML_COL_PAGO] || '').trim();
         let estadoML = String(r[ML_COL_ESTADO] || '');
