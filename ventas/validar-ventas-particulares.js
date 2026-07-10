@@ -1569,7 +1569,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             v.name.toLowerCase().includes(value) ||
             v.default_code.toLowerCase().includes(value)
           )
-          .slice(0,200);
+          .sort((a, b) =>
+            a.name.localeCompare(b.name, 'es', {
+              sensitivity: 'base'
+            })
+          )
+          .slice(0, 200);
 
         if(matches.length){
 
