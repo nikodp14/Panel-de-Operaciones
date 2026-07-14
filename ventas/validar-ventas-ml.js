@@ -1775,27 +1775,35 @@ document.addEventListener('DOMContentLoaded', () => {
               unidadesML
             );
 
-          let codigoSugeridoTemp = '';
+          const keyPersistencia =
+          `${ventaMLFinal}|${pubProcesar}`;
 
-          try {
+          const codigoPersistido =
+            codigosPorVenta[keyPersistencia]?.codigo || '';
 
-            const varianteML = String(r[ML_COL_VARIANTE] || '')
-              .replace(/color\s*:/i, '')
-              .trim();
+          let codigoSugeridoTemp = codigoPersistido;
 
-            const matches = resolveMlVariant({
-              publication: pubProcesar,
-              mlVariantRaw: varianteML,
-              mlTitle: String(r[ML_COL_TITULO] || ''),
-              odooProducts: variantesOdooCache,
-              variantesValidarSet
-            });
+          if (!codigoSugeridoTemp) {
+            try {
 
-            if (matches?.length) {
-              codigoSugeridoTemp = matches[0].barcode;
-            }
+              const varianteML = String(r[ML_COL_VARIANTE] || '')
+                .replace(/color\s*:/i, '')
+                .trim();
 
-          } catch (err) {}
+              const matches = resolveMlVariant({
+                publication: pubProcesar,
+                mlVariantRaw: varianteML,
+                mlTitle: String(r[ML_COL_TITULO] || ''),
+                odooProducts: variantesOdooCache,
+                variantesValidarSet
+              });
+
+              if (matches?.length) {
+                codigoSugeridoTemp = matches[0].barcode;
+              }
+
+            } catch (err) {}
+          }
 
           const codigoKey = normCodigo(codigoSugeridoTemp);
 
@@ -2074,12 +2082,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 obsFinal = null;
               }*/
 
-              let codigoBuscarML = codigoFinal;
-              
-              if (cambioProductoPersistido && codigoSugeridoTemp) {
-
-                codigoBuscarML = normCodigo(codigoSugeridoTemp);
-              }
+              const codigoBuscarML =
+                normCodigo(codigoEquivalente || codigoKey);
 
               const qtyMLTotal =
                 mlQtyByVentaCodigo.get(
@@ -2092,7 +2096,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               } else if (qtyOdoo > qtyMLTotal) {
                 
-                obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
+                obsFinal = 'EXCESO DE UNIDADES REGISTRADAS' + qtyOdoo + qtyMLTotal;
 
               } else {
 
