@@ -618,8 +618,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ventaML = input.dataset.venta;
     const pubML = input.dataset.pubml;
+    const grupo = input.dataset.grupo;
 
-    const keyPersistencia = `${ventaML}|${pubML}`;
+    const keyPersistencia =
+      grupo
+        ? `${ventaML}|${grupo}`
+        : `${ventaML}|${pubML}`;
 
     lastScannedCode = code;
     lastScanTs = data.ts || Date.now();
@@ -693,8 +697,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const venta = input.dataset.venta;
       const pub = input.dataset.pubml;
+      const grupo = input.dataset.grupo;
 
-      const key = `${venta}|${pub}`;
+      const key =
+        grupo
+          ? `${venta}|${grupo}`
+          : `${venta}|${pub}`;
 
       const data = codigosPorVenta[key];
 
@@ -752,10 +760,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const pubML = input.dataset.pubml;
     const ventaML = input.dataset.venta;
+    const grupo = input.dataset.grupo;
     const valor = input.value || '';
     const esFull = input.dataset.esfull === "true";
 
-    const keyPersistencia = `${ventaML}|${pubML}`;
+    const keyPersistencia =
+      grupo
+        ? `${ventaML}|${grupo}`
+        : `${ventaML}|${pubML}`;
 
     const pubKey = String(pubML || '').replace(/^MLC/i, '').trim();
     const cambioProducto = checkbox && checkbox.checked;
@@ -767,7 +779,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const ventaKey = normVentaKey(ventaML);
 
     // 🔹 Si no hay código ingresado
-    //console.log('codigoEfectivo');
     if (!codigoEfectivo) {
       obsCell.textContent = 'INGRESE PRODUCTO A DESPACHAR';
       obsCell.classList.remove('ok-cell');
@@ -1023,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  function buildPackMap(configWorkbook) {
+  /*function buildPackMap(configWorkbook) {
     const ws = configWorkbook.Sheets['Pack'];
     
     if (!ws) return new Map();
@@ -1042,6 +1053,99 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return map;
+  }*/
+
+  function buildPackMap(configWorkbook) {
+
+    const ws = configWorkbook.Sheets['Pack'];
+
+    if (!ws) {
+      return new Map();
+    }
+
+    const rows = XLSX.utils.sheet_to_json(
+      ws,
+      {
+        header: 1,
+        raw: false
+      }
+    );
+
+    const map = new Map();
+
+    for (let i = 1; i < rows.length; i++) {
+
+      const padre = String(rows[i][0] || '')
+        .replace(/^MLC/i, '')
+        .trim();
+
+      const hija = String(rows[i][1] || '')
+        .replace(/^MLC/i, '')
+        .trim();
+
+      const grupo = String(rows[i][2] || '')
+        .trim()
+        .toUpperCase();
+
+      if (!padre || !hija) {
+        continue;
+      }
+
+      if (!map.has(padre)) {
+        map.set(padre, {
+          fijos: [],
+          opciones: {}
+        });
+      }
+
+      const pack = map.get(padre);
+
+      if (!grupo) {
+        pack.fijos.push(hija);
+      }
+      else {
+
+        if (!pack.opciones[grupo]) {
+          pack.opciones[grupo] = [];
+        }
+
+        pack.opciones[grupo].push(hija);
+      }
+    }
+
+    return map;
+  }
+
+  function construirLineasPack(
+    packInfo,
+    pubOriginal
+  ) {
+
+    if (!packInfo) {
+      return [pubOriginal];
+    }
+
+    const resultado = [];
+
+    resultado.push(...packInfo.fijos);
+
+    Object.entries(
+      packInfo.opciones
+    ).forEach(
+      ([grupo, opciones]) => {
+
+        resultado.push({
+          seleccionProducto: true,
+          grupo,
+          opciones
+        });
+
+      }
+    );
+
+    return resultado.length
+      ? resultado
+      : [pubOriginal];
   }
 
   function getCellHyperlink(sheet, rowIndex, colIndex) {
@@ -1179,7 +1283,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function includesCancelOrReturn(estadoML) {
     const s = String(estadoML || '').toLowerCase();
-    //console.log(s);
     return s.includes('no entregado') || s.includes('cancel') || s.includes('devuelto') || ((s.includes('devol') || s.includes('mediación finalizada con reembolso al comprador')) && !s.includes('habilitada') && !s.includes('camino') && !s.includes('respuesta') && !s.includes('quiere') && !s.includes('preparaci') && !s.includes('revisi') && !s.includes('domicilio'));
   }
 
@@ -1638,8 +1741,6 @@ document.addEventListener('DOMContentLoaded', () => {
               tituloPorPublicacion.set(pub, titulo);
             }
           }
-
-          //console.log('Titulos cargados:', tituloPorPublicacion.size);
         }
       } catch (e) {
         console.warn('No se pudo cargar Publicaciones ML para títulos.', e);
@@ -1661,8 +1762,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {
         packMap = new Map();
       }
-
-      //console.log(packMap);
 
       const mlData = mlRows.slice(START_ROW);
       const odooData = odooRows.slice(0);
@@ -1760,23 +1859,56 @@ document.addEventListener('DOMContentLoaded', () => {
           .replace(/^MLC/i, '')
           .trim();
 
-        const publicacionesPack = packMap.get(pubOriginal);
+        /*const publicacionesPack = packMap.get(pubOriginal);
 
         const publicacionesAProcesar =
           (publicacionesPack && publicacionesPack.length)
             ? publicacionesPack
-            : [pubOriginal];
+            : [pubOriginal];*/
+
+        const packInfo =
+          packMap.get(pubOriginal);
+
+        const publicacionesAProcesar =
+          construirLineasPack(
+            packInfo,
+            pubOriginal
+          );
 
         for (const pubProcesar of publicacionesAProcesar) {
 
+          let pubReal = pubProcesar;
+          let grupoSeleccion = null;
+
+          if (
+            typeof pubProcesar === 'object' &&
+            pubProcesar.seleccionProducto
+          ) {
+
+            grupoSeleccion =
+              pubProcesar.grupo;
+
+            const keySeleccion =
+              `${ventaMLFinal}|${grupoSeleccion}`;
+
+            pubReal =
+              codigosPorVenta[keySeleccion]?.codigo;
+
+            if (!pubReal) {
+              continue;
+            }
+          }
+
           const cantidadADespachar =
             await calcularCantidadDespacho(
-              pubProcesar,
+              pubReal,
               unidadesML
             );
 
           const keyPersistencia =
-          `${ventaMLFinal}|${pubProcesar}`;
+            grupoSeleccion
+              ? `${ventaMLFinal}|${grupoSeleccion}`
+              : `${ventaMLFinal}|${pubReal}`;
 
           const codigoPersistido =
             codigosPorVenta[keyPersistencia]?.codigo || '';
@@ -1791,7 +1923,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .trim();
 
               const matches = resolveMlVariant({
-                publication: pubProcesar,
+                publication: pubReal,
                 mlVariantRaw: varianteML,
                 mlTitle: String(r[ML_COL_TITULO] || ''),
                 odooProducts: variantesOdooCache,
@@ -1819,16 +1951,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const keyML = `${ventaKey}|${codigoFinal}`;
 
-          if (ventaML == 2000015739868288)
-            console.log(keyML, cantidadADespachar);
-
           mlQtyByVentaCodigo.set(
             keyML,
             (mlQtyByVentaCodigo.get(keyML) || 0)
               + cantidadADespachar
           );
-
-          //console.log(keyML, cantidadADespachar);
         }
       }
 
@@ -1883,12 +2010,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Si estamos dentro de un paquete
         if (paqueteActivo) {
-          //console.log('total',totalCLP);
           if (!isNaN(totalCLP)) {
             // apareció una nueva venta normal → cerrar paquete
             paqueteActivo = false;
           } else {
-            //console.log('tittt',titulo);
             esLineaHijaPaquete = true;
           }
         }
@@ -1900,7 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (esLineaHijaPaquete && ventaPaqueteActiva) {
           ventaMLFinal = ventaPaqueteActiva;
           ventaLinkFinal = ventaLinkPaqueteActivo;
-          esFull = esFullPaqueteActivo;
+          esFullFinal = esFullPaqueteActivo;
         }
 
         if (!ventaML || !fecha) continue;
@@ -1924,14 +2049,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const qtyEntrega = odooQtyByVenta.get(normVentaKey(ventaML)) || 0;
         const esCancelODevolucion = includesCancelOrReturn(estadoML);
 
-        /*if (ventaML === '2000011724053271') {
-          console.log({
-            estadoML,
-            esCancelODevolucion,
-            qtyEntrega
-          });
-        }*/
-
         // 1️⃣ PRIORIDAD MÁXIMA: DEVOLVER
         if (esCancelODevolucion && qtyEntrega > 0) {
           obs = 'DEVOLVER';
@@ -1951,13 +2068,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const pubOriginal = String(r[ML_COL_PUBML] || '').replace(/^MLC/i, '').trim();
 
         // 🔹 Ver si es pack
-        const publicacionesPack = packMap.get(pubOriginal);
+        /*const publicacionesPack = packMap.get(pubOriginal);
 
         // Si es pack → procesamos hijas
         const publicacionesAProcesar = 
           (publicacionesPack && publicacionesPack.length)
             ? publicacionesPack
-            : [pubOriginal];
+            : [pubOriginal];*/
+
+        const packInfo =
+          packMap.get(pubOriginal);
+
+        const publicacionesAProcesar =
+          construirLineasPack(
+            packInfo,
+            pubOriginal
+          );
 
         // ✅ USAR SOLO datos del procesamiento
         //alert(qtyRegistradaOdoo);
@@ -1969,9 +2095,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let idx = 0; idx < publicacionesAProcesar.length; idx++) {
 
-          const pubProcesar = publicacionesAProcesar[idx];
+          const pubProcesar =
+            publicacionesAProcesar[idx];
 
-          const keyPersistencia = `${ventaMLFinal}|${pubProcesar}`;
+          let pubReal = pubProcesar;
+
+          let grupoSeleccion = null;
+
+          if (
+            typeof pubProcesar === 'object' &&
+            pubProcesar.seleccionProducto
+          ) {
+
+            grupoSeleccion =
+              pubProcesar.grupo;
+
+            const key =
+              `${ventaMLFinal}|${grupoSeleccion}`;
+
+            pubReal =
+              codigosPorVenta[key]?.codigo;
+
+            if (!pubReal) {
+
+              observaciones.push({
+                tipoSeleccionProducto: true,
+                grupo: grupoSeleccion,
+                opciones: pubProcesar.opciones,
+                ventaMLFinal,
+                ventaLink: ventaLinkFinal,
+                esPack: true,
+                esLineaHijaPaquete,
+                obs: 'SELECCIONE PRODUCTO',
+                r: [...r]
+              });
+
+              continue;
+            }
+          }
+
+          const keyPersistencia =
+            grupoSeleccion
+              ? `${ventaMLFinal}|${grupoSeleccion}`
+              : `${ventaMLFinal}|${pubReal}`;
 
           const codigoPersistido =
             codigosPorVenta[keyPersistencia]?.codigo || '';
@@ -1985,7 +2151,7 @@ document.addEventListener('DOMContentLoaded', () => {
               .trim();
 
             const matches = resolveMlVariant({
-              publication: pubProcesar,
+              publication: pubReal,
               mlVariantRaw: varianteML,
               mlTitle: titulo,
               odooProducts: variantesOdooCache,
@@ -2010,7 +2176,7 @@ document.addEventListener('DOMContentLoaded', () => {
             codigosPorVenta[keyPersistencia]?.cambioProducto || false;
           
           const cantidadADespachar = await calcularCantidadDespacho(
-            pubProcesar,
+            pubReal,
             unidadesML
           );
 
@@ -2102,9 +2268,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 obsFinal = null;
               }
-
-              if (ventaKey == 2000015739868288)
-                console.log(codigoFinal, qtyMLTotal, qtyOdoo);
             }
           }
 
@@ -2158,7 +2321,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const escaneado =
           codigosPorVenta[keyPersistencia]?.escaneado || null;
 
-          const pubKey = String(pubProcesar || '').replace(/^MLC/i, '').trim();
+          const pubKey = String(pubReal || '').replace(/^MLC/i, '').trim();
           const cambioProducto = cambioProductoPersistido;
 
           const codigoIngresado =
@@ -2176,12 +2339,12 @@ document.addEventListener('DOMContentLoaded', () => {
           if (
           codigoEfectivo &&
           !cambioProducto &&
-          !contienePubML(codigoEfectivo, pubProcesar)
+          !contienePubML(codigoEfectivo, pubReal)
           ) {
             obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
           }
 
-          else if (!esFull && codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
+          else if (!esFullFinal && codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
             obsFinal = 'ESCANEE EL PRODUCTO';
           }
 
@@ -2197,7 +2360,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 🔒 Nunca permitir OK sin escaneo válido
           if (!obsRender) {
-            if (!esFull && !escaneoValido && !includesCancelOrReturn(estadoML)) {
+            if (!esFullFinal && !escaneoValido && !includesCancelOrReturn(estadoML)) {
               obsRender = 'ESCANEE EL PRODUCTO';
             } else {
               obsRender = 'OK';
@@ -2205,24 +2368,23 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           const itemBase = {
-          r: [...r],
-          ventaMLFinal,
-          ventaLink: ventaLinkFinal,
-          obs: obsRender,
-          precioMostrado: precioMostradoFinal,
-          precioUnitario: precioUnitarioFinal,
-          cantidad: unidadesML,
-          codigoPersistido,
-          cambioProducto: cambioProductoPersistido,
-          esPack,
-          esLineaHijaPaquete,
-          pubProcesar,
-          esFull
-        };
+            r: [...r],
+            ventaMLFinal,
+            ventaLink: ventaLinkFinal,
+            obs: obsRender,
+            precioMostrado: precioMostradoFinal,
+            precioUnitario: precioUnitarioFinal,
+            cantidad: unidadesML,
+            codigoPersistido,
+            cambioProducto: cambioProductoPersistido,
+            esPack,
+            esLineaHijaPaquete,
+            pubReal,
+            grupo: grupoSeleccion,      // 👈 FALTA ESTO
+            esFull: esFullFinal
+          };
 
-          itemBase.r[ML_COL_PUBML] = pubProcesar;
-
-          //console.log(itemBase.ventaMLFinal, obsRender);
+          itemBase.r[ML_COL_PUBML] = pubReal;
 
           if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
@@ -2249,6 +2411,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (const item of observaciones) {
         const obs = item.obs;
+
+        if (item.tipoSeleccionProducto) {
+          
+          const estado =
+            item.r?.[2] || '';
+
+          const tr =
+            document.createElement('tr');
+
+          tr.innerHTML = `
+            <td></td>
+
+            <td>
+              <div class="venta-copy">
+                ${item.ventaLink
+                  ? `<a href="${item.ventaLink}" target="_blank" class="venta-link">${item.ventaMLFinal}</a>`
+                  : item.ventaMLFinal
+                }
+                <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
+              </div>
+              <br>
+              <div>${item.r[1]}</div>
+              <br>
+              <div>${estado}</div>
+            </td>
+
+             <td>
+              Selección de producto
+
+              <select
+                class="pack-option-select"
+                data-venta="${item.ventaMLFinal}"
+                data-grupo="${item.grupo}"
+              >
+                <option value="">
+                  Seleccione...
+                </option>
+
+                ${item.opciones.map(o => {
+
+                  const titulo =
+                    tituloPorPublicacion.get(
+                      String(o)
+                        .replace(/^MLC/i, '')
+                        .trim()
+                    ) || '';
+
+                  return `
+                    <option
+                      value="${o}"
+                      ${item.codigoSeleccionado === o ? 'selected' : ''}
+                    >
+                      ${titulo || o} (${o})
+                    </option>
+                  `;
+
+                }).join('')}
+              </select>
+
+            <div class="obs-cell error-cell">
+              SELECCIONE PRODUCTO
+            </div>
+            </td>
+          `;
+
+          resultsBody.appendChild(tr);
+
+          continue;
+        }
+
         const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
 
         const tr = document.createElement('tr');
@@ -2277,8 +2509,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (ultimaVenta != item.ventaMLFinal)
           pintarPrimeraLineaPaquete = true;
-
-        //console.log(ultimaVenta, item.ventaMLFinal);
 
         ultimaVenta = item.ventaMLFinal;
 
@@ -2334,10 +2564,6 @@ document.addEventListener('DOMContentLoaded', () => {
             odooProducts: variantesOdooCache,
             variantesValidarSet
           });
-          
-          /*if (pubMLSinMLC == 2823789240){
-            console.log(pubMLSinMLC, variante, tituloPub, variantesOdooCache, variantesValidarSet, matches);
-          }*/
 
           if (matches && matches.length) {
             codigoSugerido = matches[0].barcode;
@@ -2409,6 +2635,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       data-venta="${ventaMLRow}"
                       data-pubml="${pubMLSinMLC}"
                       data-esfull="${item.esFull}"
+                      data-grupo="${item.grupo || ''}"
                       ${item.esFull ? "readonly" : ""}
                       value="${codigoEfectivo}"
                     />
@@ -2583,7 +2810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.dataset.obs = 'OK';
 
-        tr.dataset.pubml = item.pubProcesar;
+        tr.dataset.pubml = item.pubReal;
 
         const ventaMLRow = item.ventaMLFinal;        
         const codigoKey = normCodigo(item.codigoPersistido);
@@ -2835,8 +3062,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const pubML = input.dataset.pubml;   // # publicación ML sin MLC
     const ventaML = input.dataset.venta; // # venta ML
     const valor = input.value || '';
+    const grupo = input.dataset.grupo;
 
-    const keyPersistencia = `${ventaML}|${pubML}`;
+    const keyPersistencia =
+      grupo
+        ? `${ventaML}|${grupo}`
+        : `${ventaML}|${pubML}`;
 
     // 🔹 Persistir SIEMPRE el código (aunque no sea OK)
     const cambioProductoActual =
@@ -2855,10 +3086,12 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       });
 
-      codigosPorVenta[`${ventaML}|${pubML}`] = {
-        ...(codigosPorVenta[`${ventaML}|${pubML}`] || {}),
-        codigo: valor.trim()
+      codigosPorVenta[keyPersistencia] = {
+        ...(codigosPorVenta[keyPersistencia] || {}),
+        codigo: valor.trim(),
+        cambioProducto: cambioProductoActual
       };
+
     } catch (err) {
       console.error('Error guardando código provisional', err);
     }
@@ -3119,7 +3352,7 @@ document.addEventListener('DOMContentLoaded', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        key: `${ventaML}|${pubML}`,
+        key: keyPersistencia,
         ventaML,
         pubML,
         cambioProducto: e.target.checked
@@ -3129,6 +3362,55 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🔁 Forzar revalidación
     validarLineaDespacho(tr, input);
   });
+
+  resultsBody.addEventListener(
+    'change',
+    async (e) => {
+
+      const select =
+        e.target.closest(
+          '.pack-option-select'
+        );
+
+      if (!select) return;
+
+      const venta =
+        select.dataset.venta;
+
+      const grupo =
+        select.dataset.grupo;
+
+      const codigo =
+        select.value;
+
+      const key =
+        `${venta}|${grupo}`;
+
+      await fetch(
+        '/api/ml/ventas/codigos',
+        {
+          method:'POST',
+          headers:{
+            'Content-Type':
+              'application/json'
+          },
+          body: JSON.stringify({
+            key,
+            ventaML: venta,
+            pubML: grupo,
+            codigo
+          })
+        }
+      );
+
+      codigosPorVenta[key] = {
+        ...(codigosPorVenta[key] || {}),
+        codigo
+      };
+
+      await runValidacionVentas();
+    }
+  );
 
   resultsBody.addEventListener('click', (e) => {
     const btn = e.target.closest('.edit-btn');
@@ -3262,8 +3544,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }
 
-    //console.log("Archivos detectados:", latest);
-
     await uploadIfExists(latest.variantes, "/api/odoo/variantes");
     await uploadIfExists(latest.ventasOdoo, "/api/odoo/ventas");
     await uploadIfExists(latest.quants, "/api/odoo/stock");
@@ -3294,8 +3574,6 @@ document.addEventListener('DOMContentLoaded', () => {
       method: "POST",
       body: fd
     });
-
-    //console.log("Subido:", file.name);
 
   }
 
@@ -3584,7 +3862,6 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!resumenPedidos[numeropedidoCasam]){
             resumenPedidos[numeropedidoCasam] = 0;
           }
-          //console.log(index, l.precio, numeropedidoCasam, resumenPedidos[numeropedidoCasam]);
           resumenPedidos[numeropedidoCasam] += (l.precio * l.cantidad) * 1.19;
         });
 
