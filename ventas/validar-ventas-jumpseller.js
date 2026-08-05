@@ -1682,6 +1682,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ${faltantes.map(f => `- ${f}`).join("<br>")}
       `;
 
+      validacionEnCurso = false;
+
       return;
     }
 
