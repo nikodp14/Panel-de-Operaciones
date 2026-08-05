@@ -1674,7 +1674,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (faltantes.length) {
+    if (faltantes.length && !modoSupervisor) {
       showToast("Faltan archivos del día", 3000, "error");
 
       statusEl.innerHTML = `
