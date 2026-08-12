@@ -3345,8 +3345,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!input) return;
 
+    const grupo = input.dataset.grupo;
     const pubML = input.dataset.pubml;
     const ventaML = input.dataset.venta;
+
+    const keyPersistencia =
+      grupo
+        ? `${ventaML}|${grupo}`
+        : `${ventaML}|${pubML}`;
 
     await fetch('/api/ml/ventas/codigos', {
       method: 'POST',
