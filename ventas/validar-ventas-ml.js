@@ -1283,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function includesCancelOrReturn(estadoML) {
     const s = String(estadoML || '').toLowerCase();
-    return s.includes('reclamo cerrado con reembolso al comprador') || s.includes('no entregado') || s.includes('cancel') || s.includes('devuelto') || ((s.includes('devol') || s.includes('mediación finalizada con reembolso al comprador')) && !s.includes('habilitada') && !s.includes('camino') && !s.includes('respuesta') && !s.includes('quiere') && !s.includes('preparaci') && !s.includes('revisi') && !s.includes('domicilio') && !s.includes('devolución con fecha actualizada') && !s.includes('te devolveremos'));
+    return s.includes('reclamo cerrado con reembolso al comprador') || s.includes('no entregado') || s.includes('cancel') || s.includes('devuelto') || ((s.includes('devol') || s.includes('mediación finalizada con reembolso al comprador')) && !s.includes('habilitada') && !s.includes('camino') && !s.includes('respuesta') && !s.includes('quiere') && !s.includes('preparaci') && !s.includes('revisi') && !s.includes('domicilio') && !s.includes('devolución con fecha actualizada') && !s.includes('te devolveremos') && !s.includes('devolución reprogramada'));
   }
 
   async function updateAnalyzeAvailability() {
