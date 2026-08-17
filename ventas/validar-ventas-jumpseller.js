@@ -43,6 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
   exportBtn.disabled = true;
   const selectAll = document.getElementById("selectAll");
   let modoSupervisor = false;
+
+  const VENTAS_OMITIDAS = new Set([
+    '4206'
+  ]);
   
   selectAll.addEventListener("change", () => {
     const checks = document.querySelectorAll(".row-check");
@@ -2096,26 +2100,34 @@ document.addEventListener('DOMContentLoaded', () => {
           const metodo = (metodoEnvio || '').toLowerCase();
           let obsFinal = obs; // copiamos el obs base
 
-          if (metodo.includes('demoto')) {
-            // retiro → no descontar nada
-            baseTotal = precioMostrado;
-          }
-          else if (metodo.includes('santiago') &&
-                  metodo.includes('colina') &&
-                  metodo.includes('padre')) {
+          const ventaKey = String(numeroVenta || '').trim();
 
-            baseTotal = precioMostrado - 3000;
+          if (VENTAS_OMITIDAS.has(ventaKey)) {
+            obsFinal = 'OMITIDA POR SUPERVISOR.';
           }
           else {
-            const envioInput =
-              codigosPorVenta[keyPersistencia]?.envioManual || 0;
 
-            if ((idx == 0 && !esLineaHijaPaquete) && (!envioInput || Number(envioInput) == 0) && !includesCancelOrReturn(estadoML)) {
-              obsFinal = 'INGRESE COSTO DE ENVÍO';
+            if (metodo.includes('demoto')) {
+              // retiro → no descontar nada
+              baseTotal = precioMostrado;
             }
+            else if (metodo.includes('santiago') &&
+                    metodo.includes('colina') &&
+                    metodo.includes('padre')) {
 
-            baseTotal = precioMostrado - (envioInput / 1.19);
+              baseTotal = precioMostrado - 3000;
+            }
+            else {
+              const envioInput =
+                codigosPorVenta[keyPersistencia]?.envioManual || 0;
 
+              if ((idx == 0 && !esLineaHijaPaquete) && (!envioInput || Number(envioInput) == 0) && !includesCancelOrReturn(estadoML)) {
+                obsFinal = 'INGRESE COSTO DE ENVÍO';
+              }
+
+              baseTotal = precioMostrado - (envioInput / 1.19);
+
+            }
           }
 
           const precioUnitarioCorrecto =
