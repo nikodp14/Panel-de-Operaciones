@@ -2103,7 +2103,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const ventaKey = String(ventaMLFinal || '').trim();
 
           if (VENTAS_OMITIDAS.has(ventaKey)) {
-            obsFinal = 'OMITIDA POR SUPERVISOR.';
+            obsFinal = 'OK';
           }
           else {
 
