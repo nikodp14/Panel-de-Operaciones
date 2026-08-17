@@ -2158,7 +2158,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
 
               } else if (qtyOdoo > cantidadADespachar) {
-                obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
+                obsFinal = 'EXCESO DE UNIDADES REGISTRADASss';
 
               } else {
                 obsFinal = null;
