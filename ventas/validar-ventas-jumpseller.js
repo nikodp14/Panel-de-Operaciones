@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === ÍNDICES ML (Ventas ML) ===
   // Ajusta aquí si cambia el formato del Excel de ML
   const ML_COL_VENTA = 0;      // Col A: Número de venta ML
+  const jumpsellerQtyByVentaCodigo = new Map();
   let odooQtyByVentaCodigo = new Map();
   let toastTimer = null;
   let variantesOdooCache = [];
@@ -2112,12 +2113,258 @@ document.addEventListener('DOMContentLoaded', () => {
             unidadesML
           );
 
+          const ventaKey = String(ventaMLFinal || '').trim();
+
+          const codigoEquivalente =
+            resolverCodigoEquivalente(ventaKey, codigoKey);
+
+          const codigoFinal =
+            normCodigo(codigoEquivalente || codigoKey);
+
+          if (codigoFinal) {
+
+            const keyJS = `${ventaKey}|${codigoFinal}`;
+
+            console.log(
+              'AGREGANDO JS',
+              ventaKey,
+              codigoKey,
+              codigoFinal,
+              cantidadADespachar
+            );
+
+            jumpsellerQtyByVentaCodigo.set(
+              keyJS,
+              (jumpsellerQtyByVentaCodigo.get(keyJS) || 0)
+                + cantidadADespachar
+            );
+          }
+        }
+      }
+
+      for (let i = 0; i < mlData.length; i++) {
+        const r = mlData[i];
+        const excelRowIndex = START_ROW + i;
+        const ML_COL_FECHA = findColIndexByName([
+          'fecha'
+        ]);
+        const ML_COL_ENVIO = findColIndexByName([
+          'envío',
+          'envio'
+        ]);
+        const ML_COL_ESTADO = findColIndexByName([
+          'estado del pago'
+        ]);
+        
+        let ventaML = String(r[ML_COL_VENTA] || '').trim();
+        const ventaLink = 'https://demoto.jumpseller.com/admin/cl/orders/edit/'+ ventaML;
+        let fecha = parseDate(r[ML_COL_FECHA]);
+        let nombrePago = String(r[ML_COL_PAGO] || '').trim();
+        let estadoML = String(r[ML_COL_ESTADO] || '');
+        
+        //const totalCLPraw = r[13];         // Col M
+        const totalCLPraw = r[ML_COL_TOTAL];
+        const ingresoEnvioCLP = r[7]; // Col H
+        const costoEnvioCLP = r[9];  // Col J
+        const cantidadRaw = r[ML_COL_UNIDADES]; // Col G (Unidades)
+        const cantidad = Number(cantidadRaw) || 0;
+        const totalCLP = typeof totalCLPraw === 'number'
+          ? totalCLPraw
+          : parseFloat(String(totalCLPraw || '').replace(/\./g, '').replace(',', '.'));
+		    let fechaMostrada = r[ML_COL_FECHA];
+        let esLineaHijaPaquete = !totalCLP;
+   
+        primeraLineaPaquete = false;
+
+        const precioMostrado = calcularPrecioMostrado(
+          totalCLP,
+          ingresoEnvioCLP,
+          costoEnvioCLP,
+          estadoML
+        );
+
+        const titulo = String(r[ML_COL_TITULO] || '').toLowerCase();
+        let metodoEnvio = String(r[ML_COL_METODO_ENVIO] || '').trim();
+
+        if (!esLineaHijaPaquete) {
+          // Cabecera nueva
+          ventaContexto = ventaML;
+          fechaContexto = fecha;;
+          pagoContexto = nombrePago;
+          estadoContexto = estadoML;
+        } else {
+          // Heredar contexto
+          ventaML = ventaContexto;
+          fecha = fechaContexto;
+          fechaMostrada = fechaContexto.toLocaleDateString("es-CL");
+          nombrePago = pagoContexto;
+          estadoML = estadoContexto;
+        }
+
+        // Detectar inicio de paquete
+        if (esLineaHijaPaquete) {
+          paqueteActivo = true;
+          precioPaqueteActivo = totalCLP;
+
+          ventaPaqueteActiva = ventaML;        // 👈 guardar venta principal
+          ventaLinkPaqueteActivo = ventaLink;  // 👈 guardar link principal
+        }
+
+        if (nombrePago.toLowerCase().trim() === 'mercadolibre') {
+          continue;
+		    }
+		  
+        // Si estamos dentro de un paquete
+        if (paqueteActivo) {
+          //console.log('total',totalCLP);
+          if (!isNaN(totalCLP)) {
+            // apareció una nueva venta normal → cerrar paquete
+            paqueteActivo = false;
+          } else {
+            //console.log('tittt',titulo);
+            esLineaHijaPaquete = true;
+          }
+        }
+
+        let ventaMLFinal = ventaML;
+        let ventaLinkFinal = ventaLink;
+
+        if (esLineaHijaPaquete && ventaPaqueteActiva) {
+          ventaMLFinal = ventaPaqueteActiva;
+          ventaLinkFinal = ventaLinkPaqueteActivo;
+        }
+
+        if (!ventaML || !fecha) continue;
+        if (fecha < cutoff) continue;
+
+        if(
+          isNaN(totalCLP) &&
+          !esLineaHijaPaquete
+        ) continue;
+
+        if (
+          !(totalCLP > 0 || totalCLP === 0) &&
+          !esLineaHijaPaquete
+        ) continue;
+
+        const existeEnOdoo = odooSet.has(normVentaKey(ventaMLFinal));
+
+        let obs = null;
+
+        // Cantidad de entrega desde Odoo (col H -> índice 7)
+        const qtyEntrega = odooQtyByVenta.get(normVentaKey(ventaML)) || 0;
+        const esCancelODevolucion = includesCancelOrReturn(estadoML);
+
+        // 1️⃣ PRIORIDAD MÁXIMA: DEVOLVER
+        if (esCancelODevolucion && qtyEntrega > 0) {
+          obs = 'DEVOLVER';
+        }
+
+        // 2️⃣ Registrar venta
+        else if (!existeEnOdoo && (totalCLP > 0 || esLineaHijaPaquete) && !esCancelODevolucion){
+          obs = 'REGISTRAR VENTA EN ODOO';
+        }
+
+        // 3️⃣ Entregar
+        else if (existeEnOdoo && totalCLP > 0 && qtyEntrega === 0 && !esCancelODevolucion) {
+          obs = 'ENTREGAR';
+        }
+
+        const unidadesML = Number(r[ML_COL_UNIDADES] || 0);
+        let pubOriginal = String(r[ML_COL_PUBML] || '')
+          .replace(/^MLC/i, '')
+          .trim();
+
+        // si no parece publicación ML
+        const pubDetectada =
+          getPublicacionDesdeJumpsellerSKU(normSKU(r[ML_COL_PUBML]));;
+        
+        if (pubDetectada) {
+          pubOriginal = pubDetectada;
+        }
+
+        // 🔹 Ver si es pack
+        const publicacionesPack = packMap.get(pubOriginal);
+
+        // Si es pack → procesamos hijas
+        const publicacionesAProcesar = 
+          (publicacionesPack && publicacionesPack.length)
+            ? publicacionesPack
+            : [pubOriginal];
+
+        // ✅ USAR SOLO datos del procesamiento
+        //alert(qtyRegistradaOdoo);
+        
+        // 🆕 Validación Odoo SOLO si hay código ingresado
+        const ventaKey = normVentaKey(ventaMLFinal);
+        const existeVentaEnOdooConOtroCodigo = Array.from(odooQtyByVentaCodigo.keys())
+          .some(k => k.startsWith(`${ventaKey}|`));
+
+        for (let idx = 0; idx < publicacionesAProcesar.length; idx++) {
+
+          const pubProcesar = publicacionesAProcesar[idx];
+
+          const keyPersistencia = `${ventaMLFinal}|${pubProcesar}`;
+
+          const codigoPersistido =
+            codigosPorVenta[keyPersistencia]?.codigo || '';
+
+          // 🔹 calcular sugerido igual que en el render
+          let codigoSugeridoTemp = '';
+
+          try {
+            let varianteML = '';
+            if (ML_COL_VARIANTE !== -1) {
+              varianteML = String(r[ML_COL_VARIANTE] || '')
+                .replace(/color\s*:/i, '')
+                .trim();
+            } else {
+              const tituloRaw = String(r[ML_COL_TITULO] || '');
+              varianteML = extraerColorDesdeTitulo(tituloRaw);
+            }
+
+            const matches = resolveMlVariant({
+              publication: pubProcesar,
+              mlVariantRaw: varianteML,
+              mlTitle: titulo,
+              odooProducts: variantesOdooCache,
+              variantesValidarSet
+            });
+
+            if (matches && matches.length) {
+              codigoSugeridoTemp = matches[0].barcode;
+            }
+
+          } catch (err) {
+            console.warn("Resolver variante ML error", err);
+          }
+
+          // 🔹 usar persistido o sugerido
+          const codigoEfectivoTemp =
+            codigoPersistido || codigoSugeridoTemp || '';
+
+          const codigoKey = normCodigo(codigoEfectivoTemp);
+
+          const cambioProductoPersistido =
+            codigosPorVenta[keyPersistencia]?.cambioProducto || false;
+
+          const cantidadADespachar = await calcularCantidadDespacho(
+            pubProcesar,
+            unidadesML
+          );
+
+          const ventaKey = String(ventaMLFinal || '').trim();
+
+          const codigoEquivalente =
+            resolverCodigoEquivalente(ventaKey, codigoKey);
+
+          const codigoFinal =
+            normCodigo(codigoEquivalente || codigoKey);
+
           let baseTotal = precioMostrado;
 
           const metodo = (metodoEnvio || '').toLowerCase();
           let obsFinal = obs; // copiamos el obs base
-
-          const ventaKey = String(ventaMLFinal || '').trim();
 
           if (VENTAS_OMITIDAS.has(ventaKey)) {
             obsFinal = 'OK';
@@ -2172,17 +2419,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
               } else {
 
-                const qtyOdoo =
-                  odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
+                const codigoEquivalente =
+                  resolverCodigoEquivalente(ventaKey, codigoKey);
 
-                if (qtyOdoo < cantidadADespachar) {
+                const codigoBuscar =
+                  normCodigo(codigoEquivalente || codigoKey);
+
+                const qtyOdoo =
+                  odooQtyByVentaCodigo.get(
+                    `${ventaKey}|${codigoBuscar}`
+                  ) || 0;
+
+                const qtyJumpsellerTotal =
+                  jumpsellerQtyByVentaCodigo.get(
+                    `${ventaKey}|${codigoBuscar}`
+                  ) || 0;
+
+                console.log(qtyJumpsellerTotal, ventaKey, codigoBuscar);
+
+                if (qtyOdoo < qtyJumpsellerTotal) {
+
                   obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
 
-                } else if (qtyOdoo > cantidadADespachar) {
+                } else if (qtyOdoo > qtyJumpsellerTotal) {
+
                   obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
 
                 } else {
+
                   obsFinal = null;
+
                 }
               }
             }
