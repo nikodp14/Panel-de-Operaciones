@@ -45,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let modoSupervisor = false;
 
   const VENTAS_OMITIDAS = new Set([
-    '4206'
+    '4206',
+    '4237'
   ]);
   
   selectAll.addEventListener("change", () => {
