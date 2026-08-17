@@ -2262,7 +2262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               } else if (qtyOdoo > qtyMLTotal) {
                 
-                obsFinal = 'EXCESO DE UNIDADES REGISTRADAS;
+                obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
 
               } else {
 
