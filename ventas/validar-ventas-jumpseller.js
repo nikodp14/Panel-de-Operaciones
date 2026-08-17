@@ -2135,44 +2135,49 @@ document.addEventListener('DOMContentLoaded', () => {
               ? Math.round(baseTotal / cantidadADespachar)
               : baseTotal;  
 
-          // 🔹 VALIDACIÓN ODOO AQUÍ DENTRO
-          if (existeEnOdoo && !includesCancelOrReturn(estadoML)) {
+          if (VENTAS_OMITIDAS.has(ventaKey)) {
+            obsFinal = 'OK';
+          }
+          else {
+            // 🔹 VALIDACIÓN ODOO AQUÍ DENTRO
+            if (existeEnOdoo && !includesCancelOrReturn(estadoML)) {
 
-            if (!codigoKey) {
-              obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
+              if (!codigoKey) {
+                obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
 
-            } else if (!odooQtyByVentaCodigo.has(`${ventaKey}|${codigoKey}`)) {
+              } else if (!odooQtyByVentaCodigo.has(`${ventaKey}|${codigoKey}`)) {
 
-              if (existeVentaEnOdooConOtroCodigo) {
-                obsFinal = 'EXISTE LA VENTA EN ODOO, PERO CON OTRO CÓDIGO';
-              } else {
-                obsFinal = 'REGISTRAR VENTA EN ODOO';
-              }
-
-            } else {
-
-              const qtyOdoo =
-                odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
-
-              if (qtyOdoo < cantidadADespachar) {
-                obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
-
-              } else if (qtyOdoo > cantidadADespachar) {
-                obsFinal = 'EXCESO DE UNIDADES REGISTRADASss';
+                if (existeVentaEnOdooConOtroCodigo) {
+                  obsFinal = 'EXISTE LA VENTA EN ODOO, PERO CON OTRO CÓDIGO';
+                } else {
+                  obsFinal = 'REGISTRAR VENTA EN ODOO';
+                }
 
               } else {
-                obsFinal = null;
+
+                const qtyOdoo =
+                  odooQtyByVentaCodigo.get(`${ventaKey}|${codigoKey}`) || 0;
+
+                if (qtyOdoo < cantidadADespachar) {
+                  obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
+
+                } else if (qtyOdoo > cantidadADespachar) {
+                  obsFinal = 'EXCESO DE UNIDADES REGISTRADAS';
+
+                } else {
+                  obsFinal = null;
+                }
               }
             }
-          }
 
-          if (obsFinal === 'REGISTRAR VENTA EN ODOO' && !codigoKey) {
-            obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
-          }
+            if (obsFinal === 'REGISTRAR VENTA EN ODOO' && !codigoKey) {
+              obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
+            }
 
-          // 🔥 Si existe en Odoo y no hay código, NO puede ser OK
-          if (existeEnOdoo && !codigoKey && !includesCancelOrReturn(estadoML)) {
-            obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
+            // 🔥 Si existe en Odoo y no hay código, NO puede ser OK
+            if (existeEnOdoo && !codigoKey && !includesCancelOrReturn(estadoML)) {
+              obsFinal = 'INGRESE PRODUCTO A DESPACHAR';
+            }
           }
 
           //const esPack = !!publicacionesPack;
