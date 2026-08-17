@@ -2239,27 +2239,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const esPagoPendiente = estadoML.toLowerCase().includes('pendiente');
 
-          // 🔴 Primero validar producto correcto
-          if (
-          codigoEfectivo &&
-          !cambioProducto &&
-          !contienePubML(codigoEfectivo, pubProcesar)
-          ) {
-            obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+          if (VENTAS_OMITIDAS.has(ventaKey)) {
+            obsFinal = 'OK';
           }
-          else if (esPagoPendiente) {
-            obsFinal = 'ESPERANDO PAGO';
-          }
-          else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
-            obsFinal = 'ESCANEE EL PRODUCTO';
-          }
-
-          else if (
-          codigoEfectivo &&
-          escaneado &&
-          !codigoCoincideConEscaneo(codigoEfectivo, escaneado)
-          ) {
-            obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+          else{
+            // 🔴 Primero validar producto correcto
+            if (
+            codigoEfectivo &&
+            !cambioProducto &&
+            !contienePubML(codigoEfectivo, pubProcesar)
+            ) {
+              obsFinal = 'PRODUCTO A DESPACHAR INCORRECTO';
+            }
+            else if (esPagoPendiente) {
+              obsFinal = 'ESPERANDO PAGO';
+            }
+            else if (codigoEfectivo && !escaneado && !includesCancelOrReturn(estadoML)) {
+              obsFinal = 'ESCANEE EL PRODUCTO';
+            }
+            else if (
+            codigoEfectivo &&
+            escaneado &&
+            !codigoCoincideConEscaneo(codigoEfectivo, escaneado)
+            ) {
+              obsFinal = 'EL CÓDIGO NO COINCIDE CON EL ESCÁNER';
+            }
           }
 
           let obsRender = obsFinal;
