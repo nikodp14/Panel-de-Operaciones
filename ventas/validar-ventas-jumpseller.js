@@ -1535,12 +1535,20 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.style.display = '';
           break;
 
+        case 'IMPORTACION':
+          tr.style.display = obs === 'IMPORTACIÓN' ? '' : 'none';
+          break;
+
         case 'OK':
           tr.style.display = obs === 'OK' ? '' : 'none';
           break;
 
         case 'CON_OBS':
-          tr.style.display = obs !== 'OK' ? '' : 'none';
+          tr.style.display =
+            obs !== 'OK' &&
+            obs !== 'IMPORTACIÓN'
+              ? ''
+              : 'none';
           break;
       }
     });
@@ -1552,9 +1560,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const counts = items.reduce((acc, r) => {
       acc.TODOS = (acc.TODOS || 0) + 1;
 
-      if (r.obs === 'OK') {
+      if (r.obs === 'IMPORTACIÓN') {
+        acc.IMPORTACION = (acc.IMPORTACION || 0) + 1;
+      }
+      else if (r.obs === 'OK') {
         acc.OK = (acc.OK || 0) + 1;
-      } else {
+      }
+      else {
         acc.CON_OBS = (acc.CON_OBS || 0) + 1;
       }
 
@@ -1563,10 +1575,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     countersEl.innerHTML = '';
 
-    const pillsOrder = ['TODOS', 'CON_OBS', 'OK'];
+    const pillsOrder = ['TODOS', 'IMPORTACION', 'CON_OBS', 'OK'];
 
     const labels = {
       TODOS: 'TODOS',
+      IMPORTACION: 'IMPORTACIÓN',
       CON_OBS: 'OBSERVACIONES',
       OK: 'OK'
     };
@@ -2268,7 +2281,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
+          const nombreProducto = String(r[ML_COL_TITULO] || '').trim();
+
+          const esImportacion =
+            /^importaci[oó]n\b/i.test(nombreProducto) ||
+            /^improtaci[oó]n\b/i.test(nombreProducto);
+
+          const tieneTextoGuardado = 
+            String(codigoPersistido || '').trim() !== '';
+
+          const esImportacionPendiente =
+            esImportacion &&
+            !tieneTextoGuardado;
+
           let obsRender = obsFinal;
+          
           //console.log('aca');
           const requiereEnvio =
               !esLineaHijaPaquete &&
@@ -2318,7 +2345,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
 
-          if (obsRender === 'OK') {
+          itemBase.esImportacion = esImportacion;
+
+          if (esImportacionPendiente) {
+            itemBase.obs = 'IMPORTACIÓN';
+            observaciones.push(itemBase);
+          }
+          else if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
           } else {
             observaciones.push(itemBase);
