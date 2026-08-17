@@ -2100,7 +2100,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const metodo = (metodoEnvio || '').toLowerCase();
           let obsFinal = obs; // copiamos el obs base
 
-          const ventaKey = String(numeroVenta || '').trim();
+          const ventaKey = String(ventaMLFinal || '').trim();
 
           if (VENTAS_OMITIDAS.has(ventaKey)) {
             obsFinal = 'OMITIDA POR SUPERVISOR.';
