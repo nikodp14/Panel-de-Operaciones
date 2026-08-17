@@ -625,21 +625,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (name.includes("sale.order")) {
           await fetch('/api/estado/odoo-ventas', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pendienteVentasOdoo: false })
-            });
-        }
-        else{
-          const res = await fetch(endpoint, {
-            method: "POST",
-            body: formData
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pendienteVentasOdoo: false })
           });
         }
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: formData
+        });
 
         if (!res.ok) {
           showToast(`Error en ${file.name}`, 3000, "error");
           continue;
+        }
+        else{
+          showToast(`✔ ${file.name} cargado`, 1500);
         }
 
       } catch (err) {
