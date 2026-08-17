@@ -48,7 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const VENTAS_OMITIDAS = new Set([
     '4206',
     '4237',
-    '4287'
+    '4287',
+    '3782',
+    '3863'
   ]);
   
   selectAll.addEventListener("change", () => {
