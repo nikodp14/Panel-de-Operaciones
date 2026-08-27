@@ -2330,6 +2330,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const codigoEfectivo =
           codigoIngresado || codigoSugeridoTemp || '';
 
+          const numeroSeguimiento =
+          codigosPorVenta[keyPersistencia]?.numeroSeguimiento || null;
+
           const escaneoValido =
           codigoEfectivo &&
           escaneado &&
@@ -2360,9 +2363,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 🔒 Nunca permitir OK sin escaneo válido
           if (!obsRender) {
+
             if (!esFullFinal && !escaneoValido && !includesCancelOrReturn(estadoML)) {
               obsRender = 'ESCANEE EL PRODUCTO';
-            } else {
+            }
+            else if (
+              String(estadoML || '')
+                .toLowerCase()
+                .includes('acuerdas la entrega')
+            ) {
+              obsRender = 'VERIFICAR ENTREGA';
+            }
+            else {
               obsRender = 'OK';
             }
           }
@@ -2381,7 +2393,8 @@ document.addEventListener('DOMContentLoaded', () => {
             esLineaHijaPaquete,
             pubReal,
             grupo: grupoSeleccion,      // 👈 FALTA ESTO
-            esFull: esFullFinal
+            esFull: esFullFinal,
+            numeroSeguimiento : numeroSeguimiento
           };
 
           itemBase.r[ML_COL_PUBML] = pubReal;
@@ -2420,6 +2433,20 @@ document.addEventListener('DOMContentLoaded', () => {
           const tr =
             document.createElement('tr');
 
+          const estadoAcuerdaEntrega =
+            String(estado || '')
+              .toLowerCase()
+              .includes('acuerdas la entrega');
+
+          const seguimientoGuardado =
+            item.numeroSeguimiento || '';
+
+          const mostrarSeguimiento =
+            estadoAcuerdaEntrega || !!seguimientoGuardado;
+
+          const soloLectura =
+            !estadoAcuerdaEntrega && !!seguimientoGuardado;
+
           tr.innerHTML = `
             <td></td>
 
@@ -2435,6 +2462,18 @@ document.addEventListener('DOMContentLoaded', () => {
               <div>${item.r[1]}</div>
               <br>
               <div>${estado}</div>
+              ${mostrarSeguimiento ? `
+                <div class="seguimiento-box">
+                  <label>N° Seguimiento</label>
+                  <input
+                    type="text"
+                    class="seguimiento-input"
+                    data-venta="${item.ventaMLFinal}"
+                    value="${seguimientoGuardado}"
+                    ${soloLectura ? 'readonly' : ''}
+                  >
+                </div>
+              ` : ''}
             </td>
 
              <td>
@@ -2584,6 +2623,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const qtyRegistradaOdoo =
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
 
+        const estadoAcuerdaEntrega =
+          String(item.r[2] || '')
+            .toLowerCase()
+            .includes('acuerdas la entrega');
+
+        const seguimientoGuardado =
+          item.numeroSeguimiento || '';
+
+        const mostrarSeguimiento =
+          estadoAcuerdaEntrega || !!seguimientoGuardado;
+
+        const soloLectura =
+          !estadoAcuerdaEntrega && !!seguimientoGuardado;
+
         tr.innerHTML = `
           <td>
             ${
@@ -2604,6 +2657,20 @@ document.addEventListener('DOMContentLoaded', () => {
             <div>${item.r[1]}</div>
             <br>
             <div>${item.r[2]}</div>
+            ${mostrarSeguimiento ? `
+              <br>
+                <div class="seguimiento-box">
+                  <label>N° Seguimiento</label>
+                  <input
+                    type="text"
+                    class="seguimiento-input"
+                    data-venta="${ventaMLRow}"
+                    data-pubml="${pubMLSinMLC}"
+                    value="${seguimientoGuardado}"
+                    ${soloLectura ? 'readonly' : ''}
+                  >
+                </div>
+              ` : ''}
           </td>
           <td style="display:none;">${item.r[1]}</td>
           <td style="display:none;">${item.r[2]}</td>
@@ -2755,9 +2822,22 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
           <td>
             <div class="precio-copy">
+              <span class="precio-original" hidden>${item.precioUnitario.toLocaleString('es-CL')}</span>
               <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
               <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
             </div>
+            ${item.r[2]?.toLowerCase().includes('acuerdas la entrega') ? `
+              <div style="margin-top:6px;">
+                <input
+                  type="number"
+                  class="monto-entrega-input"
+                  data-key="${item.keyPersistencia}"
+                  value="${item.montoEntrega || ''}"
+                  placeholder="Costo Envío"
+                  style="width:100%;padding:4px;"
+                />
+              </div>
+            ` : ''}
           </td>
           <td class="obs-cell error-cell" style="display:none;">
             ${item.obs}
@@ -3003,6 +3083,40 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMlInfo();
 
   let saveTimeout;
+
+  document.addEventListener('input', async (e) => {
+    if (!e.target.classList.contains('seguimiento-input')) {
+      return;
+    }
+
+    const tr = e.target.closest('tr');
+    const input = tr.querySelector('.codigo-input');
+
+    if (!input) return;
+
+    const grupo = input.dataset.grupo;
+    const pubML = input.dataset.pubml;
+    const ventaML = input.dataset.venta;
+    const cambioProductoActual =
+    tr.querySelector('.cambio-checkbox')?.checked || false;
+
+    const keyPersistencia =
+      grupo
+        ? `${ventaML}|${grupo}`
+        : `${ventaML}|${pubML}`;
+
+    await fetch('/api/ml/ventas/codigos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: keyPersistencia,
+        ventaML,
+        pubML,
+        cambioProducto: cambioProductoActual,
+        numeroSeguimiento: e.target.value.trim()
+      })
+    });
+  });
 
   resultsBody.addEventListener('input', async (e) => {
     if (!e.target.classList.contains('codigo-input')) return;
@@ -3940,4 +4054,40 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast("Error al exportar ventas", 2000, "error");
     }
   }
+});
+
+document.addEventListener('input', (e) => {
+
+  if (!e.target.classList.contains('monto-entrega-input')) {
+    return;
+  }
+
+  const input = e.target;
+
+  const precioValorOriginal = input
+    .closest('td')
+    ?.querySelector('.precio-original')
+
+  const precioValor = input
+    .closest('td')
+    ?.querySelector('.precio-valor');
+
+  if (!precioValor) return;
+
+  const precioOriginal =
+    Number(precioValorOriginal.textContent.replace(/\./g, '') || 0);
+
+  const monto =
+    Number(input.value || 0);
+
+  const neto =
+    monto / 1.19;
+
+  const precioCalculado =
+    precioOriginal - neto;
+
+  precioValor.textContent =
+    Math.round(precioCalculado)
+      .toLocaleString('es-CL');
+
 });
