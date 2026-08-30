@@ -2379,7 +2379,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             else if (metodo.includes('santiago') &&
                     metodo.includes('colina') &&
-                    metodo.includes('padre')) {
+                    metodo.includes('padre') &&
+                    metodo.includes('despacho propio')) {
 
               baseTotal = precioMostrado - 3000;
             }
