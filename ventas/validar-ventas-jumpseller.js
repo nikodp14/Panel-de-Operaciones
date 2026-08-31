@@ -2377,10 +2377,10 @@ document.addEventListener('DOMContentLoaded', () => {
               // retiro → no descontar nada
               baseTotal = precioMostrado;
             }
-            else if (metodo.includes('santiago') &&
+            else if ((metodo.includes('santiago') &&
                     metodo.includes('colina') &&
-                    metodo.includes('padre') &&
-                    metodo.includes('despacho propio') &&
+                    metodo.includes('padre')) ||
+                    metodo.includes('despacho propio') ||
                     metodo.includes('despacho local')) {
 
               baseTotal = precioMostrado - 3000;
