@@ -2366,6 +2366,7 @@ document.addEventListener('DOMContentLoaded', () => {
           let baseTotal = precioMostrado;
 
           const metodo = (metodoEnvio || '').toLowerCase();
+
           let obsFinal = obs; // copiamos el obs base
 
           if (VENTAS_OMITIDAS.has(ventaKey)) {
@@ -2570,9 +2571,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const requiereEnvio =
               !esLineaHijaPaquete &&
               !(metodoEnvio || '').toLowerCase().includes('demoto') &&
-              !((metodoEnvio || '').toLowerCase().includes('santiago') &&
-                (metodoEnvio || '').toLowerCase().includes('colina') &&
-                (metodoEnvio || '').toLowerCase().includes('padre')) &&
+              !((metodo.includes('santiago') &&
+                    metodo.includes('colina') &&
+                    metodo.includes('padre')) ||
+                    metodo.includes('despacho propio') ||
+                    metodo.includes('despacho local')) &&
               !(esPack && idx > 0);
 
             // 🔒 Nunca permitir OK sin escaneo válido
