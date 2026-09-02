@@ -1553,7 +1553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'CON_OBS':
           tr.style.display =
             obs !== 'OK' &&
-            obs !== 'IMPORTACIÓN'
+            obs !== 'IMPORTACIÓN' &&
             obs !== 'PEDIDOBODEGA'
               ? ''
               : 'none';
