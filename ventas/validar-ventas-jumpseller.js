@@ -2647,7 +2647,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.codigoPedidoBodega = codigoPedidoBodega;
 
-          if (esPedidoBodega && !escaneado) {
+          if (esPedidoBodega && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'PEDIDO BODEGA';
             observaciones.push(itemBase);
           }
