@@ -1542,6 +1542,10 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.style.display = obs === 'IMPORTACIÓN' ? '' : 'none';
           break;
 
+        case 'PEDIDOBODEGA':
+          tr.style.display = obs === 'PEDIDO BODEGA' ? '' : 'none';
+          break;
+
         case 'OK':
           tr.style.display = obs === 'OK' ? '' : 'none';
           break;
@@ -1550,6 +1554,7 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.style.display =
             obs !== 'OK' &&
             obs !== 'IMPORTACIÓN'
+            obs !== 'PEDIDOBODEGA'
               ? ''
               : 'none';
           break;
@@ -1563,7 +1568,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const counts = items.reduce((acc, r) => {
       acc.TODOS = (acc.TODOS || 0) + 1;
 
-      if (r.obs === 'IMPORTACIÓN') {
+      if (r.obs === 'PEDIDO BODEGA') {
+        acc.PEDIDOBODEGA = (acc.PEDIDOBODEGA || 0) + 1;
+      }
+      else if (r.obs === 'IMPORTACIÓN') {
         acc.IMPORTACION = (acc.IMPORTACION || 0) + 1;
       }
       else if (r.obs === 'OK') {
@@ -1578,11 +1586,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     countersEl.innerHTML = '';
 
-    const pillsOrder = ['TODOS', 'IMPORTACION', 'CON_OBS', 'OK'];
+    const pillsOrder = ['TODOS', 'IMPORTACION', 'PEDIDOBODEGA', 'CON_OBS', 'OK'];
 
     const labels = {
       TODOS: 'TODOS',
       IMPORTACION: 'IMPORTACIÓN',
+      PEDIDOBODEGA: 'PEDIDO BODEGA',
       CON_OBS: 'OBSERVACIONES',
       OK: 'OK'
     };
@@ -2558,6 +2567,15 @@ document.addEventListener('DOMContentLoaded', () => {
             /^importaci[oó]n\b/i.test(nombreProducto) ||
             /^improtaci[oó]n\b/i.test(nombreProducto);
 
+          const esPedidoBodega =
+            /^pedido bodega\b/i.test(nombreProducto) ||
+            /^pedido bodega\b/i.test(nombreProducto);
+
+          const codigoPedidoBodega =
+            esPedidoBodega
+              ? (nombreProducto.match(/^pedido bodega\s+(.+)$/i)?.[1] || '').trim()
+              : '';
+            
           const tieneTextoGuardado = 
             String(codigoPersistido || '').trim() !== '';
 
@@ -2620,7 +2638,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.esImportacion = esImportacion;
 
-          if (esImportacionPendiente) {
+          itemBase.esPedidoBodega = esPedidoBodega;
+
+          itemBase.codigoPedidoBodega = codigoPedidoBodega;
+
+          if (esPedidoBodega) {
+            itemBase.obs = 'PEDIDO BODEGA';
+            observaciones.push(itemBase);
+          }
+          else if (esImportacionPendiente) {
             itemBase.obs = 'IMPORTACIÓN';
             observaciones.push(itemBase);
           }
@@ -2763,7 +2789,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigoEfectivo =
           codigoPersistidoLimpio
             ? codigoPersistidoLimpio
-            : (codigoSugerido || '');
+            : (item.codigoPedidoBodega || codigoSugerido || '');
 
         const qtyRegistradaOdoo =
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;

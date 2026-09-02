@@ -441,7 +441,7 @@ app.get("/api/jumpseller/ventas/codigos", (req, res) => {
 });
 
 app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
-  const { key, codigo, escaneado, cambioProducto, numeroSeguimiento } = req.body;
+  const { key, codigo, escaneado, cambioProducto, numeroSeguimiento, montoEntrega } = req.body;
   if (!key) {
     return res.status(400).json({ error: "key requerida (venta|publicacion)" });
   }
@@ -462,6 +462,7 @@ app.post("/api/ml/ventas/codigos", express.json(), (req, res) => {
     cambioProducto: cambioProducto ?? data[key]?.cambioProducto ?? false,
     updatedAt: new Date().toISOString(),
     numeroSeguimiento: numeroSeguimiento ?? data[key]?.numeroSeguimiento ?? null,
+    montoEntrega: montoEntrega ?? data[key]?.montoEntrega ?? 0
   };
 
   fs.writeFileSync(CODIGOS_ML_PATH, JSON.stringify(data, null, 2));

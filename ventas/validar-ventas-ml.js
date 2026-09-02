@@ -2333,6 +2333,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const numeroSeguimiento =
           codigosPorVenta[keyPersistencia]?.numeroSeguimiento || null;
 
+          const montoEntrega =
+          codigosPorVenta[keyPersistencia]?.montoEntrega || null;
+
           const escaneoValido =
           codigoEfectivo &&
           escaneado &&
@@ -2394,7 +2397,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pubReal,
             grupo: grupoSeleccion,      // 👈 FALTA ESTO
             esFull: esFullFinal,
-            numeroSeguimiento : numeroSeguimiento
+            numeroSeguimiento : numeroSeguimiento,
+            montoEntrega: montoEntrega
           };
 
           itemBase.r[ML_COL_PUBML] = pubReal;
@@ -2832,6 +2836,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   type="number"
                   class="monto-entrega-input"
                   data-key="${item.keyPersistencia}"
+                  data-venta="${ventaMLRow}"
+                  data-pubml="${pubMLSinMLC}"
+                  data-esfull="${item.esFull}"
+                  data-grupo="${item.grupo || ''}"
                   value="${item.montoEntrega || ''}"
                   placeholder="Costo Envío"
                   style="width:100%;padding:4px;"
@@ -3035,6 +3043,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultsBody.appendChild(tr);
       }
+
+      document
+      .querySelectorAll('.monto-entrega-input')
+      .forEach(input => {
+
+        if (!input.value) return;
+
+        input.dispatchEvent(
+          new Event('input', { bubbles: true })
+        );
+
+      });
 
       buildPills([...observaciones, ...observacionesOK]);
       restaurarEstadoDespachoUI();
@@ -4056,13 +4076,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-document.addEventListener('input', (e) => {
+document.addEventListener('input', async (e) => {
 
   if (!e.target.classList.contains('monto-entrega-input')) {
     return;
   }
 
+  const tr = e.target.closest('tr');
+  //const input = tr.querySelector('.codigo-input');
   const input = e.target;
+
+  if (!input) return;
+
+  const grupo = input.dataset.grupo;
+  const pubML = input.dataset.pubml;
+  const ventaML = input.dataset.venta;
+  const cambioProductoActual =
+  tr.querySelector('.cambio-checkbox')?.checked || false;
+
+  const keyPersistencia =
+    grupo
+      ? `${ventaML}|${grupo}`
+      : `${ventaML}|${pubML}`;
 
   const precioValorOriginal = input
     .closest('td')
@@ -4090,4 +4125,16 @@ document.addEventListener('input', (e) => {
     Math.round(precioCalculado)
       .toLocaleString('es-CL');
 
+  await fetch('/api/ml/ventas/codigos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: keyPersistencia,
+        ventaML,
+        pubML,
+        cambioProducto: null,
+        numeroSeguimiento: null,
+        montoEntrega: monto
+      })
+    });
 });
