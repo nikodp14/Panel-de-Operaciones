@@ -2566,6 +2566,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const esImportacion =
             /^importaci[oó]n\b/i.test(nombreProducto) ||
             /^improtaci[oó]n\b/i.test(nombreProducto);
+          
+          const codigoImportacion =
+            esImportacion
+              ? (nombreProducto.match(/^importación\s+(.+)$/i)?.[1] || '').trim()
+              : '';
 
           const esPedidoBodega =
             /^pedido bodega\b/i.test(nombreProducto) ||
@@ -2575,13 +2580,6 @@ document.addEventListener('DOMContentLoaded', () => {
             esPedidoBodega
               ? (nombreProducto.match(/^pedido bodega\s+(.+)$/i)?.[1] || '').trim()
               : '';
-            
-          const tieneTextoGuardado = 
-            String(codigoPersistido || '').trim() !== '';
-
-          const esImportacionPendiente =
-            esImportacion &&
-            !tieneTextoGuardado;
 
           let obsRender = obsFinal;
           
@@ -2647,11 +2645,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.codigoPedidoBodega = codigoPedidoBodega;
 
+          itemBase.codigoImportacion = codigoImportacion;
+
           if (esPedidoBodega && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'PEDIDO BODEGA';
             observaciones.push(itemBase);
           }
-          else if (esImportacionPendiente) {
+          else if (esImportacion && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'IMPORTACIÓN';
             observaciones.push(itemBase);
           }
@@ -2794,7 +2794,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigoEfectivo =
           codigoPersistidoLimpio
             ? codigoPersistidoLimpio
-            : (item.codigoPedidoBodega || codigoSugerido || '');
+            : (item.codigoPedidoBodega || item.codigoImportacion || codigoSugerido || '');
 
         const qtyRegistradaOdoo =
           odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
