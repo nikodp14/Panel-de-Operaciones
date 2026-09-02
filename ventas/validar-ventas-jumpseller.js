@@ -2640,6 +2640,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.esPedidoBodega = esPedidoBodega;
 
+          itemBase.cambioProducto =
+            esPedidoBodega
+              ? true
+              : (cambioProductoPersistido || false);
+
           itemBase.codigoPedidoBodega = codigoPedidoBodega;
 
           if (esPedidoBodega) {
