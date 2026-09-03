@@ -1444,7 +1444,8 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
     casadepto = '',
     comuna = '',
     referencia = '',
-    pagado = true
+    //pagado = true
+    textoOperacion = ''
   } = req.body;
 
   const doc = new PDFDocument({
@@ -1504,7 +1505,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
     .font('Helvetica-Bold')
     .fontSize(40)
     .text(
-      pagado ? 'PAGADO' : 'POR PAGAR',
+      textoOperacion,
       0,
       160,
       {
@@ -1518,8 +1519,8 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
   // =========================
 
   doc
-    .moveTo(0, 210)
-    .lineTo(ancho, 210)
+    .moveTo(0, 270)
+    .lineTo(ancho, 270)
     .stroke();
 
   // =========================
@@ -1529,7 +1530,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
-    .text('Destinatario:', 10, 220);
+    .text('Destinatario:', 10, 280);
 
   doc
     .font('Helvetica')
@@ -1537,7 +1538,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
     .text(
       nombre,
       75,
-      220,
+      280,
       {
         width: 190
       }
@@ -1550,7 +1551,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
-    .text('Teléfono:', 10, 240);
+    .text('Teléfono:', 10, 300);
 
   doc
     .font('Helvetica')
@@ -1558,7 +1559,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
     .text(
       telefono,
       75,
-      240,
+      300,
       {
         width: 200
       }
@@ -1569,8 +1570,8 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
   // =========================
 
   doc
-    .moveTo(0, 270)
-    .lineTo(ancho, 270)
+    .moveTo(0, 330)
+    .lineTo(ancho, 330)
     .stroke();
 
   // =========================
@@ -1580,7 +1581,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
-    .text('Dirección:', 10, 280);
+    .text('Dirección:', 10, 340);
 
   doc
     .font('Helvetica')
@@ -1588,7 +1589,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
     .text(
       direccion + (',' + ' ' + comuna || '').toUpperCase(),
       75,
-      280,
+      340,
       {
         width: 195
       }
@@ -1597,7 +1598,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
-    .text('Casa/Depto:', 10, 320); //330
+    .text('Casa/Depto:', 10, 380); //330
 
   doc
     .font('Helvetica')
@@ -1605,7 +1606,7 @@ app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
     .text(
       casadepto,
       75,
-      320,
+      380,
       {
         width: 195
       }

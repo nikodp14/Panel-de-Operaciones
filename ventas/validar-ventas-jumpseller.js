@@ -2973,9 +2973,15 @@ document.addEventListener('DOMContentLoaded', () => {
             })()}
           </td>
           <td>
+            <div>Cambio Prod:<br>
             ${obs !== 'OK'
               ? `<input type="checkbox" class="cambio-checkbox" ${item.cambioProducto ? 'checked' : ''} />`
               : `—`}
+            </div>
+            <br>
+            <div>Etiqueta Cambio:<br>
+              <input type="checkbox" class="etiqueta-cambio-checkbox" ${item.etiquetaCambio ? 'checked' : ''} />
+            </div>
           </td>
           <td>${unidadesML}</td>
           <td class="qty-despachar ${highlightDespacho ? 'qty-alert' : ''}"
@@ -4072,6 +4078,8 @@ document.addEventListener('DOMContentLoaded', () => {
   resultsBody.addEventListener('click', async (e) => {
 
     const btn = e.target.closest('.print-label-btn');
+    const checkedEtiquetaCambio = e.target.closest('tr').querySelector('.etiqueta-cambio-checkbox').checked;
+
     if (!btn) return;
 
     await imprimirEtiqueta({
@@ -4080,7 +4088,7 @@ document.addEventListener('DOMContentLoaded', () => {
       direccion: btn.dataset.direccion || '',
       casadepto: btn.dataset.casadepto || '',
       comuna: btn.dataset.comuna || '',
-      pagado: true
+      textoOperacion : checkedEtiquetaCambio ? 'CAMBIO PRODUCTO' : 'PAGADO'
     });
 
   });
