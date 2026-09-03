@@ -4,6 +4,7 @@ import multer from "multer";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import archiverPkg from "archiver";
+import PDFDocument from 'pdfkit';
 
 function readJSONSafe(path, defaultValue) {
   try {
@@ -1431,6 +1432,211 @@ app.get("/api/ml/comisiones/info", (req, res) => {
   const info = JSON.parse(fs.readFileSync(infoPath,"utf8"));
 
   res.json(info);
+
+});
+
+app.post('/api/etiqueta/pdf', express.json(), (req, res) => {
+
+  const {
+    nombre = '',
+    telefono = '',
+    direccion = '',
+    casadepto = '',
+    comuna = '',
+    referencia = '',
+    pagado = true
+  } = req.body;
+
+  const doc = new PDFDocument({
+    size: [288, 432], // 100x150 mm aprox
+    margin: 0
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    'inline; filename=etiqueta.pdf'
+  );
+
+  doc.pipe(res);
+
+  const ancho = 288;
+
+  // =========================
+  // WEB
+  // =========================
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(24)
+    .text(
+      'www.demoto.cl',
+      0,
+      18,
+      {
+        width: ancho,
+        align: 'center'
+      }
+    );
+
+  // =========================
+  // COMUNA
+  // =========================
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(30)
+    .text(
+      (comuna || '').toUpperCase(),
+      0,
+      75,
+      {
+        width: ancho,
+        align: 'center'
+      }
+    );
+
+  // =========================
+  // PAGADO
+  // =========================
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(40)
+    .text(
+      pagado ? 'PAGADO' : 'POR PAGAR',
+      0,
+      160,
+      {
+        width: ancho,
+        align: 'center'
+      }
+    );
+
+  // =========================
+  // LINEA 1
+  // =========================
+
+  doc
+    .moveTo(0, 210)
+    .lineTo(ancho, 210)
+    .stroke();
+
+  // =========================
+  // DESTINATARIO
+  // =========================
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .text('Destinatario:', 10, 220);
+
+  doc
+    .font('Helvetica')
+    .fontSize(10)
+    .text(
+      nombre,
+      75,
+      220,
+      {
+        width: 190
+      }
+    );
+
+  // =========================
+  // TELEFONO
+  // =========================
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .text('Teléfono:', 10, 240);
+
+  doc
+    .font('Helvetica')
+    .fontSize(10)
+    .text(
+      telefono,
+      75,
+      240,
+      {
+        width: 200
+      }
+    );
+
+  // =========================
+  // LINEA 2
+  // =========================
+
+  doc
+    .moveTo(0, 270)
+    .lineTo(ancho, 270)
+    .stroke();
+
+  // =========================
+  // DIRECCION
+  // =========================
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .text('Dirección:', 10, 280);
+
+  doc
+    .font('Helvetica')
+    .fontSize(10)
+    .text(
+      direccion + (',' + ' ' + comuna || '').toUpperCase(),
+      75,
+      280,
+      {
+        width: 195
+      }
+    );
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .text('Casa/Depto:', 10, 320); //330
+
+  doc
+    .font('Helvetica')
+    .fontSize(10)
+    .text(
+      casadepto,
+      75,
+      320,
+      {
+        width: 195
+      }
+    );
+
+  // =========================
+  // REFERENCIA
+  // =========================
+
+  /*doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .text(
+      'Referencia:',
+      10,
+      340
+    );
+
+  doc
+    .font('Helvetica')
+    .fontSize(10)
+    .text(
+      referencia || '',
+      10,
+      355,
+      {
+        width: ancho - 20
+      }
+    );*/
+
+  doc.end();
 
 });
 

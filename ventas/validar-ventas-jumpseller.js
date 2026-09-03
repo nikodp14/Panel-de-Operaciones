@@ -1764,6 +1764,26 @@ document.addEventListener('DOMContentLoaded', () => {
         'método de envío'
       ]);
 
+      const ML_COL_DIRECCION_ENVIO = findColIndexByName([
+        'dirección de envío'
+      ]);
+
+      const ML_COL_COMUNA_ENVIO = findColIndexByName([
+        'municipio de envío'
+      ]);
+
+      const ML_COL_NOMBRE_ENVIO = findColIndexByName([
+        'nombre del envío'
+      ]);
+
+      const ML_COL_CELULAR_ENVIO = findColIndexByName([
+        'teléfono'
+      ]);
+
+      const ML_COL_CASA_DEPTO_ENVIO = findColIndexByName([
+        'departamento puerta piso'
+      ]);
+
       if (ML_COL_METODO_ENVIO === -1) {
         throw new Error('No se encontró la columna "Nombre del método de envío" en el Excel.');
       }
@@ -2136,14 +2156,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const keyJS = `${ventaKey}|${codigoFinal}`;
 
-            console.log(
-              'AGREGANDO JS',
-              ventaKey,
-              codigoKey,
-              codigoFinal,
-              cantidadADespachar
-            );
-
             jumpsellerQtyByVentaCodigo.set(
               keyJS,
               (jumpsellerQtyByVentaCodigo.get(keyJS) || 0)
@@ -2196,6 +2208,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const titulo = String(r[ML_COL_TITULO] || '').toLowerCase();
         let metodoEnvio = String(r[ML_COL_METODO_ENVIO] || '').trim();
+        let nombreEnvio = String(r[ML_COL_NOMBRE_ENVIO] || '').trim();
+        let celularEnvio = String(r[ML_COL_CELULAR_ENVIO] || '').trim();
+        let direccionEnvio = String(r[ML_COL_DIRECCION_ENVIO] || '').trim();
+        let comunaEnvio = String(r[ML_COL_COMUNA_ENVIO] || '').trim();
+        let casadeptoEnvio = String(r[ML_COL_CASA_DEPTO_ENVIO] || '').trim();
 
         if (!esLineaHijaPaquete) {
           // Cabecera nueva
@@ -2449,8 +2466,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     `${ventaKey}|${codigoBuscar}`
                   ) || 0;
 
-                console.log(qtyJumpsellerTotal, ventaKey, codigoBuscar);
-
                 if (qtyOdoo < qtyJumpsellerTotal) {
 
                   obsFinal = 'FALTAN UNIDADES POR ENTREGAR EN ODOO';
@@ -2629,7 +2644,12 @@ document.addEventListener('DOMContentLoaded', () => {
             fechaMostrada: fechaMostrada,
             estadopagoMostrado : estadoML,
             metodoEnvio,
-            requiereEnvio : requiereEnvio
+            requiereEnvio : requiereEnvio,
+            direccionEnvio,
+            comunaEnvio,
+            nombreEnvio,
+            celularEnvio,
+            casadeptoEnvio
           };
 
           itemBase.r[ML_COL_PUBML] = pubProcesar;
@@ -2817,6 +2837,19 @@ document.addEventListener('DOMContentLoaded', () => {
               <div>${item.fechaMostrada}</div>
               <br>
               <div>${item.estadopagoMostrado}</div>
+              <br>
+              <div>
+              <button
+                class="print-label-btn"
+                data-nombre="${item.nombreEnvio}"
+                data-telefono="${item.celularEnvio}"
+                data-direccion="${item.direccionEnvio}"
+                data-comuna="${item.comunaEnvio}"
+                data-casadepto="${item.casadeptoEnvio}"
+              >
+                🖨️
+              </button>
+              </div>
           </td>
           <td style="display:none;>${item.fechaMostrada}</td>
           <td style="display:none;>${item.estadopagoMostrado}</td>
@@ -4012,4 +4045,37 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast("Error al exportar ventas", 2000, "error");
     }
   }
+
+  async function imprimirEtiqueta(datos) {
+
+    const response = await fetch('/api/etiqueta/pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(datos)
+    });
+
+    const blob = await response.blob();
+
+    const url = URL.createObjectURL(blob);
+
+    window.open(url, '_blank');
+  }
+
+  resultsBody.addEventListener('click', async (e) => {
+
+    const btn = e.target.closest('.print-label-btn');
+    if (!btn) return;
+
+    await imprimirEtiqueta({
+      nombre: btn.dataset.nombre || '',
+      telefono: btn.dataset.telefono || '',
+      direccion: btn.dataset.direccion || '',
+      casadepto: btn.dataset.casadepto || '',
+      comuna: btn.dataset.comuna || '',
+      pagado: true
+    });
+
+  });
 });

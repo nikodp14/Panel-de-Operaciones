@@ -1553,3 +1553,20 @@ tr.locked .lock-btn {
 .btn-full {
     background: #2dc768 !important;
 }
+
+.print-label-btn{
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.print-label-btn:focus,
+.print-label-btn:active{
+  outline: none;
+  box-shadow: none;
+}
