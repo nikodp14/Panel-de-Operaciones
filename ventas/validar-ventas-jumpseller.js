@@ -2837,19 +2837,25 @@ document.addEventListener('DOMContentLoaded', () => {
               <div>${item.fechaMostrada}</div>
               <br>
               <div>${item.estadopagoMostrado}</div>
-              <br>
-              <div>
-              <button
-                class="print-label-btn"
-                data-nombre="${item.nombreEnvio}"
-                data-telefono="${item.celularEnvio}"
-                data-direccion="${item.direccionEnvio}"
-                data-comuna="${item.comunaEnvio}"
-                data-casadepto="${item.casadeptoEnvio}"
-              >
-                🖨️
-              </button>
-              </div>
+              ${((item.metodoEnvio.toLowerCase().includes('santiago') &&
+                    item.metodoEnvio.toLowerCase().includes('colina') &&
+                    item.metodoEnvio.toLowerCase().includes('padre')) ||
+                    item.metodoEnvio.toLowerCase().includes('despacho propio') ||
+                    item.metodoEnvio.toLowerCase().includes('despacho local')) ? `
+                <br>
+                <div>
+                  <button
+                    class="print-label-btn"
+                    data-nombre="${item.nombreEnvio}"
+                    data-telefono="${item.celularEnvio}"
+                    data-direccion="${item.direccionEnvio}"
+                    data-comuna="${item.comunaEnvio}"
+                    data-casadepto="${item.casadeptoEnvio}"
+                  >
+                    🖨️
+                  </button>
+                </div>
+              ` : ''}
           </td>
           <td style="display:none;>${item.fechaMostrada}</td>
           <td style="display:none;>${item.estadopagoMostrado}</td>
