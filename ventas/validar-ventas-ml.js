@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
-  exportBtn.addEventListener("click", exportarVentasOdoo);
+  //exportBtn.addEventListener("click", exportarVentasOdoo);
 
   resultsBody.addEventListener("click", e => {
 
@@ -1655,6 +1655,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
+      const ML_COL_FORMA_ENTREGA = findColIndexByName([
+        'forma de entrega'
+      ]);
+
       const ML_COL_TITULO = findColIndexByName([
         'título de la publicación',
         'titulo de la publicacion'
@@ -1975,9 +1979,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalCLP = typeof totalCLPraw === 'number'
           ? totalCLPraw
           : parseFloat(String(totalCLPraw || '')/*.replace(/\./g, '')*/.replace(',', '.'));
-        const ML_COL_FORMA_ENTREGA = findColIndexByName([
-          'forma de entrega'
-        ]);
 
         const formaEntrega = String(r[ML_COL_FORMA_ENTREGA] || "").trim();
         
@@ -2004,6 +2005,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ventaPaqueteActiva = ventaML;        // 👈 guardar venta principal
           ventaLinkPaqueteActivo = ventaLink;  // 👈 guardar link principal
           esFullPaqueteActivo = esFull;
+          formaEntregaPaquetaActiva = formaEntrega;
 
           continue;
         }
@@ -2021,11 +2023,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let ventaMLFinal = ventaML;
         let ventaLinkFinal = ventaLink;
         let esFullFinal = esFull;
+        let formaEntregaFinal = formaEntrega;
 
         if (esLineaHijaPaquete && ventaPaqueteActiva) {
           ventaMLFinal = ventaPaqueteActiva;
           ventaLinkFinal = ventaLinkPaqueteActivo;
           esFullFinal = esFullPaqueteActivo;
+          formaEntregaFinal = formaEntregaPaquetaActiva;
         }
 
         if (!ventaML || !fecha) continue;
@@ -2124,6 +2128,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 opciones: pubProcesar.opciones,
                 ventaMLFinal,
                 ventaLink: ventaLinkFinal,
+                formaEntregaFinal,
                 esPack: true,
                 esLineaHijaPaquete,
                 obs: 'SELECCIONE PRODUCTO',
@@ -2398,7 +2403,8 @@ document.addEventListener('DOMContentLoaded', () => {
             grupo: grupoSeleccion,      // 👈 FALTA ESTO
             esFull: esFullFinal,
             numeroSeguimiento : numeroSeguimiento,
-            montoEntrega: montoEntrega
+            montoEntrega: montoEntrega,
+            formaEntregaFinal
           };
 
           itemBase.r[ML_COL_PUBML] = pubReal;
@@ -2453,7 +2459,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
           tr.innerHTML = `
             <td></td>
-
             <td>
               <div class="venta-copy">
                 ${item.ventaLink
@@ -2464,6 +2469,10 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
               <br>
               <div>${item.r[1]}</div>
+              <br>
+              <div>${item.r[2]}</div>
+              <br>
+              <div>${item.r[ML_COL_FORMA_ENTREGA]}</div>
               <br>
               <div>${estado}</div>
               ${mostrarSeguimiento ? `
@@ -2661,6 +2670,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <div>${item.r[1]}</div>
             <br>
             <div>${item.r[2]}</div>
+            <br>
+            <div style="color:${item.formaEntregaFinal=== "Mercado Envíos Flex" 
+                ? `#00bf00`
+                : `#b6a400`
+              };"><strong>${item.formaEntregaFinal}</strong></div>
             ${mostrarSeguimiento ? `
               <br>
                 <div class="seguimiento-box">
@@ -2929,6 +2943,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div>${item.r[1]}</div>
             <br>
             <div>${item.r[2]}</div>
+            <br>
+            <div>${item.r[ML_COL_FORMA_ENTREGA]}</div>
           </td>
           <td style="display:none;">${item.r[1]}</td>
           <td style="display:none;">${item.r[2]}</td>
