@@ -12,6 +12,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectAll = document.getElementById("selectAll");
   const exportBtn = document.getElementById("exportVentasBtn");
   const formatCLP = (n) => new Intl.NumberFormat("es-CL").format(n);
+  let flexRowActual = null;
+
+  const flexModal = document.getElementById("flexModal");
+
+  const flexNombre = document.getElementById("flexNombre");
+  const flexTelefono = document.getElementById("flexTelefono");
+  const flexDireccion = document.getElementById("flexDireccion");
+  const flexComuna = document.getElementById("flexComuna");
+  const flexCasaDepto = document.getElementById("flexCasaDepto");
   let modoSupervisor = false;
   let toastTimer = null;
 
@@ -24,6 +33,61 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     actualizarBotonExportar();
+  });
+
+  async function abrirModalFlex(tr){
+
+    flexRowActual = tr;
+
+    flexNombre.value =
+      tr.dataset.nombreEnvio || "";
+
+    flexTelefono.value =
+      tr.dataset.telefonoEnvio || "";
+
+    flexDireccion.value =
+      tr.dataset.direccionEnvio || "";
+
+    flexComuna.value =
+      tr.dataset.comunaEnvio || "";
+
+    flexCasaDepto.value =
+      tr.dataset.casadeptoEnvio || "";
+
+    flexModal.style.display = "block";
+
+  }
+
+  async function guardarFlexActual(){
+    
+    if(!flexRowActual) return;
+
+    flexRowActual.dataset.nombreEnvio =
+      flexNombre.value;
+
+    flexRowActual.dataset.telefonoEnvio =
+      flexTelefono.value;
+
+    flexRowActual.dataset.direccionEnvio =
+      flexDireccion.value;
+
+    flexRowActual.dataset.comunaEnvio =
+      flexComuna.value;
+
+    flexRowActual.dataset.casadeptoEnvio =
+      flexCasaDepto.value;
+
+    await guardarVentasServer();
+
+  }
+
+  document
+    .getElementById("cerrarFlexModal")
+    .addEventListener("click",()=>{
+
+      flexModal.style.display = "none";
+      flexRowActual = null;
+
   });
 
   function renderCopiable(valor, isLink = false, isPrice = false, isLinkMl = true) {
@@ -635,8 +699,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         tr.querySelector(".unidades-vendidas").value = v.unidades || 1;
         tr.querySelector(".precio-total").value = v.total || "";
 
+        const flexDataBtn = tr.querySelector(".flex-data-btn");
+        const printLabelBtn = tr.querySelector(".print-label-btn");
+
         if(v.flex){
           tr.querySelector(".flex-check").checked = true;
+          flexDataBtn.classList.remove("hidden");
+          printLabelBtn.classList.remove("hidden");
+        }
+        else
+        {
+          flexDataBtn.classList.add("hidden");
+          printLabelBtn.classList.add("hidden");
         }
 
         if(v.courier){
@@ -1156,6 +1230,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     <td>
 
     <input type="checkbox" class="flex-check">
+    <button class="flex-data-btn" title="Datos despacho">
+      📝
+    </button>
+
+    <button class="print-label-btn" title="Imprimir etiqueta">
+      🖨️
+    </button>
 
     </td>
 
@@ -1198,6 +1279,64 @@ document.addEventListener("DOMContentLoaded", async () => {
     ventaCounter++;
 
     ordenarTablaDesc();
+  });
+
+  resultsBody.addEventListener("click", async e=>{
+
+    const btn = e.target.closest(".flex-data-btn");
+
+    if(!btn) return;
+
+    const tr = btn.closest("tr");
+
+    await abrirModalFlex(tr);
+
+  });
+
+  resultsBody.addEventListener("click", async e => {
+
+    const printBtn = e.target.closest(".print-label-btn");
+
+    if(!printBtn) return;
+
+    const tr = printBtn.closest("tr");
+
+    if(!tr.dataset.nombreEnvio){
+      alert("Debe ingresar los datos de envío primero");
+      return;
+    }
+
+    await fetch('/api/etiqueta/pdf',{
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json'
+      },
+
+      body: JSON.stringify({
+
+        nombre: tr.dataset.nombreEnvio,
+        telefono: tr.dataset.telefonoEnvio,
+        direccion: tr.dataset.direccionEnvio,
+        comuna: tr.dataset.comunaEnvio,
+        casadepto: tr.dataset.casadeptoEnvio,
+
+        textoOperacion: 'PAGADO',
+        pagado: true
+
+      })
+
+    })
+    .then(r => r.blob())
+    .then(blob => {
+
+      const url = URL.createObjectURL(blob);
+
+      window.open(url, '_blank');
+
+    });
+
   });
 
   resultsBody.addEventListener("click", async e => {
@@ -1888,12 +2027,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const flex = tr.querySelector(".flex-check");
     const courier = tr.querySelector(".courier-check");
     const courierValor = tr.querySelector(".courier-valor");
+    const flexDataBtn = tr.querySelector(".flex-data-btn");
+    const printLabelBtn = tr.querySelector(".print-label-btn");
 
     if(e.target.classList.contains("flex-check")){
 
       if(flex.checked){
         courier.checked = false;
         courierValor.classList.add("hidden");
+        flexDataBtn.classList.remove("hidden");
+        printLabelBtn.classList.remove("hidden");
+      }
+      else
+      {
+        flexDataBtn.classList.add("hidden");
+        printLabelBtn.classList.add("hidden");
       }
 
       calcularValorOdoo(tr);
@@ -1929,7 +2077,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       courierValor: tr.querySelector(".courier-valor")?.value || "",
       pack: tr.classList.contains("pack-parent"),
       locked: tr.classList.contains("locked"),
-      paquetehijarow: tr.classList.contains("paquete-hija-row")
+      paquetehijarow: tr.classList.contains("paquete-hija-row"),
+      nombreEnvio: tr.dataset.nombreEnvio || "",
+      telefonoEnvio: tr.dataset.telefonoEnvio || "",
+      direccionEnvio: tr.dataset.direccionEnvio || "",
+      comunaEnvio: tr.dataset.comunaEnvio || "",
+      casadeptoEnvio: tr.dataset.casadeptoEnvio || ""
 
     }));
 
@@ -2032,6 +2185,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       tr.querySelector(".flex-check").checked = v.flex || false;
       tr.querySelector(".courier-check").checked = v.courier || false;
+
+      tr.dataset.nombreEnvio = v.nombreEnvio || "";
+      tr.dataset.telefonoEnvio = v.telefonoEnvio || "";
+      tr.dataset.direccionEnvio = v.direccionEnvio || "";
+      tr.dataset.comunaEnvio = v.comunaEnvio || "";
+      tr.dataset.casadeptoEnvio = v.casadeptoEnvio || "";
+
+      const flexDataBtn = tr.querySelector(".flex-data-btn");
+      const printLabelBtn = tr.querySelector(".print-label-btn");
+
+      if (v.flex){
+        flexDataBtn.classList.remove("hidden");
+        printLabelBtn.classList.remove("hidden");
+      }
+      else
+      {
+        flexDataBtn.classList.add("hidden");
+        printLabelBtn.classList.add("hidden");
+      }
 
       if(v.courier){
         const c = tr.querySelector(".courier-valor");
@@ -2170,6 +2342,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   resultsBody.addEventListener("input", guardarVentasDebounced);
+  flexModal.addEventListener("input", guardarFlexActual);
   resultsBody.addEventListener("change", (e) => {
 
     // No guardar cuando cambian checkboxes de exportación
