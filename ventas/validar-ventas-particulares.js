@@ -1224,20 +1224,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     <td class="unidades-odoo">0</td>
 
     <td>
-    <input type="number" class="precio-total">
+      <input type="number" class="precio-total">
     </td>
 
     <td>
-
-    <input type="checkbox" class="flex-check">
-    <button class="flex-data-btn" title="Datos despacho">
-      📝
-    </button>
-
-    <button class="print-label-btn" title="Imprimir etiqueta">
-      🖨️
-    </button>
-
+      <div>
+        <input type="checkbox" class="flex-check">
+      </div>
+      <br>
+      <div>
+        Etiqueta Cambio:<br>
+          <input type="checkbox" class="etiqueta-cambio-checkbox"} />
+      </div>
+      <div>
+        <button class="flex-data-btn" title="Datos despacho">
+          📝
+        </button>
+      </div>
+      <div>
+        <button class="print-label-btn" title="Imprimir etiqueta">
+          🖨️
+        </button>
+      </div>
     </td>
 
     <td>
@@ -1296,6 +1304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   resultsBody.addEventListener("click", async e => {
 
     const printBtn = e.target.closest(".print-label-btn");
+    const checkedEtiquetaCambio = e.target.closest('tr').querySelector('.etiqueta-cambio-checkbox').checked;
 
     if(!printBtn) return;
 
@@ -1321,8 +1330,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         direccion: tr.dataset.direccionEnvio,
         comuna: tr.dataset.comunaEnvio,
         casadepto: tr.dataset.casadeptoEnvio,
-
-        textoOperacion: 'PAGADO',
+        textoOperacion: checkedEtiquetaCambio ? 'CAMBIO PRODUCTO' : 'PAGADO',
         pagado: true
 
       })
