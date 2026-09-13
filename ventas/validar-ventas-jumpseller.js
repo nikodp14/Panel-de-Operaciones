@@ -669,7 +669,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    await runValidacionVentas();
+    //await runValidacionVentas();
+    sessionStorage.setItem('scrollY', window.scrollY);
+    location.reload();
 
   });
 
@@ -3831,7 +3833,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       statusEl.textContent = 'Ejecutando validación automática...';
 
-      await runValidacionVentas();
+      //await runValidacionVentas();
+      sessionStorage.setItem('scrollY', window.scrollY);
+      location.reload();
 
     } catch (err) {
       console.error("Auto validación error", err);
@@ -3840,7 +3844,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }, 300);
 
-  setTimeout(async () => {
+  /*setTimeout(async () => {
 
     try {
       statusEl.textContent = 'Cargando validación automática...';
@@ -3849,7 +3853,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn("Auto validación no ejecutada", err);
     }
 
-  }, 300);
+  }, 300);/
 
   async function exportarVentasOdoo() {
     const resumenPedidos = {};
