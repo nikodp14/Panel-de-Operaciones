@@ -2670,7 +2670,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.codigoImportacion = codigoImportacion;
 
-          if (esPedidoBodega && !escaneado && !includesCancelOrReturn(estadoML)) {
+          if (esPedidoBodega && escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'PEDIDO BODEGA';
             observaciones.push(itemBase);
           }
