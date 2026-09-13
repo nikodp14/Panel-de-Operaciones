@@ -1099,7 +1099,9 @@ document.addEventListener('DOMContentLoaded', () => {
           envioManual: valor
         };
 
-        await runValidacionVentas();
+        //await runValidacionVentas();
+        sessionStorage.setItem('scrollY', window.scrollY);
+        location.reload();
 
       } catch (err) {
         console.error("Error guardando envío", err);
@@ -3244,6 +3246,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     finally{
       validacionEnCurso = false;
+      const y = sessionStorage.getItem('scrollY');
+
+      if (y) {
+        window.scrollTo(0, Number(y));
+        sessionStorage.removeItem('scrollY');
+      }
     }
   };
 
