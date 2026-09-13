@@ -3853,7 +3853,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn("Auto validación no ejecutada", err);
     }
 
-  }, 300);/
+  }, 300);*/
 
   async function exportarVentasOdoo() {
     const resumenPedidos = {};
