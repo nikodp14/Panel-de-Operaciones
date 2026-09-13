@@ -78,9 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast("Modo supervisor activado ⚠️", 2000);
 
         // 🔥 volver a correr validación SIN restricciones
-        //await runValidacionVentas();
-        sessionStorage.setItem('scrollY', window.scrollY);
-        location.reload();
+        await runValidacionVentas();
 
       } else {
         showToast("Clave incorrecta ❌", 2000, "error");
