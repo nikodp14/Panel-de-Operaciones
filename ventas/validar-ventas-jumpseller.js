@@ -2670,13 +2670,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
           itemBase.codigoImportacion = codigoImportacion;
 
-          if (esPedidoBodega && escaneado && !includesCancelOrReturn(estadoML)) {
+          if (esPedidoBodega && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'PEDIDO BODEGA';
-            observaciones.push(itemBase);
+            //observaciones.push(itemBase);
           }
           else if (esImportacion && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'IMPORTACIÓN';
-            observaciones.push(itemBase);
+            //observaciones.push(itemBase);
           }
           else if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
