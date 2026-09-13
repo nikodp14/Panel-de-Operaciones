@@ -1109,7 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Error guardando envío", err);
       }
 
-    }, 1000);
+    }, 1500);
 
   });
 
