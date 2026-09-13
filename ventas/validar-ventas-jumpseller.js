@@ -655,10 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showToast("Archivos cargados ✅", 1500);
 
-    sessionStorage.setItem('scrollY', window.scrollY);
-    location.reload();
-
-    /*await esperarProcesamiento();
+    await esperarProcesamiento();
 
     faltantes = await validarArchivosDelDiaJumpseller();
 
@@ -670,9 +667,11 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       return;
-    }*/
+    }
 
     //await runValidacionVentas();
+    sessionStorage.setItem('scrollY', window.scrollY);
+    location.reload();
 
   });
 
