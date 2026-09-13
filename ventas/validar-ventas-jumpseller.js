@@ -78,7 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast("Modo supervisor activado ⚠️", 2000);
 
         // 🔥 volver a correr validación SIN restricciones
-        await runValidacionVentas();
+        //await runValidacionVentas();
+        sessionStorage.setItem('scrollY', window.scrollY);
+        location.reload();
 
       } else {
         showToast("Clave incorrecta ❌", 2000, "error");
@@ -3833,9 +3835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       statusEl.textContent = 'Ejecutando validación automática...';
 
-      //await runValidacionVentas();
-      sessionStorage.setItem('scrollY', window.scrollY);
-      location.reload();
+      await runValidacionVentas();
 
     } catch (err) {
       console.error("Auto validación error", err);
