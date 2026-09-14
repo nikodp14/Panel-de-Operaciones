@@ -656,6 +656,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         firstCell.innerHTML = "";
         tr.querySelector(".links-col").innerHTML = "";
       }
+      
+      if (!hayMatch){
+        tr.querySelector(".obs-cell").textContent = "PRODUCTO NO EXISTE EN ODOO";
+      }
     }
 
     actualizarSelectAll();
