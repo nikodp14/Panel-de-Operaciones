@@ -727,7 +727,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   function addRow() {
     const tr = document.createElement('tr');
-    const descuentoGlobal = document.getElementById('descuentoGlobal').value || 30;
+    const descuentoGlobal = document.getElementById('descuentoGlobal').value || 40;
 
     tr.innerHTML = `
         <td style="display:none;">
@@ -1168,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const descuentoGlobal =
-      document.getElementById('descuentoGlobal')?.value || 30;
+      document.getElementById('descuentoGlobal')?.value || 40;
 
     await fetch(`/api/cotizaciones-nacional/${cot}`, {
       method: 'POST',
@@ -1196,7 +1196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!cotData || !cotData.lineas || !cotData.lineas.length) {
 
-      descuentoInput.value = 30;
+      descuentoInput.value = 40;
 
       addRow();
       aplicarBloqueo(estabaBloqueado);
