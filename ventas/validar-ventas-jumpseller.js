@@ -1905,6 +1905,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ? new Date('2026-01-01')   // entorno local
         : new Date('2026-03-13');  // producción
       const observaciones = [];
+      const pedidosBodega = [];
+      const importacion = [];
       const observacionesOK = [];
       const odooQtyByVenta = new Map();
 
@@ -2674,11 +2676,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (esPedidoBodega && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'PEDIDO BODEGA';
-            //observaciones.push(itemBase);
+            pedidosBodega.push(itemBase);
           }
           else if (esImportacion && !escaneado && !includesCancelOrReturn(estadoML)) {
             itemBase.obs = 'IMPORTACIÓN';
-            //observaciones.push(itemBase);
+            importacion.push(itemBase);
           }
           else if (obsRender === 'OK') {
             observacionesOK.push(itemBase);
@@ -2700,6 +2702,686 @@ document.addEventListener('DOMContentLoaded', () => {
       let pintarPrimeraLineaPack = true;
 
       for (const item of observaciones) {
+        const obs = item.obs;
+        const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
+
+        const isRegistrar = obs === 'REGISTRAR VENTA EN ODOO';
+
+        const tr = document.createElement('tr');
+
+        const unidadesML = item.cantidad || 0;
+        const pubMLSinMLC = String(item.r[ML_COL_PUBML] || '')
+          .replace(/^MLC/i, '')
+          .trim();
+          //console.log(pubMLSinMLC);
+
+        let unidadesDespachar = await calcularCantidadDespacho(
+          pubMLSinMLC,
+          unidadesML
+        );
+      
+        // 🔴 Si es DEVOLVER, forzar visualmente a 0
+        if (obs === 'DEVOLVER') {
+          unidadesDespachar = 0;
+        }
+
+        const highlightDespacho = unidadesDespachar > unidadesML;
+        
+        /*if (item.ventaMLFinal == 3162){
+            console.log(item.esLineaHijaPaquete);
+            console.log('ultimaFilaRenderizada');
+            console.log(ultimaFilaRenderizada);
+            console.log(item.pubProcesar);
+          }*/
+
+        if (item.ventaMLFinal != ultimaVenta)
+          pintarPrimeraLineaPack = true;
+          
+        ultimaVenta = item.ventaMLFinal;
+
+        if (item.esLineaHijaPaquete) {
+          tr.classList.add('paquete-hija-row');
+          // 🔹 marcar cabecera retroactivamente
+          if (ultimaFilaRenderizada && pintarPrimeraLineaPack) {
+            ultimaFilaRenderizada.classList.remove('pack-row');
+            ultimaFilaRenderizada.classList.add('pack-parent');
+            pintarPrimeraLineaPack = false;
+          }
+        }
+        else if (item.esPack) {
+          tr.classList.add('pack-row');
+        }
+        else if (highlightDespacho) {
+          tr.classList.add('kit-row');
+        }
+
+        if (item.esPagoPendiente) {
+          tr.classList.add('pago-pendiente');
+        }
+
+        const tituloReal = tituloPorPublicacion.get(pubMLSinMLC);
+
+        const tituloPub = /*tituloReal
+          ? tituloReal
+          : */String(item.r[ML_COL_TITULO] || '').trim();// Col S
+        let variante = '';
+        if (ML_COL_VARIANTE !== -1) {
+          variante = String(item.r[ML_COL_VARIANTE] || '')
+          .replace(/color\s*:/i, '')
+          .trim(); // Col T
+        } else {
+          variante = extraerColorDesdeTitulo(tituloPub);
+        }
+
+        // Normalización de variante
+        const varianteNorm = variante.toLowerCase();
+        const tituloNorm = tituloPub.toLowerCase();
+
+        const variantesIgnorar = ['original', 'aluminio', 'ambos lados'];
+
+        let mostrarVariante = variante &&
+          varianteNorm !== tituloNorm &&
+          !variantesIgnorar.includes(varianteNorm);
+
+        if (mostrarVariante) {
+          variante = variante.replace(/color:/i, '').trim();
+        }
+
+        const mostrarInfoProducto = true; // siempre que la fila exista, mostrar el producto
+        const ventaMLRow = item.ventaMLFinal;
+        const codigo = (item.codigoPersistido || '').toUpperCase();
+        const ventaKey = normVentaKey(ventaMLRow);
+        const codigoKey = normCodigo(item.codigoPersistido);
+        let codigoSugerido = '';
+
+        try {
+          const matches = resolveMlVariant({
+            publication: pubMLSinMLC,
+            mlVariantRaw: variante,
+            mlTitle: tituloPub,
+            odooProducts: variantesOdooCache,
+            variantesValidarSet
+          });
+          
+          /*if (pubMLSinMLC == 2823789240){
+            console.log(pubMLSinMLC, variante, tituloPub, variantesOdooCache, variantesValidarSet, matches);
+          }*/
+
+          if (matches && matches.length === 1) {
+            codigoSugerido = matches[0].barcode;
+          }
+
+        } catch (err) {
+          console.warn("Resolver variante ML error", err);
+        }
+
+        const codigoPersistidoLimpio =
+          (item.codigoPersistido || '').trim();
+
+        const codigoEfectivo =
+          codigoPersistidoLimpio
+            ? codigoPersistidoLimpio
+            : (item.codigoPedidoBodega || item.codigoImportacion || codigoSugerido || '');
+
+        const qtyRegistradaOdoo =
+          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
+
+        tr.innerHTML = `
+          <td>${
+              item.obs === "REGISTRAR VENTA EN ODOO"
+                ? `<input type="checkbox" class="row-check">`
+                : ``
+            }</td>
+          <td>
+            <div class="venta-copy">
+              ${item.ventaLink
+                ? `<a href="${item.ventaLink}" target="_blank" class="venta-link">${item.ventaMLFinal}</a>`
+                : item.ventaMLFinal
+              }
+              <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
+            </div>
+            <br>
+              <div>${item.fechaMostrada}</div>
+              <br>
+              <div>${item.estadopagoMostrado}</div>
+              ${((item.metodoEnvio.toLowerCase().includes('santiago') &&
+                    item.metodoEnvio.toLowerCase().includes('colina') &&
+                    item.metodoEnvio.toLowerCase().includes('padre')) ||
+                    item.metodoEnvio.toLowerCase().includes('despacho propio') ||
+                    item.metodoEnvio.toLowerCase().includes('despacho local')) ? `
+                <br>
+                <div>
+                  <button
+                    class="print-label-btn"
+                    data-nombre="${item.nombreEnvio}"
+                    data-telefono="${item.celularEnvio}"
+                    data-direccion="${item.direccionEnvio}"
+                    data-comuna="${item.comunaEnvio}"
+                    data-casadepto="${item.casadeptoEnvio}"
+                  >
+                    🖨️
+                  </button>
+                </div>
+              ` : ''}
+          </td>
+          <td style="display:none;>${item.fechaMostrada}</td>
+          <td style="display:none;>${item.estadopagoMostrado}</td>
+          <td>
+            <div><strong>Compra</strong></div>
+            ${mostrarInfoProducto
+              ? `
+                <div class="producto-despachar">
+                  <div class="linea-pubml">
+                    <span class="pubml-tag">${pubMLSinMLC}</span>
+                    <span class="titulo-pub">${tituloPub}</span>
+                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
+                  </div>
+
+                  <!--<div class="linea-titulo">
+                    <span class="titulo-pub">${tituloPub}</span>
+                  </div>
+                  <div>
+                    ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
+                  </div>-->
+
+                  <!-- 👇 Input SIEMPRE visible en NO OK -->
+                  <div><strong>Despacho</strong></div>
+                  <div class="codigo-wrapper">
+                    <input
+                      type="text"
+                      class="codigo-input"
+                      placeholder="${item.codigoPersistido ? 'Modificar código' : 'Ingresar código'}"
+                      data-venta="${ventaMLRow}"
+                      data-pubml="${pubMLSinMLC}"
+                      value="${codigoEfectivo}"
+                    />
+                    <div class="odoo-suggestions hidden"></div>
+                  </div>
+
+                  ${(() => {
+                    const codigoEquivalente = resolverCodigoEquivalente(
+                      ventaKey,
+                      codigoEfectivo
+                    );
+
+                    const codigoFinal = codigoEquivalente || codigoEfectivo;
+
+                    const info = getVarianteOdooFlexible(codigoFinal);
+
+                    const codigoOriginalRaw = info?.default_code || '';
+
+                    // 🔥 separar por / (por si viene combinado)
+                    const partes = codigoOriginalRaw.split('/');
+
+                    // 🔥 buscar la parte que tenga letras
+                    const codigoConLetras = partes.find(p => /[A-Z]/i.test(p)) || '';
+
+                    // 🔥 validación final
+                    const tieneLetras = !!codigoConLetras;
+
+                    return `
+                      <div class="linea-codigo-original">
+                        ${tieneLetras ? `
+                          <span class="codigo-original-label">Código prod. original:</span>
+                          <span class="codigo-original-valor">${codigoConLetras}</span>
+                        ` : ''}
+                      </div>
+                      <div class="linea-nombre">
+                        <!--<span class="codigo-label">Nombre prod. a despachar:</span>-->
+                        <span class="nombre-valor">${info?.name || '—'}</span>
+                        <span class="variante-valor">${info?.variant || '—'}</span>
+                      </div>
+
+                      <!--<div class="linea-variante">
+                        <span class="codigo-label">Variante prod. a despachar:</span>
+                        <span class="variante-valor">${info?.variant || '—'}</span>
+                      </div>-->
+                    `;
+                  })()}
+                  <div class="scan-area">
+                    <button class="scan-gun-btn">Escanear</button>
+
+                    <div class="scan-result-wrapper">
+                      <span class="scan-result">
+                        ${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.escaneado || '—'}
+                      </span>
+                      <span 
+                        class="copy-scan" 
+                        data-scan="${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.escaneado || ''}"
+                        title="Copiar código escaneado"
+                      >📋</span>
+                    </div>
+                  </div>
+              `
+              : `—`}
+
+              <div class="obs-cell error-cell">
+                ${item.obs}
+              </div>
+          </td>
+          <td class="ubicaciones-col">
+            ${(() => {
+
+              const ubicaciones = getUbicacionesPorCodigo(codigoEfectivo);
+
+              if (!ubicaciones.length) return '—';
+
+              return ubicaciones
+              .map(u => `
+                <div class="ubicacion-tag">
+                  <span class="ubicacion-text">
+                    ${u.ubicacion} <b>(${u.cantidad})</b>
+                  </span>
+                  <span class="copy-ubicacion" data-ubicacion="${u.ubicacion}" title="Copiar ubicación">📋</span>
+                </div>
+              `)
+              .join('');
+
+            })()}
+          </td>
+          <td>
+            <div>Cambio Prod:<br>
+            ${obs !== 'OK'
+              ? `<input type="checkbox" class="cambio-checkbox" ${item.cambioProducto ? 'checked' : ''} />`
+              : `—`}
+            </div>
+            <br>
+            <div>Etiqueta Cambio:<br>
+              <input type="checkbox" class="etiqueta-cambio-checkbox" ${item.etiquetaCambio ? 'checked' : ''} />
+            </div>
+          </td>
+          <td>${unidadesML}</td>
+          <td class="qty-despachar ${highlightDespacho ? 'qty-alert' : ''}"
+              title="${highlightDespacho ? 'Kit detectado: se despachan más unidades que las vendidas en ML' : ''}">
+            <div class="qty-wrapper">
+              <span class="qty-valor">${unidadesDespachar}</span>
+              <span class="copy-qty" data-qty="${unidadesDespachar}" title="Copiar unidades">📋</span>
+              ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
+            </div>
+          </td>
+          <td class="${
+            qtyRegistradaOdoo < unidadesDespachar ? 'qty-alert' :
+            qtyRegistradaOdoo > unidadesDespachar ? 'qty-exceso' : ''
+          }">
+            ${qtyRegistradaOdoo}
+          </td>
+          <td>
+              ${item.requiereEnvio ? `
+                <div class="envio-input-wrapper">
+                  <input 
+                    type="number"
+                    class="envio-input"
+                    placeholder="Costo envío"
+                    data-venta="${ventaMLRow}"
+                    data-pubml="${pubMLSinMLC}"
+                    value="${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual || ''}"
+                  />
+                </div>
+              ` : ''}
+            ${(item.requiereEnvio && codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual > 0) || !item.requiereEnvio ? `
+            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            ` : ''}
+          </td>
+          <td class="obs-cell error-cell" style="display:none;>
+            ${item.obs}
+          </td>
+        `;
+
+        resultsBody.appendChild(tr);
+        ultimaFilaRenderizada = tr;
+
+        const check = tr.querySelector(".row-check");
+
+        if (check) {
+          check.addEventListener("change", () => {
+            actualizarSelectAll();
+            actualizarBotonExportar();
+          });
+        }
+      }
+
+      for (const item of pedidosBodega) {
+        const obs = item.obs;
+        const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
+
+        const isRegistrar = obs === 'REGISTRAR VENTA EN ODOO';
+
+        const tr = document.createElement('tr');
+
+        const unidadesML = item.cantidad || 0;
+        const pubMLSinMLC = String(item.r[ML_COL_PUBML] || '')
+          .replace(/^MLC/i, '')
+          .trim();
+          //console.log(pubMLSinMLC);
+
+        let unidadesDespachar = await calcularCantidadDespacho(
+          pubMLSinMLC,
+          unidadesML
+        );
+      
+        // 🔴 Si es DEVOLVER, forzar visualmente a 0
+        if (obs === 'DEVOLVER') {
+          unidadesDespachar = 0;
+        }
+
+        const highlightDespacho = unidadesDespachar > unidadesML;
+        
+        /*if (item.ventaMLFinal == 3162){
+            console.log(item.esLineaHijaPaquete);
+            console.log('ultimaFilaRenderizada');
+            console.log(ultimaFilaRenderizada);
+            console.log(item.pubProcesar);
+          }*/
+
+        if (item.ventaMLFinal != ultimaVenta)
+          pintarPrimeraLineaPack = true;
+          
+        ultimaVenta = item.ventaMLFinal;
+
+        if (item.esLineaHijaPaquete) {
+          tr.classList.add('paquete-hija-row');
+          // 🔹 marcar cabecera retroactivamente
+          if (ultimaFilaRenderizada && pintarPrimeraLineaPack) {
+            ultimaFilaRenderizada.classList.remove('pack-row');
+            ultimaFilaRenderizada.classList.add('pack-parent');
+            pintarPrimeraLineaPack = false;
+          }
+        }
+        else if (item.esPack) {
+          tr.classList.add('pack-row');
+        }
+        else if (highlightDespacho) {
+          tr.classList.add('kit-row');
+        }
+
+        if (item.esPagoPendiente) {
+          tr.classList.add('pago-pendiente');
+        }
+
+        const tituloReal = tituloPorPublicacion.get(pubMLSinMLC);
+
+        const tituloPub = /*tituloReal
+          ? tituloReal
+          : */String(item.r[ML_COL_TITULO] || '').trim();// Col S
+        let variante = '';
+        if (ML_COL_VARIANTE !== -1) {
+          variante = String(item.r[ML_COL_VARIANTE] || '')
+          .replace(/color\s*:/i, '')
+          .trim(); // Col T
+        } else {
+          variante = extraerColorDesdeTitulo(tituloPub);
+        }
+
+        // Normalización de variante
+        const varianteNorm = variante.toLowerCase();
+        const tituloNorm = tituloPub.toLowerCase();
+
+        const variantesIgnorar = ['original', 'aluminio', 'ambos lados'];
+
+        let mostrarVariante = variante &&
+          varianteNorm !== tituloNorm &&
+          !variantesIgnorar.includes(varianteNorm);
+
+        if (mostrarVariante) {
+          variante = variante.replace(/color:/i, '').trim();
+        }
+
+        const mostrarInfoProducto = true; // siempre que la fila exista, mostrar el producto
+        const ventaMLRow = item.ventaMLFinal;
+        const codigo = (item.codigoPersistido || '').toUpperCase();
+        const ventaKey = normVentaKey(ventaMLRow);
+        const codigoKey = normCodigo(item.codigoPersistido);
+        let codigoSugerido = '';
+
+        try {
+          const matches = resolveMlVariant({
+            publication: pubMLSinMLC,
+            mlVariantRaw: variante,
+            mlTitle: tituloPub,
+            odooProducts: variantesOdooCache,
+            variantesValidarSet
+          });
+          
+          /*if (pubMLSinMLC == 2823789240){
+            console.log(pubMLSinMLC, variante, tituloPub, variantesOdooCache, variantesValidarSet, matches);
+          }*/
+
+          if (matches && matches.length === 1) {
+            codigoSugerido = matches[0].barcode;
+          }
+
+        } catch (err) {
+          console.warn("Resolver variante ML error", err);
+        }
+
+        const codigoPersistidoLimpio =
+          (item.codigoPersistido || '').trim();
+
+        const codigoEfectivo =
+          codigoPersistidoLimpio
+            ? codigoPersistidoLimpio
+            : (item.codigoPedidoBodega || item.codigoImportacion || codigoSugerido || '');
+
+        const qtyRegistradaOdoo =
+          odooQtyByVentaCodigo.get(`${ventaKey}|${codigoEfectivo}`) || 0;
+
+        tr.innerHTML = `
+          <td>${
+              item.obs === "REGISTRAR VENTA EN ODOO"
+                ? `<input type="checkbox" class="row-check">`
+                : ``
+            }</td>
+          <td>
+            <div class="venta-copy">
+              ${item.ventaLink
+                ? `<a href="${item.ventaLink}" target="_blank" class="venta-link">${item.ventaMLFinal}</a>`
+                : item.ventaMLFinal
+              }
+              <span class="copy-venta" data-venta="${item.ventaMLFinal}" title="Copiar venta">📋</span>
+            </div>
+            <br>
+              <div>${item.fechaMostrada}</div>
+              <br>
+              <div>${item.estadopagoMostrado}</div>
+              ${((item.metodoEnvio.toLowerCase().includes('santiago') &&
+                    item.metodoEnvio.toLowerCase().includes('colina') &&
+                    item.metodoEnvio.toLowerCase().includes('padre')) ||
+                    item.metodoEnvio.toLowerCase().includes('despacho propio') ||
+                    item.metodoEnvio.toLowerCase().includes('despacho local')) ? `
+                <br>
+                <div>
+                  <button
+                    class="print-label-btn"
+                    data-nombre="${item.nombreEnvio}"
+                    data-telefono="${item.celularEnvio}"
+                    data-direccion="${item.direccionEnvio}"
+                    data-comuna="${item.comunaEnvio}"
+                    data-casadepto="${item.casadeptoEnvio}"
+                  >
+                    🖨️
+                  </button>
+                </div>
+              ` : ''}
+          </td>
+          <td style="display:none;>${item.fechaMostrada}</td>
+          <td style="display:none;>${item.estadopagoMostrado}</td>
+          <td>
+            <div><strong>Compra</strong></div>
+            ${mostrarInfoProducto
+              ? `
+                <div class="producto-despachar">
+                  <div class="linea-pubml">
+                    <span class="pubml-tag">${pubMLSinMLC}</span>
+                    <span class="titulo-pub">${tituloPub}</span>
+                     ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
+                  </div>
+
+                  <!--<div class="linea-titulo">
+                    <span class="titulo-pub">${tituloPub}</span>
+                  </div>
+                  <div>
+                    ${mostrarVariante ? `<span class="variante-pub">(${variante})</span>` : ``}
+                  </div>-->
+
+                  <!-- 👇 Input SIEMPRE visible en NO OK -->
+                  <div><strong>Despacho</strong></div>
+                  <div class="codigo-wrapper">
+                    <input
+                      type="text"
+                      class="codigo-input"
+                      placeholder="${item.codigoPersistido ? 'Modificar código' : 'Ingresar código'}"
+                      data-venta="${ventaMLRow}"
+                      data-pubml="${pubMLSinMLC}"
+                      value="${codigoEfectivo}"
+                    />
+                    <div class="odoo-suggestions hidden"></div>
+                  </div>
+
+                  ${(() => {
+                    const codigoEquivalente = resolverCodigoEquivalente(
+                      ventaKey,
+                      codigoEfectivo
+                    );
+
+                    const codigoFinal = codigoEquivalente || codigoEfectivo;
+
+                    const info = getVarianteOdooFlexible(codigoFinal);
+
+                    const codigoOriginalRaw = info?.default_code || '';
+
+                    // 🔥 separar por / (por si viene combinado)
+                    const partes = codigoOriginalRaw.split('/');
+
+                    // 🔥 buscar la parte que tenga letras
+                    const codigoConLetras = partes.find(p => /[A-Z]/i.test(p)) || '';
+
+                    // 🔥 validación final
+                    const tieneLetras = !!codigoConLetras;
+
+                    return `
+                      <div class="linea-codigo-original">
+                        ${tieneLetras ? `
+                          <span class="codigo-original-label">Código prod. original:</span>
+                          <span class="codigo-original-valor">${codigoConLetras}</span>
+                        ` : ''}
+                      </div>
+                      <div class="linea-nombre">
+                        <!--<span class="codigo-label">Nombre prod. a despachar:</span>-->
+                        <span class="nombre-valor">${info?.name || '—'}</span>
+                        <span class="variante-valor">${info?.variant || '—'}</span>
+                      </div>
+
+                      <!--<div class="linea-variante">
+                        <span class="codigo-label">Variante prod. a despachar:</span>
+                        <span class="variante-valor">${info?.variant || '—'}</span>
+                      </div>-->
+                    `;
+                  })()}
+                  <div class="scan-area">
+                    <button class="scan-gun-btn">Escanear</button>
+
+                    <div class="scan-result-wrapper">
+                      <span class="scan-result">
+                        ${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.escaneado || '—'}
+                      </span>
+                      <span 
+                        class="copy-scan" 
+                        data-scan="${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.escaneado || ''}"
+                        title="Copiar código escaneado"
+                      >📋</span>
+                    </div>
+                  </div>
+              `
+              : `—`}
+
+              <div class="obs-cell error-cell">
+                ${item.obs}
+              </div>
+          </td>
+          <td class="ubicaciones-col">
+            ${(() => {
+
+              const ubicaciones = getUbicacionesPorCodigo(codigoEfectivo);
+
+              if (!ubicaciones.length) return '—';
+
+              return ubicaciones
+              .map(u => `
+                <div class="ubicacion-tag">
+                  <span class="ubicacion-text">
+                    ${u.ubicacion} <b>(${u.cantidad})</b>
+                  </span>
+                  <span class="copy-ubicacion" data-ubicacion="${u.ubicacion}" title="Copiar ubicación">📋</span>
+                </div>
+              `)
+              .join('');
+
+            })()}
+          </td>
+          <td>
+            <div>Cambio Prod:<br>
+            ${obs !== 'OK'
+              ? `<input type="checkbox" class="cambio-checkbox" ${item.cambioProducto ? 'checked' : ''} />`
+              : `—`}
+            </div>
+            <br>
+            <div>Etiqueta Cambio:<br>
+              <input type="checkbox" class="etiqueta-cambio-checkbox" ${item.etiquetaCambio ? 'checked' : ''} />
+            </div>
+          </td>
+          <td>${unidadesML}</td>
+          <td class="qty-despachar ${highlightDespacho ? 'qty-alert' : ''}"
+              title="${highlightDespacho ? 'Kit detectado: se despachan más unidades que las vendidas en ML' : ''}">
+            <div class="qty-wrapper">
+              <span class="qty-valor">${unidadesDespachar}</span>
+              <span class="copy-qty" data-qty="${unidadesDespachar}" title="Copiar unidades">📋</span>
+              ${highlightDespacho ? '<span class="kit-badge">(PACK)</span>' : ''}
+            </div>
+          </td>
+          <td class="${
+            qtyRegistradaOdoo < unidadesDespachar ? 'qty-alert' :
+            qtyRegistradaOdoo > unidadesDespachar ? 'qty-exceso' : ''
+          }">
+            ${qtyRegistradaOdoo}
+          </td>
+          <td>
+              ${item.requiereEnvio ? `
+                <div class="envio-input-wrapper">
+                  <input 
+                    type="number"
+                    class="envio-input"
+                    placeholder="Costo envío"
+                    data-venta="${ventaMLRow}"
+                    data-pubml="${pubMLSinMLC}"
+                    value="${codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual || ''}"
+                  />
+                </div>
+              ` : ''}
+            ${(item.requiereEnvio && codigosPorVenta[`${item.ventaMLFinal}|${pubMLSinMLC}`]?.envioManual > 0) || !item.requiereEnvio ? `
+            <span class="precio-valor">${item.precioUnitario.toLocaleString('es-CL')}</span>
+            <span class="copy-precio" data-precio="${item.precioUnitario}" title="Copiar precio">📋</span>
+            ` : ''}
+          </td>
+          <td class="obs-cell error-cell" style="display:none;>
+            ${item.obs}
+          </td>
+        `;
+
+        resultsBody.appendChild(tr);
+        ultimaFilaRenderizada = tr;
+
+        const check = tr.querySelector(".row-check");
+
+        if (check) {
+          check.addEventListener("change", () => {
+            actualizarSelectAll();
+            actualizarBotonExportar();
+          });
+        }
+      }
+
+      for (const item of importacion) {
         const obs = item.obs;
         const pubML = String(item.r[ML_COL_PUBML] || '').trim(); // Col Q
 
@@ -3236,7 +3918,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsBody.appendChild(tr);
       }
 
-      buildPills([...observaciones, ...observacionesOK]);
+      buildPills([...observaciones, ...observacionesOK, ...pedidosBodega, ...importacion]);
 
       restaurarEstadoDespachoUI();
 
