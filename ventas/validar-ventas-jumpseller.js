@@ -1559,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.style.display =
             obs !== 'OK' &&
             obs !== 'IMPORTACIÓN' &&
-            obs !== 'PEDIDOBODEGA'
+            obs !== 'PEDIDO BODEGA'
               ? ''
               : 'none';
           break;
