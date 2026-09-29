@@ -718,7 +718,7 @@ function buildObservations(odooRows, mlRows, omitidosSet = new Set(), stockMlCon
       ? ''   // no mostrar variante si es igual al título
       : mlVariantRaw;
 
-    if (omitidosSet.has(normalizedPublication) && mlStock === 0) {
+    if (omitidosSet.has(normalizedPublication)/* && mlStock === 0*/) {
       return {
         publication: originalPublication,
         mlVariantDisplay: mlVariantForDisplay,
