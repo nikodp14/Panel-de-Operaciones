@@ -2190,6 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const varianteML = String(r[ML_COL_VARIANTE] || '')
               .replace(/color\s*:/i, '')
+              .replace(/color de la lente\s*:/i, '')
               .trim();
 
             const matches = resolveMlVariant({
@@ -2622,6 +2623,7 @@ document.addEventListener('DOMContentLoaded', () => {
           : String(item.r[ML_COL_TITULO] || '').trim();// Col S
         let variante = String(item.r[ML_COL_VARIANTE] || '')
           .replace(/color\s*:/i, '')
+          .replace(/color de la lente\s*:/i, '')
           .trim(); // Col T
 
         // Normalización de variante
