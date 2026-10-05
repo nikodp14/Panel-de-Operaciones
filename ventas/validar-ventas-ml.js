@@ -2078,7 +2078,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ) continue;
 
         if (
-          !/*(totalCLP > 0 || totalCLP === 0) &&*/
+          !(/*totalCLP > 0 || */totalCLP === 0) &&
           !esLineaHijaPaquete
         ) continue;
 
