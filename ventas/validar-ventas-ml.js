@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const START_ROW = 6;
+  let START_ROW = 5;
   const mlInput = document.getElementById('mlVentasFile');
   const analyzeBtn = document.getElementById('analyzeVentasBtn');
   const statusEl = document.getElementById('statusVentas');
@@ -1643,8 +1643,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const wsML = wbML.Sheets[wbML.SheetNames[0]];
       const mlRows = XLSX.utils.sheet_to_json(wsML, { header: 1, raw: false });
       //const HEADER_ROW_INDEX = 5; // fila donde están los títulos
-      const HEADER_ROW_INDEX = START_ROW - 1;
-      const headerRow = mlRows[HEADER_ROW_INDEX] || [];
+      let HEADER_ROW_INDEX = START_ROW - 1;
+      let headerRow = mlRows[HEADER_ROW_INDEX] || [];
 
       function findColIndexByName(posiblesNombres = []) {
         return headerRow.findIndex(col => {
@@ -1659,10 +1659,46 @@ document.addEventListener('DOMContentLoaded', () => {
         'forma de entrega'
       ]);
 
-      const ML_COL_TITULO = findColIndexByName([
+      let ML_COL_TITULO = findColIndexByName([
         'título de la publicación',
         'titulo de la publicacion'
       ]);
+
+      if (ML_COL_TITULO === -1) {
+
+        START_ROW = START_ROW + 1;
+        HEADER_ROW_INDEX = START_ROW - 1;
+        headerRow = mlRows[HEADER_ROW_INDEX] || [];
+
+        ML_COL_TITULO = findColIndexByName([
+          'título de la publicación',
+          'titulo de la publicacion'
+        ]);
+      }
+
+      if (ML_COL_TITULO === -1) {
+
+        START_ROW = START_ROW + 1;
+        HEADER_ROW_INDEX = START_ROW - 1;
+        headerRow = mlRows[HEADER_ROW_INDEX] || [];
+
+        ML_COL_TITULO = findColIndexByName([
+          'título de la publicación',
+          'titulo de la publicacion'
+        ]);
+      }
+
+      if (ML_COL_TITULO === -1) {
+
+        START_ROW = START_ROW + 1;
+        HEADER_ROW_INDEX = START_ROW - 1;
+        headerRow = mlRows[HEADER_ROW_INDEX] || [];
+
+        ML_COL_TITULO = findColIndexByName([
+          'título de la publicación',
+          'titulo de la publicacion'
+        ]);
+      }
 
       if (ML_COL_TITULO === -1) {
         throw new Error('No se encontró la columna "Título de la publicación" en el Excel.');
