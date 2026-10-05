@@ -1655,10 +1655,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      const ML_COL_FORMA_ENTREGA = findColIndexByName([
-        'forma de entrega'
-      ]);
-
       let ML_COL_TITULO = findColIndexByName([
         'título de la publicación',
         'titulo de la publicacion'
@@ -1703,6 +1699,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ML_COL_TITULO === -1) {
         throw new Error('No se encontró la columna "Título de la publicación" en el Excel.');
       }
+
+      const ML_COL_FORMA_ENTREGA = findColIndexByName([
+        'forma de entrega'
+      ]);
 
       const ML_COL_TOTAL = findColIndexByName([
         'total (clp)',
