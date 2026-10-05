@@ -1960,6 +1960,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               const varianteML = String(r[ML_COL_VARIANTE] || '')
                 .replace(/color\s*:/i, '')
+                .replace(/color de la lente\s*:/i, '')
                 .trim();
 
               const matches = resolveMlVariant({
