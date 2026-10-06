@@ -1790,9 +1790,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let packMap = new Map();
 
       try {
-        const response = await fetch('/validar-ml/configuracion.xlsx', {
+        /*const response = await fetch('/validar-ml/configuracion.xlsx', {
           cache: 'no-store'
-        });
+        });*/
 
         if (response.ok) {
           const configBuf = await response.arrayBuffer();
