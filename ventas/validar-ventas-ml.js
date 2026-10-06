@@ -1751,7 +1751,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let tituloPorPublicacion = new Map();
 
       try {
-        /*const pubRes = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
+        const pubRes = await fetch('/api/ml/publicaciones/ultimo', { cache: 'no-store' });
         if (pubRes.ok) {
 
           const pubBuf = await pubRes.arrayBuffer();
@@ -1781,7 +1781,7 @@ document.addEventListener('DOMContentLoaded', () => {
               tituloPorPublicacion.set(pub, titulo);
             }
           }
-        }*/
+        }
       } catch (e) {
         console.warn('No se pudo cargar Publicaciones ML para títulos.', e);
       }
