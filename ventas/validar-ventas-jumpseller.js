@@ -2604,12 +2604,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
           /*const esPedidoBodega =
             /^pedido bodega\b/i.test(nombreProducto) ||
-            /^pedido bodega\b/i.test(nombreProducto);
+            /^pedido bodega\b/i.test(nombreProducto);*/
 
           const codigoPedidoBodega =
             esPedidoBodega
               ? (nombreProducto.match(/^pedido bodega\s+(.+)$/i)?.[1] || '').trim()
-              : '';*/
+              : '';
 
           let obsRender = obsFinal;
           
