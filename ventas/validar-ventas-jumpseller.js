@@ -2542,7 +2542,7 @@ document.addEventListener('DOMContentLoaded', () => {
           codigosPorVenta[keyPersistencia]?.escaneado || null;
 
           const pubKey = String(pubProcesar || '').replace(/^MLC/i, '').trim();
-          const cambioProducto = cambioProductoPersistido;
+          //const cambioProducto = cambioProductoPersistido;
 
           const codigoIngresado =
           codigosPorVenta[keyPersistencia]?.codigo || '';
@@ -2556,6 +2556,13 @@ document.addEventListener('DOMContentLoaded', () => {
           codigoCoincideConEscaneo(codigoEfectivo, escaneado);
 
           const esPagoPendiente = estadoML.toLowerCase().includes('pendiente');
+
+          const nombreProducto = String(r[ML_COL_TITULO] || '').trim();
+
+          const esPedidoBodega = /^pedido bodega\b/i.test(nombreProducto);
+
+          const cambioProducto =
+            esPedidoBodega || cambioProductoPersistido;
 
           if (VENTAS_OMITIDAS.has(ventaKey)) {
             obsFinal = 'OK';
@@ -2584,7 +2591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          const nombreProducto = String(r[ML_COL_TITULO] || '').trim();
+          //const nombreProducto = String(r[ML_COL_TITULO] || '').trim();
 
           const esImportacion =
             /^importaci[oó]n\b/i.test(nombreProducto) ||
@@ -2595,14 +2602,14 @@ document.addEventListener('DOMContentLoaded', () => {
               ? (nombreProducto.match(/^importación\s+(.+)$/i)?.[1] || '').trim()
               : '';
 
-          const esPedidoBodega =
+          /*const esPedidoBodega =
             /^pedido bodega\b/i.test(nombreProducto) ||
             /^pedido bodega\b/i.test(nombreProducto);
 
           const codigoPedidoBodega =
             esPedidoBodega
               ? (nombreProducto.match(/^pedido bodega\s+(.+)$/i)?.[1] || '').trim()
-              : '';
+              : '';*/
 
           let obsRender = obsFinal;
           
