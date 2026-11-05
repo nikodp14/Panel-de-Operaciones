@@ -2120,11 +2120,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const packInfo =
           packMap.get(pubOriginal);
 
-        const publicacionesAProcesar =
+        const publicacionesAProcesarBase =
           construirLineasPack(
             packInfo,
             pubOriginal
           );
+
+        // En ventas canceladas/devoluciones no se exige elegir una opción.
+        // Se procesan todas las publicaciones del grupo por separado para
+        // identificar cuáles tienen unidades efectivamente entregadas en Odoo.
+        const publicacionesAProcesar = esCancelODevolucion
+          ? publicacionesAProcesarBase.flatMap(linea =>
+              linea && typeof linea === 'object' && linea.seleccionProducto
+                ? linea.opciones
+                : [linea]
+            )
+          : publicacionesAProcesarBase;
 
         // ✅ USAR SOLO datos del procesamiento
         //alert(qtyRegistradaOdoo);
@@ -2592,7 +2603,10 @@ document.addEventListener('DOMContentLoaded', () => {
         );
       
         // 🔴 Si es DEVOLVER, forzar visualmente a 0
-        if (obs === 'DEVOLVER') {
+        if (
+          obs === 'DEVOLVER' ||
+          obs === 'DEVUELVA LAS UNIDADES ENTREGADAS Y DETERMINE QUE HACER CON EL STOCK.'
+        ) {
           unidadesDespachar = 0;
         }
 
