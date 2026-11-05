@@ -2077,10 +2077,10 @@ document.addEventListener('DOMContentLoaded', () => {
           !esLineaHijaPaquete
         ) continue;
 
-        if (
-          !(totalCLP > 0 || totalCLP === 0) &&
+        /*!if (
+          (totalCLP > 0 || totalCLP === 0) &&
           !esLineaHijaPaquete
-        ) continue;
+        ) continue;*/
 
         const existeEnOdoo = odooSet.has(normVentaKey(ventaMLFinal));
 
