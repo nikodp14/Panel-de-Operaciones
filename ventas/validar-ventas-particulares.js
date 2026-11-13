@@ -629,8 +629,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const hayMatch = !!info;
     const esRegistrar = obs === "REGISTRAR VENTA EN ODOO";
+    const esPendientePago = tr.classList.contains("pending-payment");
+    const estaBloqueada = tr.classList.contains("locked");
 
-    if (hayMatch && esRegistrar) {
+    if (hayMatch && esRegistrar && !esPendientePago && !estaBloqueada) {
 
       if (!existingCheck) {
         const check = document.createElement("input");
@@ -697,6 +699,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         agregarLineaVenta(v.venta);
 
         const tr = resultsBody.lastChild;
+
+        // Recuperar estado pendiente de pago
+        if(v.pendingPayment){
+          tr.classList.add("pending-payment");
+        }
 
         tr.querySelector(".fecha-input").value = v.fecha || "";
         tr.querySelector(".codigo-input").value = v.codigo || "";
@@ -1268,6 +1275,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     <td>
       <button class="lock-btn" title="Bloquear venta">🔒</button>
+      <button class="pending-payment-btn" title="Marcar pendiente de pago">💰</button>
       <button class="pack-btn">📦</button>
       <button class="delete-btn">🗑</button>
     </td>
@@ -1963,8 +1971,79 @@ document.addEventListener("DOMContentLoaded", async () => {
   resultsBody.addEventListener("click", (e) => {
 
     if(e.target.classList.contains("lock-btn")){
+
       const tr = e.target.closest("tr");
+      const venta = tr.dataset.venta;
+
+      const estabaBloqueada = tr.classList.contains("locked");
+
+      // Bloquear o desbloquear solicitando clave cuando corresponda
       toggleLockVenta(tr);
+
+      // Si estaba bloqueada y ahora quedó desbloqueada
+      if(estabaBloqueada && !tr.classList.contains("locked")){
+
+        const rows = resultsBody.querySelectorAll(
+          `tr[data-venta="${venta}"]`
+        );
+
+        rows.forEach(r => {
+          r.classList.remove("pending-payment");
+        });
+
+        // Volver a evaluar cada fila y recuperar sus checkbox
+        rows.forEach(r => {
+          validarLinea(r);
+        });
+
+      }
+
+      return;
+    }
+
+    if(e.target.classList.contains("pending-payment-btn")){
+
+      const tr = e.target.closest("tr");
+      const venta = tr.dataset.venta;
+
+      const rows = resultsBody.querySelectorAll(
+        `tr[data-venta="${venta}"]`
+      );
+
+      // Si está desbloqueada, marcar como pendiente de pago.
+      if(!tr.classList.contains("locked")){
+
+        rows.forEach(r => {
+          r.classList.add("pending-payment");
+        });
+
+        // Quitar inmediatamente el checkbox existente.
+        rows.forEach(r => {
+          actualizarCheckboxSegunObsYMatch(r);
+        });
+
+        toggleLockVenta(tr);
+
+      }else{
+
+        // Si está bloqueada, solicitar clave para desbloquear.
+        toggleLockVenta(tr);
+
+        // Quitar el estado solamente si se desbloqueó correctamente.
+        if(!tr.classList.contains("locked")){
+
+          rows.forEach(r => {
+            r.classList.remove("pending-payment");
+          });
+
+          rows.forEach(r => {
+            validarLinea(r);
+          });
+
+        }
+
+      }
+
       return;
     }
 
@@ -2089,6 +2168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       courierValor: tr.querySelector(".courier-valor")?.value || "",
       pack: tr.classList.contains("pack-parent"),
       locked: tr.classList.contains("locked"),
+      pendingPayment: tr.classList.contains("pending-payment"),
       paquetehijarow: tr.classList.contains("paquete-hija-row"),
       nombreEnvio: tr.dataset.nombreEnvio || "",
       telefonoEnvio: tr.dataset.telefonoEnvio || "",
@@ -2137,6 +2217,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       agregarLineaVenta(v.venta);
 
       const tr = resultsBody.querySelector(`tr[data-venta="${v.venta}"]:last-child`);
+
+      // Recuperar estados guardados ANTES de validar
+      if(v.pendingPayment){
+        tr.classList.add("pending-payment");
+      }
+
+      if(v.locked){
+        tr.classList.add("locked");
+      }
 
       if(v.pack)
         tr.classList.add("pack-parent");
@@ -2248,6 +2337,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       calcularValorOdoo(tr);
       validarLinea(tr);
+
+      // Si la venta está bloqueada, asegurar que no quede ningún checkbox
+      if(tr.classList.contains("locked")){
+        const check = tr.querySelector(".row-check");
+
+        if(check){
+          check.remove();
+        }
+
+        tr.querySelector(".links-col").innerHTML = "";
+      }
     });
     
     const ventasBloqueadas = new Set(

@@ -960,7 +960,8 @@ body.sidebar-collapsed .container {
 
 #ventasResults .lock-btn,
 #ventasResults .pack-btn,
-#ventasResults .delete-btn{
+#ventasResults .delete-btn,
+#ventasResults .pending-payment-btn{
   width:34px;
   height:34px;
   display:flex;
@@ -1315,6 +1316,10 @@ tr.locked {
 
 tr.locked .lock-btn {
   background: #22c55e;
+}
+
+.pending-payment-btn {
+  cursor: pointer;
 }
 
 .modal {
