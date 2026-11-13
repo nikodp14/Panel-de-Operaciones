@@ -659,7 +659,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tr.querySelector(".links-col").innerHTML = "";
       }
       
-      if (!hayMatch){
+      if(!hayMatch && !esPendientePago){
         tr.querySelector(".obs-cell").textContent = "PRODUCTO NO EXISTE EN ODOO";
       }
     }
@@ -1566,7 +1566,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let obs = "";
 
-    if(!codigo)
+    if(tr.classList.contains("pending-payment")){
+      obs = "PENDIENTE PAGO";
+    }
+    else if(!codigo)
     obs = "INGRESE PRODUCTO";
 
     else if(!odooQtyByVentaCodigo.has(key))
@@ -2043,6 +2046,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
       }
+
+      guardarVentasServer();
 
       return;
     }
