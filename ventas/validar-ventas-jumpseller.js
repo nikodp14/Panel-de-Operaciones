@@ -1215,26 +1215,90 @@ document.addEventListener('DOMContentLoaded', () => {
     ) || null;
   }
 
+  
   function buildPackMap(configWorkbook) {
+
     const ws = configWorkbook.Sheets['Pack'];
-    
+
     if (!ws) return new Map();
 
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+    const rows = XLSX.utils.sheet_to_json(
+      ws,
+      {
+        header: 1,
+        raw: false
+      }
+    );
+
     const map = new Map();
 
-    for (let i = 0; i < rows.length; i++) {
-      const padre = String(rows[i][0] || '').replace(/^MLC/i, '').trim();
-      const hija  = String(rows[i][1] || '').replace(/^MLC/i, '').trim();
+    for (let i = 1; i < rows.length; i++) {
+
+      const padre = String(rows[i][0] || '')
+        .replace(/^MLC/i, '')
+        .trim();
+
+      const hija = String(rows[i][1] || '')
+        .replace(/^MLC/i, '')
+        .trim();
+
+      const grupo = String(rows[i][2] || '')
+        .trim()
+        .toUpperCase();
 
       if (!padre || !hija) continue;
 
-      if (!map.has(padre)) map.set(padre, []);
-      map.get(padre).push(hija);
+      if (!map.has(padre)) {
+        map.set(padre, {
+          fijos: [],
+          opciones: {}
+        });
+      }
+
+      const pack = map.get(padre);
+
+      if (!grupo) {
+        pack.fijos.push(hija);
+      } else {
+
+        if (!pack.opciones[grupo]) {
+          pack.opciones[grupo] = [];
+        }
+
+        pack.opciones[grupo].push(hija);
+      }
     }
 
     return map;
   }
+
+  function construirLineasPack(packInfo, pubOriginal) {
+
+    if (!packInfo) {
+      return [pubOriginal];
+    }
+
+    const resultado = [];
+
+    resultado.push(...packInfo.fijos);
+
+    Object.entries(packInfo.opciones).forEach(
+      ([grupo, opciones]) => {
+
+        resultado.push({
+          seleccionProducto: true,
+          grupo,
+          opciones
+        });
+
+      }
+    );
+
+    return resultado.length
+      ? resultado
+      : [pubOriginal];
+  }
+
 
   function getCellHyperlink(sheet, rowIndex, colIndex) {
     const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
@@ -2321,13 +2385,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 🔹 Ver si es pack
-        const publicacionesPack = packMap.get(pubOriginal);
+        const packInfo = packMap.get(pubOriginal);
 
-        // Si es pack → procesamos hijas
-        const publicacionesAProcesar = 
-          (publicacionesPack && publicacionesPack.length)
-            ? publicacionesPack
-            : [pubOriginal];
+        const publicacionesAProcesar = construirLineasPack(
+          packInfo,
+          pubOriginal
+        );
 
         // ✅ USAR SOLO datos del procesamiento
         //alert(qtyRegistradaOdoo);
