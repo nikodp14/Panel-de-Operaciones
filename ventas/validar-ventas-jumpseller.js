@@ -1215,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ) || null;
   }
 
-  
+    
   function buildPackMap(configWorkbook) {
 
     const ws = configWorkbook.Sheets['Pack'];
@@ -1271,34 +1271,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return map;
   }
-
-  function construirLineasPack(packInfo, pubOriginal) {
-
-    if (!packInfo) {
-      return [pubOriginal];
-    }
-
-    const resultado = [];
-
-    resultado.push(...packInfo.fijos);
-
-    Object.entries(packInfo.opciones).forEach(
-      ([grupo, opciones]) => {
-
-        resultado.push({
-          seleccionProducto: true,
-          grupo,
-          opciones
-        });
-
-      }
-    );
-
-    return resultado.length
-      ? resultado
-      : [pubOriginal];
-  }
-
 
   function getCellHyperlink(sheet, rowIndex, colIndex) {
     const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
@@ -2385,12 +2357,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 🔹 Ver si es pack
-        const packInfo = packMap.get(pubOriginal);
+        const publicacionesPack = packMap.get(pubOriginal);
 
-        const publicacionesAProcesar = construirLineasPack(
-          packInfo,
-          pubOriginal
-        );
+        // Si es pack → procesamos hijas
+        const publicacionesAProcesar = 
+          (publicacionesPack && publicacionesPack.length)
+            ? publicacionesPack
+            : [pubOriginal];
 
         // ✅ USAR SOLO datos del procesamiento
         //alert(qtyRegistradaOdoo);
