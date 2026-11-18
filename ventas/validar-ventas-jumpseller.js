@@ -797,12 +797,11 @@ document.addEventListener('DOMContentLoaded', () => {
     scanInterval = setTimeout(pollScanner, 250);
   }
 
-  async function handleScan(data) {
+    async function handleScan(data) {
 
     const code = String(data.code || '').trim();
-    if (!code) return;
 
-    if (!scanResultEl) return;
+    if (!code || !scanResultEl || scannerLock) return;
 
     const tr = scanResultEl.closest("tr");
     if (!tr) return;
@@ -810,70 +809,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = tr.querySelector(".codigo-input");
     if (!input) return;
 
-    const codigoInput = (input?.value || '').trim();
+    const codigoInput = (input.value || '').trim();
 
     const ventaML = input.dataset.venta;
     const pubML = input.dataset.pubml;
 
     const keyPersistencia = `${ventaML}|${pubML}`;
 
-    lastScannedCode = code;
-    lastScanTs = data.ts || Date.now();
-
-    // Mostrar escaneo en pantalla
-    scanResultEl.textContent = code;
-
-    const copyBtn = scanResultEl.parentElement.querySelector('.copy-scan');
-    if (copyBtn) copyBtn.dataset.scan = code;
+    scannerLock = true;
 
     try {
 
+      // Confirmar cantidad cuando corresponda
       const cantidad = Number(
         tr.querySelector('.qty-valor')?.textContent || 0
       );
-      
+
       if (cantidad > 1) {
 
         const ok = await confirmarCantidad(cantidad);
 
         if (!ok) {
           showToast("Despacho cancelado ❌", 1500, "error");
-
-          // limpiar UI
-          scanResultEl.textContent = "—";
-          lastScannedCode = null;
-
-          return; // 🚫 CRÍTICO
+          scannerLock = false;
+          return;
         }
       }
 
-      // Persistir escaneo
-      await fetch('/api/jumpseller/ventas/codigos', {
+      // Guardar escaneo en el servidor
+      const res = await fetch('/api/jumpseller/ventas/codigos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           key: keyPersistencia,
           ventaML,
           pubML,
-          codigo: codigoInput,   // 👈 guardar código del input
+          codigo: codigoInput,
           escaneado: code
         })
       });
 
-      // actualizar cache local
-      codigosPorVenta[keyPersistencia] = {
-        ...(codigosPorVenta[keyPersistencia] || {}),
-        codigo: codigoInput,
-        escaneado: code
-      };
+      if (!res.ok) {
+        throw new Error('No se pudo guardar el escaneo');
+      }
+
+      // Guardar posición actual de pantalla
+      sessionStorage.setItem('scrollY', String(window.scrollY));
+
+      showToast("Producto escaneado 📦", 1500);
+
+      // Detener el escáner antes de recargar
+      clearTimeout(scanInterval);
+
+      // Recargar página completa
+      location.reload();
 
     } catch (err) {
-      console.error("Error guardando escaneo", err);
+
+      console.error("Error guardando escaneo:", err);
+
+      showToast("Error al guardar el escaneo ❌", 2000, "error");
+
+      scannerLock = false;
+
     }
-
-    await validarLineaDespacho(tr, input);
-
-    showToast("Producto escaneado 📦", 1500);
 
   }
 
