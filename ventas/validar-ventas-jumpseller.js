@@ -1215,36 +1215,21 @@ document.addEventListener('DOMContentLoaded', () => {
     ) || null;
   }
 
-    
   function buildPackMap(configWorkbook) {
-
     const ws = configWorkbook.Sheets['Pack'];
-
+    
     if (!ws) return new Map();
 
-    const rows = XLSX.utils.sheet_to_json(
-      ws,
-      {
-        header: 1,
-        raw: false
-      }
-    );
-
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
     const map = new Map();
 
-    for (let i = 1; i < rows.length; i++) {
-
-      const padre = String(rows[i][0] || '')
-        .replace(/^MLC/i, '')
-        .trim();
-
-      const hija = String(rows[i][1] || '')
-        .replace(/^MLC/i, '')
-        .trim();
+    for (let i = 0; i < rows.length; i++) {
+      const padre = String(rows[i][0] || '').replace(/^MLC/i, '').trim();
+      const hija  = String(rows[i][1] || '').replace(/^MLC/i, '').trim();
 
       const grupo = String(rows[i][2] || '')
-        .trim()
-        .toUpperCase();
+      .trim()
+      .toUpperCase();
 
       if (!padre || !hija) continue;
 
@@ -1254,11 +1239,10 @@ document.addEventListener('DOMContentLoaded', () => {
           opciones: {}
         });
       }
-
       const pack = map.get(padre);
 
       if (!grupo) {
-        pack.fijos.push(hija);
+        map.get(padre).push(hija);
       } else {
 
         if (!pack.opciones[grupo]) {
